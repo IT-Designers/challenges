@@ -1,0 +1,64 @@
+﻿@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Contracts.Data.Review
+@inject IJSRuntime runtime
+@inject ReviewSynchronizer synchronizer
+@if (Categories != null && AllComments != null)
+{
+    <div class="comments border">
+        @foreach (var comment in synchronizer.CurrentAssoziation.Comments.Comments)
+        {
+            <div class="comment row" style="margin-right: 0px" @onmouseover="() => HoverIn(comment.Offset, comment.Length)" @onmouseover:stopPropagation="true" @onmouseout="HoverOut" @onmouseout:stopPropagation="true">
+                @if (!isReadOnly)
+                {
+                    <select @bind="comment.Id" class="form-input col-9">
+                        @foreach (var kvp in Categories)
+                        {
+                            <option value="@kvp.Id">@kvp.Title</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <p style="color: white">@Categories?.Where(x => x.Id.Equals(comment.Id)).Select(x => x.Title).FirstOrDefault()</p>
+                }
+                @if (!isReadOnly)
+                {
+                    <a @onclick="() => DeleteComment(comment)" class="btn btn-danger col-3">X</a>
+                }
+                <textarea @bind="@comment.Text" readonly="@isReadOnly"></textarea>
+            </div>
+        }
+    </div>
+}
+
+
+@code {
+
+    [Parameter]
+    public bool isReadOnly { get; set; }
+
+    [Parameter]
+    public IEnumerable<(string Id, string Title)> Categories { get; set; }
+
+    [Parameter]
+    public HashSet<ReviewComments> AllComments { get; set; }
+
+    void HoverIn(int offset, int length)
+    {
+        runtime.InvokeVoidAsync("addVisualMarker", offset, length);
+    }
+
+    void HoverOut()
+    {
+        runtime.InvokeVoidAsync("removeVisualMarker");
+    }
+
+    void DeleteComment(ReviewComments comment)
+    {
+        synchronizer.CurrentAssoziation.Comments.Comments.Remove(comment);
+        runtime.InvokeVoidAsync("removeVisualMarker");
+        AllComments.Remove(comment);
+        synchronizer.InvokeEvent();
+    }
+
+}

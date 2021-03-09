@@ -1,0 +1,221 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Contracts.Data.Review
+@inject IToastService toastService
+@inject ReviewSynchronizer synchronizer
+<div class="fullscreen-hidden">
+    @if (CurrentQuestion != null)
+    {
+        <div class="row">
+            <div class="col-3">
+                @if (!CurrentQuestion.Equals(GuidedQuestions[0]))
+                {
+                    <button class="btn btn-primary" @onclick="PreviousQuestion">Vorherige Frage</button>
+                }
+            </div>
+            <div class="col-3 d-flex flex-row-reverse ml-auto">
+                <button class="btn btn-primary pull-right" @onclick="NextQuestion">Nächste Frage</button>
+            </div>
+            <div class="guidedQuestion col-12">
+                <div class="form-group ">
+                    <div class="input-group-prepend">
+                        <label class="font-weight-bold" for="inputGroupSelect01">@CurrentQuestion.Question</label>
+                    </div>
+                    <div class="switch-field">
+                        @foreach (var kvp in GuidedQuestion.RatingToDescription)
+                        {
+                            <button class=@(CurrentQuestion.Rating != null && CurrentQuestion.Rating == kvp.Key ? "review-selected" : "") value="@kvp.Key" @onclick="e => SetRatingForCurrentQuestion(kvp.Key)">@((MarkupString) ShortenTitle(kvp.Value))</button>
+                        }
+                    </div>
+                </div>
+                <table class="table">
+                    <tbody>
+                    @foreach (var issue in CurrentQuestion?.Issues)
+                    {
+                        <tr class=@(CurrentIssue != null && CurrentIssue.Equals(issue) ? "questionnaire.currentIssue bg-warning" : "") @onclick="(() => ChangeCurrentIssue(issue))">
+                            <td>@issue.Text</td><td class="issueCount">@CalculateIssueCount(issue)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+<div class="row">
+    @if (CurrentQuestion == null)
+    {
+        <div id="guidedQuestionEnd">
+            <div class="col-sm-9 col-12">
+                <h3>Der Fragebogen wurde ausgefüllt. Sende das Review ab.</h3>
+            </div>
+            <div class="col-sm-3 col-12 pull-right">
+                <button type="button" class="btn btn-primary btn-block" @onclick="@InvokeParentSubmit">Review einreichen</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    [Parameter]
+    public GuidedQuestion[] GuidedQuestions { get; set; }
+
+    [Parameter]
+    public Action SubmitReview { get; set; }
+
+    GuidedQuestion CurrentQuestion { get; set; }
+
+    [Parameter]
+    public Issue CurrentIssue { get; set; }
+
+    [Parameter]
+    public EventCallback<Issue> CurrentIssueChanged { get; set; }
+
+    [Parameter]
+    public HashSet<ReviewComments> AllComments { get; set; } = new HashSet<ReviewComments>();
+
+    protected override void OnInitialized()
+    {
+        CurrentQuestion = GuidedQuestions.ToList().Where(x => x.Rating == null).FirstOrDefault();
+        synchronizer.SomeDataChanged += StateHasChanged;
+    }
+
+    void InvokeParentSubmit()
+    {
+        SubmitReview?.Invoke();
+    }
+
+    void PreviousQuestion()
+    {
+        if (!CanChangeQuestion())
+        {
+            return;
+        }
+        for (var i = 0; i < GuidedQuestions.Length; i++)
+        {
+            if (GuidedQuestions[i].Equals(CurrentQuestion))
+            {
+                if (i != 0)
+                {
+                    CurrentQuestion = GuidedQuestions[i - 1];
+                }
+                else
+                {
+                    toastService.ShowError("Keine vorherige Frage.", "Error");
+                    return;
+                }
+            }
+        }
+        StateHasChanged();
+    }
+
+    void NextQuestion()
+    {
+        if (!CanChangeQuestion())
+        {
+            return;
+        } //2 stands for "Current submission should be improved", so it quits the reviewing.
+        if (CurrentQuestion.Rating != null && CurrentQuestion.Rating == GuidedQuestion.submissionShouldBeImproved)
+        {
+            EndQuestions();
+            return;
+        }
+    //Take next
+        for (var i = 0; i < GuidedQuestions.Length; i++)
+        {
+            if (CurrentQuestion.Id.Equals(GuidedQuestions[i].Id))
+            {
+                if (i < GuidedQuestions.Length - 1)
+                {
+                    CurrentQuestion = GuidedQuestions[i + 1];
+                    CurrentIssue = null;
+                    return;
+                }
+                EndQuestions();
+            }
+        }
+        StateHasChanged();
+    }
+
+    bool CanChangeQuestion()
+    {
+        if (AnyCommentsEmpty())
+        {
+            toastService.ShowWarning("Nicht alle Kommentare ausgefüllt", "Warning");
+            return false;
+        }
+        if (CurrentQuestion.Rating == null)
+        {
+            toastService.ShowWarning("Bitte wähle eine Bewertung", "Warning");
+            return false;
+        }
+        var IssueCount = CurrentQuestion.Issues.Select(x => CalculateIssueCount(x)).Aggregate(0, (total, currentValue) => total + currentValue);
+        if ((CurrentQuestion.Rating == GuidedQuestion.minimalProblems || CurrentQuestion.Rating == GuidedQuestion.submissionShouldBeImproved) && IssueCount < 1)
+        {
+            toastService.ShowWarning("Bitte markiere mindestens ein Problem", "Warning");
+            return false;
+        }
+        if (CurrentQuestion.Rating == GuidedQuestion.noProblems && IssueCount > 0)
+        {
+            toastService.ShowWarning("Problem vorhanden, bitte passe die Bewertung an", "Warning");
+            return false;
+        }
+        return true;
+    }
+
+    bool AnyCommentsEmpty()
+    {
+        return AllComments.Any(element =>
+        {
+            var text = element.Text;
+            if (text == null || text.Length == 0)
+            {
+                return true;
+            }
+            return false;
+        });
+    }
+
+    void EndQuestions()
+    {
+        CurrentQuestion = null;
+    }
+
+    string ShortenTitle(string title)
+    {
+        var substrings = title.Split('(');
+        if (substrings.Length > 1)
+        {
+            return substrings[0] + "<br/><small>" + substrings[1].Replace(")", "</small>");
+        }
+        return title;
+    }
+
+    void SetRatingForCurrentQuestion(int value)
+    {
+        CurrentQuestion.Rating = value;
+        StateHasChanged();
+    }
+
+    int CalculateIssueCount(Issue issue)
+    {
+        try
+        {
+            var issueCount = AllComments.Where(x => x.AssignedIssue != null && x.AssignedIssue == issue.Id).Count();
+            issue.IssueCount = issueCount;
+            return issueCount;
+        }
+        catch (NullReferenceException)
+        {
+            return 0;
+        }
+    }
+
+    void ChangeCurrentIssue(Issue issue)
+    {
+        CurrentIssue = issue;
+        CurrentIssueChanged.InvokeAsync(issue);
+        StateHasChanged();
+    }
+
+}

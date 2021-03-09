@@ -1,0 +1,95 @@
+@page "/Admin/ConfirmAction/{Id}/{actionName}"
+@using SubmissionEvaluation.Shared.Models.Admin
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+            @if (Model != null)
+            {
+                <p>@Model.ActionMessage</p>
+            }
+            <button @onclick="DoAction" style="margin-left: 2pt" class="btn btn-danger btn-margin col-3">Aktion durchführen</button>
+            <button @onclick="GoBack" style="margin-left: 2pt" class="btn btn-warning btn-margin col-3">Aktion nicht durchführen</button>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string Id { get; set; }
+
+    [Parameter]
+    public string actionName { get; set; }
+
+    ConfirmActionModel Model { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        if (!userSettings.Roles.Contains("admin"))
+        {
+            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+        Model = await httpClient.GetFromJsonAsync<ConfirmActionModel>($"api/Admin/ConfirmActionModel/{Id}/{actionName}");
+    }
+
+    async void DoAction()
+    {
+        switch (actionName)
+        {
+            case "ResetMemberPassword":
+                navi.NavigateTo($"Admin/ResetMemberPassword/{Id}");
+                break;
+            case "DeleteGroup":
+                var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Group/DeleteGroup", Id);
+                Model = await CheckForSuccess(responseMessage);
+                if (Model.HasSuccess)
+                {
+                    navi.NavigateTo("Groups");
+                }
+                break;
+            default:
+                responseMessage = await httpClient.PostAsJsonAsync<string>($"api/Admin/{actionName}", Id);
+                Model = await CheckForSuccess(responseMessage);
+                if (Model.HasSuccess)
+                {
+                    navi.NavigateTo("Admin/Users");
+                }
+                break;
+        }
+        StateHasChanged();
+    }
+
+    async Task<ConfirmActionModel> CheckForSuccess(HttpResponseMessage message)
+    {
+        if (message.IsSuccessStatusCode)
+        {
+            return await message.Content.ReadFromJsonAsync<ConfirmActionModel>();
+        }
+        else
+        {
+            return Model;
+        }
+    }
+
+    void GoBack()
+    {
+        switch (actionName)
+        {
+            case "ResetMemberPassword":
+                navi.NavigateTo("Admin/Users");
+                break;
+            case "DeleteGroup":
+                navi.NavigateTo("Admin/Groups");
+                break;
+            default:
+                navi.NavigateTo("Admin/Users");
+                break;
+        }
+    }
+
+}

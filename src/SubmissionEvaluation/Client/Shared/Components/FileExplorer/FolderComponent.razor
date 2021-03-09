@@ -1,0 +1,82 @@
+﻿@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Models.Shared
+@inject FileExplorerDomain domain
+<span @onclick="() => { if (!EditDisabled) { domain.OpenFolderZone(folder); } }">
+    <span class="oi oi-folder"></span>@folder.Name
+</span>
+@if (folder.IsExpanded)
+{
+    <span class="oi oi-caret-bottom" @onclick="() => ExpandOrCollapse(folder)"></span>
+    <br/>
+    <ul class="explorer-structure less-padding">
+        @foreach (var file in folder.FilesInFolder)
+        {
+            @if (file is Folder)
+            {
+                <li class="a-bit-padding @StyleClasses">
+                    <FolderComponent folder="@((Folder) file)"/>
+                </li>
+            }
+            else
+            {
+                <li class="a-bit-padding @StyleClasses" @onclick="() => HandleFileClick(file)">
+                    <span class="oi oi-file"></span>
+                    @file.Name
+                </li>
+            }
+        }
+        @foreach (var file in folder.NewFilesInFolder)
+        {
+            @if (file is Folder)
+            {
+                <li class="a-bit-padding @StyleClasses">
+                    <FolderComponent folder="@((Folder) file)"/>
+                </li>
+            }
+            else
+            {
+                <li class="a-bit-padding @StyleClasses" @onclick="() => HandleFileClick(file)">
+                    <span class="oi oi-file"></span>
+                    @file.Name
+                </li>
+            }
+        }
+    </ul>
+}
+else
+{
+    <span class="oi oi-caret-right" @onclick="() => ExpandOrCollapse(folder)"></span>
+    <br/>
+}
+
+@code {
+
+    [Parameter]
+    public Folder folder { get; set; } = new Folder();
+
+    [Parameter]
+    public bool EditDisabled { get; set; } = false;
+
+    [Parameter]
+    public string StyleClasses { get; set; } = string.Empty;
+
+    [Parameter]
+    public Action<File> HandlingFileClick { get; set; }
+
+    protected override void OnInitialized()
+    {
+        domain.DomainEvent += StateHasChanged;
+    }
+
+    public void ExpandOrCollapse(Folder folder)
+    {
+        folder.IsExpanded = !folder.IsExpanded;
+        StateHasChanged();
+    }
+
+    void HandleFileClick(File file)
+    {
+        HandlingFileClick?.Invoke(file);
+    }
+
+}

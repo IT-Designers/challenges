@@ -1,0 +1,58 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+<div hidden="@hidden">
+    <div class="post-header">
+        Submission der Challenge "@Model.ChallengeName" auswählen:
+    </div>
+    <SelectSubmissionForTestGenerator Model="@Model"/>
+    @if (Model.SubmissionId != null)
+    {
+        <div class="card-body challenge-creation-panel">
+            <EditForm Model="@Model" OnValidSubmit="@action">
+                <input type="hidden" @bind-value="@Model.SubmissionId"/>
+                <input type="hidden" @bind-value="@Model.ChallengeId"/>
+                <label for="parametersTextAreaArrays">Startparameter</label>
+                <div id="parametersTextAreas">
+                    <ForEachInputText @bind-Parameters="Model.Test.Parameters"/>
+                </div>
+                <a id="addParameterButton" class="btn btn-outline-dark" @onclick="addInputTextArea">Parameter hinzufügen</a>
+                <p id="parametersHelpBlock" class="form-text text-muted">
+                    Gibt die Parameter an, die beim Programmstart übergeben werden. Eine Textbox entspricht einem Parameter. Der entfernen Button wird erst nach dem Speichern hinzugefügt.
+                </p>
+
+                <div>
+                    <label for="inputTextBox">Simulierte Eingabe</label>
+                    <InputTextArea @bind-Value="@Model.Test.Input" id="inputTextBox" class="form-control" style="min-height: 200px"></InputTextArea>
+                    <p id="inputHelpBlock" class="form-text text-muted">
+                        Beschreibt die Tastatureingaben, die während des Programmablaufs eingegeben wird.
+                    </p>
+                </div>
+                <button id="create" type="submit" class="btn btn-primary btn-block text-center input-field-padding" value="generateTest"><span class="glyphicon glyphicon-floppy-disk"></span> Test generieren</button>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+
+    [Parameter]
+    public TestGeneratorModel<Result, Member> Model { get; set; }
+
+    [Parameter]
+    public Action action { get; set; }
+
+    [Parameter]
+    public bool hidden { get; set; }
+
+    private void removeInputTextArea(string parameter)
+    {
+        Model.Test.Parameters.Remove(parameter);
+        StateHasChanged();
+    }
+
+    private void addInputTextArea()
+    {
+        Model.Test.Parameters.Add(string.Empty);
+        StateHasChanged();
+    }
+
+}

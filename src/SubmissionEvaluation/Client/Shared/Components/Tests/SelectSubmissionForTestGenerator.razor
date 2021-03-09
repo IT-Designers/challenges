@@ -1,0 +1,60 @@
+﻿@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+<div class="post">
+    <table class="ranking_table">
+        <thead>
+        <tr class="ranking_head">
+            <td>
+                Einreichender User
+            </td>
+            <td>
+                Bisherige Tests bestanden
+            </td>
+            <td>
+                Sprache
+            </td>
+            <td>
+                Einreichungsdatum
+            </td>
+            <td>
+                Wähle
+            </td>
+        </tr>
+        </thead>
+        @if (Model.AvailableSubmissions != null)
+        {
+            foreach (var submission in Model.AvailableSubmissions)
+            {
+                <tr>
+                    <td>
+                        @submission.Member.Name
+                    </td>
+                    <td>
+                        @submission.Submission.IsPassed
+                    </td>
+                    <td>
+                        @submission.Submission.Language
+                    </td>
+                    <td>
+                        @submission.Submission.SubmissionDate
+                    </td>
+                    <td>
+                        <button @onclick="@(() => SelectSubmission(submission.Submission.SubmissionId))" type="button" class="btn btn-info">Auswählen</button>
+                    </td>
+                </tr>
+            }
+        }
+    </table>
+</div>
+
+@code {
+
+    [Parameter]
+    public TestGeneratorModel<Result, Member> Model { get; set; }
+
+    private void SelectSubmission(string submissionId)
+    {
+        Model.SubmissionId = submissionId;
+        StateHasChanged();
+    }
+
+}

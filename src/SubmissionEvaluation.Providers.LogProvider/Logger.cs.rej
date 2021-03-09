@@ -1,0 +1,9 @@
+diff a/src/SubmissionEvaluation.Providers.LogProvider/Logger.cs b/src/SubmissionEvaluation.Providers.LogProvider/Logger.cs	(rejected hunks)
+@@ -15,7 +15,6 @@
+ 
+         public Logger(string pathToLog)
+         {
+-            mailLogger = new MailLogger();
+             var logConfig = new LoggerConfiguration().MinimumLevel.Override("Microsoft", LogEventLevel.Warning).WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] {Message}{NewLine}{Exception}", theme: SystemConsoleTheme.Literate);
+             if (pathToLog != null)
+             {

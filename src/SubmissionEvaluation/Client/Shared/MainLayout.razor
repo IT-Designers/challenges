@@ -1,0 +1,46 @@
+@inherits LayoutComponentBase
+@using Blazored.Toast.Configuration
+@using System.Globalization
+@inject HttpClient httpClient
+
+
+<BlazoredToasts Position="ToastPosition.TopLeft"
+                Timeout="10"
+                SuccessClass="success-toast-override"
+                SuccessIconClass="oi oi-thumb-up"
+                ErrorIconClass="oi oi-bug"/>
+<header>
+    <NavMenu/>
+</header>
+<div class="container main">
+    @Body
+</div>
+<footer class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <a href=@($"mailto:{Mail}")><span class="oi oi-envelope-closed"></span> @Mail</a>
+                <span class="point"> · </span>
+                <span>Basierend auf dem Design von <a href="https://github.com/Gaohaoyang">HyG</a></span>
+                <span class="point"> · </span>
+                <span>Zuletzt aktualisiert: @DateTime.Now.ToString(CultureInfo.CurrentCulture)</span>
+                <span class="point"> · </span>
+                <span>@GitVersionHash</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+@code{
+    string Mail { get; set; } = string.Empty;
+    string GitVersionHash { get; set; } = string.Empty;
+
+    protected override async void OnInitialized()
+    {
+        Mail = await httpClient.GetStringAsync("api/Account/getMailAddress");
+        GitVersionHash = await httpClient.GetStringAsync("api/Home/getGitVersionHash");
+        StateHasChanged();
+    }
+
+}

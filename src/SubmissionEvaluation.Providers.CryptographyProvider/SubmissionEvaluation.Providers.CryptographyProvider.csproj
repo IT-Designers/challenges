@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="libsodium" Version="1.0.18" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\SubmissionEvaluation.Contracts\SubmissionEvaluation.Contracts.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Update="NETStandard.Library" Version="2.0.1" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,376 @@
+@page "/Challenge/View/{challengeId}"
+@using SubmissionEvaluation.Shared.Models.Members
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@inject HttpClient httpClient
+@inject NavigationManager navi
+@inject IJSRuntime runtime
+
+@if (Model != null)
+{
+    <div class="row">
+        <div class="col-lg-9">
+            <div class="post-area">
+                <div class="post-header">
+                    <h1>
+                        @Model?.Title
+                        @if (Model.IsDraft)
+                        {
+                            @("PREVIEW/BETA")
+                        }
+                        @if (PermissionHelper.CheckPermissions(Actions.EDIT, "Challenges", Permissions, Restriction.CHALLENGES, ChallengeId))
+                        {
+                            <a class="btn btn-sm" href="@("Challenges/Edit/" + Model.Name)" style="padding: 2px">
+                                <span class="oi oi-pencil"></span>
+                            </a>
+                        }@if(PermissionHelper.CheckPermissions(Actions.VIEW, "Submissions", Permissions, Restriction.CHALLENGES, ChallengeId)) { 
+                            <a class="btn btn-sm" href="@($"Submission/Task/{Model.Name}")"style="padding: 2px">
+                                <span class="oi oi-list"></span>
+                            </a>
+                        }
+                    </h1>
+                    <p>
+                        @("Basierend auf: ")
+                        @if (Model?.Source == "none")
+                        {
+                            @("Ideen des Autors")
+                        }
+                        else if (!string.IsNullOrWhiteSpace(Model.Source))
+                        {
+                            if (Uri.TryCreate(Model.Source, UriKind.Absolute, out var uri))
+                            {
+                                <a href="@Model.Source">@(uri.Host)</a>
+                            }
+                            else
+                            {
+                                @Model.Source
+                            }
+                        }
+                        else
+                        {
+                            @("Keine Angabe zur Quelle")
+                        }
+                    </p>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.Bundle))
+                    {
+                        <p>
+                            @("Diese Aufgabe ist Teil der Aufgabenserie: ")<a href="@("Bundle/View/" + Model.Bundle)">@Model.BundleTitle</a>
+                            @if (Model.LastChallenge != null)
+                            {
+                                <NavLink href="@("Challenge/View/" + Model.LastChallenge)">[&laquo;]</NavLink>
+                            }
+                            @if (Model.NextChallenge != null)
+                            {
+                                <span>&nbsp;<a href="@("/Challenge/View/" + Model.NextChallenge)">&raquo;</a></span>
+                            }
+                        </p>
+                    }
+                </div>
+                @if (Model.CanRate)
+                {
+                    <div class="post">
+                        <div class="row" style="background: lightgoldenrodyellow; border: 1px solid black;">
+                            <div style="display: table; padding: 5px 3px;">
+                                <div style="display: table-cell; font-weight: bold; vertical-align: middle; width: 20%;">Bewertung:</div>
+                                <div style="display: table-cell; vertical-align: middle; width: 20%">
+                                    <button @onclick="() => RateChallenge(RatingType.Good)" style="color: green" class="no-styling fake-link">
+                                        <span class="oi oi-check" style="display: inline"></span><span style="display: inline-block; line-height: 1em; padding-left: 5px; vertical-align: middle; width: 80%;">Genau Richtig</span>
+                                    </button>
+                                </div>
+                                <div style="display: table-cell; vertical-align: middle; width: 20%">
+                                    <button @onclick="() => RateChallenge(RatingType.ToEasy)" style="color: orange" class="no-styling fake-link">
+                                        <span class="oi oi-thumb-up" style="display: inline"></span><span style="display: inline-block; line-height: 1em; padding-left: 5px; vertical-align: middle; width: 80%;">Leichter als angegeben</span>
+                                    </button>
+                                </div>
+                                <div style="display: table-cell; vertical-align: middle; width: 20%">
+                                    <button @onclick="() => RateChallenge(RatingType.ToHard)" style="color: red" class="no-styling fake-link">
+                                        <span class="oi oi-thumb-down" style="display: inline"></span><span style="display: inline-block; line-height: 1em; padding-left: 5px; vertical-align: middle; width: 80%;">Schwerer als angegeben</span>
+                                    </button>
+                                </div>
+                                <div style="display: table-cell; vertical-align: middle; width: 20%">
+                                    <button @onclick="() => RateChallenge(RatingType.Unclear)" style="color: gray" class="no-styling fake-link">
+                                        <span class="oi oi-question-mark" style="display: inline"></span><span style="display: inline-block; line-height: 1em; padding-left: 5px; vertical-align: middle; width: 80%;">Aufgabe war unverständlich</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                <div class="post">
+                    @((MarkupString) MarkdownToHtml.Convert(Model.Description))
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="shadow-bottom-center" style="margin-bottom: 10px">
+                <div class="categories-list-header" style="border-bottom: none">Daten</div>
+                <table class="challenge-data">
+                    <tr>
+                        <th class="d-lg-none d-xl-table-cell">Schwierigkeit:</th>
+                        <td>
+                            <div class="challengeTileLevelBack">
+                                @if (Model.DifficultyRating == null)
+                                {
+                                    <div class="challengeTileLevelUnknown"> ? </div>
+                                }
+                                else
+                                {
+                                    <div class="challengeTileLevelKnown" style="background: @Model.DifficultyRatingColor; left: @(Model.DifficultyRating - 2)%;"></div>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                    @if (!string.IsNullOrEmpty(Model.LearningFocus))
+                    {
+                        <tr>
+                            <th class="d-lg-none d-xl-table-cell">Lernfokus:</th>
+                            <td>
+                                @Model.LearningFocus<br/>
+                            </td>
+                        </tr>
+                    }
+                    @if (Features.EnableRating)
+                    {
+                        <tr>
+                            <th class="d-lg-none d-xl-table-cell" style="vertical-align: top;">Akt. Punkte:</th>
+                            <td>
+                                @Model.Points.Mid<br/><font size="1em">Schwierigkeitsabhängig</font>
+                            </td>
+                        </tr>
+                    }
+                    @if (Features.EnableEffortEstamination)
+                    {
+                        <tr>
+                            <th class="d-lg-none d-xl-table-cell">Geschätzter Aufwand:</th>
+                            <td>@Model.MinEffort - @Model.MaxEffort</td>
+                        </tr>
+                        <tr>
+                            <th class="d-lg-none d-xl-table-cell">Modus:</th>
+                            <td style="color: #@Model.RatingMethod.Color">@Model.RatingMethod.Title</td>
+                        </tr>
+                    }
+                    <tr>
+                        <th class="d-lg-none d-xl-table-cell">Kategorie:</th>
+                        <td>
+                            <a href="@("Category/" + Model.Category)">@Model.Category</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="d-lg-none d-xl-table-cell">Autor:</th>
+                        <td>
+                            <a href="mailto:@(Model.Author.Mail)?subject=Anfrage%20bezüglich%20@(Model.Title)">@(Model.Author.Name)</a>
+                        </td>
+                    </tr>
+                    @if (Model.LastEditor.Name != Model.Author.Name)
+                    {
+                        <tr>
+                            <th class="d-lg-none d-xl-table-cell">Letzter Bearbeiter:</th>
+                            <td>
+                                <a href="mailto:@(Model.LastEditor.Mail)?subject=Anfrage%20bezüglich%20@(Model.Title)">@(Model.LastEditor.Name)</a>
+                            </td>
+                        </tr>
+                    }
+                    <tr>
+                        <th class="d-lg-none d-xl-table-cell">Veröffentlicht:</th>
+                        <td>@Model.PublishDate.ToShortDateString()</td>
+                    </tr>
+                    <tr>
+                        <th class="d-lg-none d-xl-table-cell" style="vertical-align: top;">Sprachen:</th>
+                        <td>
+                            <font size="1.2em">@Model.Languages</font>
+                        </td>
+                    </tr>
+                    @if (!string.IsNullOrWhiteSpace(Model.Features))
+                    {
+                        <tr>
+                            <th class="d-lg-none d-xl-table-cell" style="vertical-align: top;">Themengebiete:</th>
+                            <td>
+                                <font size="1.2em">@Model.Features</font>
+                            </td>
+                        </tr>
+                    }
+                </table>
+                <div class="content-text" style="text-align: center;">
+                    <a class="btn btn-outline-dark btn-margin" href="@($"Submission/Add/{Model.Name}")">Lösung einreichen</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        @if (Model.RatingMethod.Type != RatingMethod.Fixed)
+        {
+            <div class="col-lg-9">
+                <div class="post-area">
+                    <div class="post-header">
+                        <h2>Ranking</h2>
+                    </div>
+                    <div class="post">
+                        <table class="ranking_table">
+                            <thead>
+                            <tr class="ranking_head">
+                                @if (Model.RatingMethod.Type == RatingMethod.Fixed)
+                                {
+                                    <th>Platz</th>
+                                }
+                                <th>Name</th>
+                                @if (Model.RatingMethod.Type == RatingMethod.Fixed)
+                                {
+                                    <th>Bewertung</th>
+                                }
+                                <th>Punkte</th>
+                                <th>Sprache</th>
+                                @if (Model.RatingMethod.Type == RatingMethod.Exec_Time)
+                                {
+                                    <th>Zeit</th>
+                                }
+                                @if (Model.RatingMethod.Type == RatingMethod.Submission_Time)
+                                {
+                                    <th>Datum</th>
+                                }
+                                @if (Model.RatingMethod.Type == RatingMethod.Score)
+                                {
+                                    <th>Wertung</th>
+                                }
+                            </tr>
+                            </thead>
+                            @foreach (var submitter in Model.Ranklist.Submitters)
+                            {
+                                <tr>
+                                    @if (Model.RatingMethod.Type == RatingMethod.Fixed)
+                                    {
+                                        <td>
+                                            @if (submitter.Rank > 0)
+                                            {
+                                                @submitter.Rank
+                                            }
+                                            else
+                                            {
+                                                @("-")
+                                            }
+                                        </td>
+                                    }
+                                    <td>
+                                        <a href="@("Members/Member/" + submitter.Id)">@(httpClient.GetFromJsonAsync<MemberModel<Result, Member>>("api/Members/Get/" + submitter.Id).Result.Name)</a>
+                                    </td>
+                                    @if (Model.RatingMethod.Type == RatingMethod.Fixed)
+                                    {
+                                        <td>
+                                            @if (submitter.Rating > 0)
+                                            {
+                                                <img style="box-shadow: unset" src="/images/Rating@(submitter.Rating).png" width="48"/>
+                                            }
+                                            else
+                                            {
+                                                <img style="box-shadow: unset" title="Bewertung noch ausstehend" src="/images/Rating0.png" width="48"/>
+                                            }
+                                        </td>
+                                    }
+                                    <td>
+                                        @if (submitter.Points > 0)
+                                        {
+                                            @submitter.Points
+                                        }
+                                        else
+                                        {
+                                            @("-")
+                                        }
+                                    </td>
+                                    <td>
+                                        <a href="/Help/Compilers">@submitter.Language</a>
+                                        @if (submitter.MoreLanguages?.Any() == true)
+                                        {
+                                            <small>
+                                                <i title="@string.Join(", ", submitter.MoreLanguages)">more</i>
+                                            </small>
+                                        }
+                                    </td>
+                                    @if (Model.RatingMethod.Type == RatingMethod.Exec_Time)
+                                    {
+                                        <td>@submitter.Exectime ms</td>
+                                    }
+                                    @if (Model.RatingMethod.Type == RatingMethod.Submission_Time)
+                                    {
+                                        <td>@submitter.Date</td>
+                                    }
+                                    @if (Model.RatingMethod.Type == RatingMethod.Score)
+                                    {
+                                        <td>@submitter.CustomScore</td>
+                                    }
+                                </tr>
+                            }
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="col-lg-9">
+                <div class="post-area">
+                    <div class="post-header">
+                        <h2>Erfolgreiche Lösungen</h2>
+                    </div>
+                    <div class="post">
+                        <table class="ranking_table">
+                            <thead>
+                            <tr class="ranking_head">
+                                <th>Sprache</th>
+                                <th>Anzahl</th>
+                            </tr>
+                            </thead>
+                            @foreach (var count in Model.Ranklist.SolvedCount)
+                            {
+                                <tr>
+                                    <td>@count.Key</td>
+                                    <td>
+                                        @if (PermissionHelper.CheckPermissions(Actions.VIEW, "Submissions", Permissions, Restriction.CHALLENGES, ChallengeId))
+                                        {
+                                            <a href=@($"Submission/Task/{Model.Name}")>@count.Value</a>
+                                        }
+                                        else
+                                        {
+                                            @count.Value
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public string ChallengeId { get; set; }
+
+    private Permissions Permissions { get; set; }
+    private ChallengeViewModel Model { get; set; }
+    FeatureSettings Features { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await httpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + ChallengeId);
+        if (Model.HasError)
+        {
+            navi.NavigateTo($"Home/Error/{Model.Message}");
+        }
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+    }
+
+    async void RateChallenge(RatingType rating)
+    {
+        await httpClient.PostAsJsonAsync<RatingType>($"api/Challenge/RateChallenge/{Model.Name}", rating);
+        Model.CanRate = false;
+        StateHasChanged();
+    }
+
+}

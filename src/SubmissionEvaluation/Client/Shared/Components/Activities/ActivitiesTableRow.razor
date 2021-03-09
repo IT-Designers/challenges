@@ -1,0 +1,70 @@
+<tr style="@RowStyle" class="@RowClass">
+    @if (Extended)
+    {
+        <td class="d-none d-sm-table-cell">@Activity.Date.ToShortDateString()</td>
+    }
+    <td class="@EntryClass">
+        @switch (Activity.Type)
+        {
+            case ActivityType.NewSubmission:
+                @("Neue Einreichung")
+                break;
+            case ActivityType.NewChallenge:
+                @("Neue Aufgabe")
+                break;
+            case ActivityType.ChangedChallenge:
+                @("Aufgabe geändert")
+                break;
+            case ActivityType.VersionUpdate:
+                @("System aktualisiert")
+                break;
+            default:
+                @("Undefiniert")
+                break;
+        }
+    </td>
+    <td class="@EntryClass">
+        @switch (Activity.Type)
+        {
+            case ActivityType.NewSubmission:
+            case ActivityType.NewChallenge:
+            case ActivityType.ChangedChallenge:
+                <NavLink href=@($"/Challenge/View/{Activity.Reference}")>@Activity.Reference</NavLink>
+                break;
+            case ActivityType.VersionUpdate:
+                <NavLink href=@("https://gogs.itd-services.de/Studentenprojekte/Challenges/commit/" + Activity.Reference)>...</NavLink>
+                break;
+            default:
+                @Activity.Reference
+                break;
+        }
+    </td>
+    @if (OnPageAndAdmin)
+    {
+        <td class="d-none d-sm-table-cell">
+            <a href=@($"Members/Member/{Activity.UserId}")>@Activity.UserName</a>
+        </td>
+    }
+</tr>
+
+@code {
+
+    [Parameter]
+    public bool OnPageAndAdmin { get; set; }
+
+    [Parameter]
+    public Activity Activity { get; set; }
+
+    [Parameter]
+    public bool Extended { get; set; }
+
+    [Parameter]
+    public string RowStyle { get; set; } = string.Empty;
+
+    [Parameter]
+    public string RowClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public string EntryClass { get; set; } = string.Empty;
+
+}

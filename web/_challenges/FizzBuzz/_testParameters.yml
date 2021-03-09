@@ -1,0 +1,71 @@
+hint: "Behandeln von einfachen Zahlen nicht korrekt implementiert."
+parameters: []
+input:
+  content: "1\n"
+expectedOutput:
+  content: "1"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von einfachen Zahlen nicht korrekt implementiert"
+parameters: []
+input:
+  content: "44\n"
+expectedOutput:
+  content: "44"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von Fizz nicht korrekt implementiert."
+parameters: []
+input:
+  content: "3\n"
+expectedOutput:
+  content: "Fizz"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von Fizz nicht korrekt implementiert"
+parameters: []
+input:
+  content: "21\n"
+expectedOutput:
+  content: "Fizz"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von Buzz nicht korrekt implementiert."
+parameters: []
+input:
+  content: "5\n"
+expectedOutput:
+  content: "Buzz"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von Buzz nicht korrekt implementiert"
+parameters: []
+input:
+  content: "55\n"
+expectedOutput:
+  content: "Buzz"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von FizzBuzz nicht korrekt implementiert."
+parameters: []
+input:
+  content: "15\n"
+expectedOutput:
+  content: "FizzBuzz"
+  settings:
+    compareMode: ContainsWord
+---
+hint: "Behandeln von FizzBuzz nicht korrekt implementiert"
+parameters: []
+input:
+  content: "90\n"
+expectedOutput:
+  content: "FizzBuzz"
+  settings:
+    compareMode: ContainsWord

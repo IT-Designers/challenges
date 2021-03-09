@@ -1,0 +1,210 @@
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Client.Shared.Components.NavMenu
+@inject HttpClient httpClient
+@inject LoginService loginService
+@inject NavigationManager navi
+@inject MaintenanceService maintenanceService
+@inject LoginService loginService
+
+<!-- navbar -->
+<nav class="navbar navbar-inverse navbar-expand" style="padding: 0px">
+    <div class="container">
+        @if (UserSettings != null)
+        {
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="d-none d-xl-block">
+
+                <a class="navbar-brand my-auto" href="/Tasks">Challenges</a>
+                @if (isLoggedin && !seesAdminMenu)
+                {
+                    <p class="navbar-text my-auto">Die Programmierplattform</p>
+                }
+            </div>
+            <div>
+                @if (IsMaintenanceMode)
+                {
+                    <p class="navbar-text my-auto" style="color: orangered">Wartungsmodus aktiv</p>
+                }
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+
+            <div class="navbar-collapse navbar-collapse">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/Tasks" Match=NavLinkMatch.All>
+                            <span class="oi oi-home"></span> Aufgaben
+                        </NavLink>
+                    </li>
+                    @if (Features.EnableRating || PermissionHelper.CheckPermissions(Actions.VIEW, "Members", Permissions))
+                    {
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="Members/List">
+                                <span class="oi oi-bar-chart"></span> Mitglieder
+                            </NavLink>
+                        </li>
+                    }
+                    @if (Features.EnableReview && PermissionHelper.CheckPermissions(Actions.VIEW, "Review", Permissions))
+                    {
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="Review/Overview">
+                                <span class="oi oi-person"></span> Reviews
+                            </NavLink>
+                        </li>
+                    }
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="Help/ViewPage">
+                            <span class="oi oi-question-mark"></span> Hilfe
+                        </NavLink>
+                    </li>
+                    <li class="nav-item d-none d-md-block">
+                        <div style="position: relative" class="nav-link">
+                            <input type="text" class="form-control" id="searchBar" placeholder="Search..." @onkeyup="FetchSearchResults" @bind-value="SearchInput" @bind-value:event="oninput" />
+                            <ul id="searchResults" class="dropdown-menu" style=@($"display: {(Results.Count == 0 ? "none" : "block")}")>
+                                @foreach (var result in Results)
+                                {
+                                    <li class="dropdown-item">
+                                        <button class="fake-link no-styling" @onclick="(e) => ResetSearchResultsAndNavigate(result.Url)">@result.Text</button>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </li>
+                    <li class="dropdown nav-item @Profile.navItem">
+                        <button class="dropdown-toggle navdroptext nav-link" type="button" id="ProfileMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="@Profile.expanded" @onclick="Profile.ShowOrHide">
+                            <span class="oi oi-person"></span> Profil <span class="caret"></span>
+                        </button>
+                        <div class="dropdown-menu @Profile.navItem" aria-labelledby="ProfileMenuButton">
+                            @{
+                                if (isLoggedin)
+                                {
+                                    <LogoutMenu UserSettings="@UserSettings" ParentAction="() => {Profile.ShowOrHide(); StateHasChanged(); }" />
+                                }
+                                else
+                                {
+                                    <LoginMenu ParentAction="() => {Profile.ShowOrHide(); StateHasChanged(); }" />
+                                }
+                            }
+                        </div>
+                    </li>
+
+                    @if (seesAdminMenu)
+                    {
+                        <li class="dropdown nav-item @Administration.navItem">
+                            <button class="dropdown-toggle navdroptext nav-link" type="button" id="AdminMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="@Administration.expanded" @onclick="Administration.ShowOrHide">
+                                <span class="oi oi-wrench"></span> Verwalten <span class="caret"></span>
+                            </button>
+                            <div class="dropdown-menu @Administration.navItem" aria-labelledby="AdminMenuButton">
+                                <AdminMenu Permissions="Permissions" ParentAction="() => {Administration.ShowOrHide(); StateHasChanged(); }" />
+                            </div>
+                        </li>
+                    }
+                    @* todo> update layout & links
+                        @if (isLoggedin)
+                        {
+                            <Notification navItem="@Notifications.navItem" expanded="@Notifications.expanded" />
+                        }*@
+                    <li class="nav-item d-none d-sm-block">
+                        <a href="https://karriere.it-designers.de/#itdesigners">
+                            <img class="hidden-xs" src="images/logo.jpg" style="width: 104px" />
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        }
+        <!-- /.container-fluid -->
+    </div>
+</nav>
+
+@code {
+
+    SettingsModel UserSettings { get; set; }
+    Permissions Permissions { get; set; }
+    bool seesAdminMenu { get; set; }
+    bool isLoggedin => UserSettings.Name != "" && UserSettings.Name != null;
+    bool collapseNavMenu = true;
+    Menu Profile = new Menu();
+    Menu Administration = new Menu();
+    Menu Notifications = new Menu();
+    FeatureSettings Features = new FeatureSettings();
+    List<SearchResult> Results { get; set; } = new List<SearchResult>();
+    string SearchInput { get; set; } = string.Empty;
+    bool IsMaintenanceMode { get; set; }
+
+    protected override void OnInitialized()
+    {
+        loginService.OnLoginChange += UpdateUserSettingsAndPermissions;
+        maintenanceService.OnMaintenanceChange += UpdateCurrentMaintenanceState;
+        UpdateUserSettingsAndPermissions();
+        UpdateCurrentMaintenanceState();
+    }
+    void ResetSearchResultsAndNavigate(string Url) {
+            Results = new List<SearchResult>();
+            SearchInput = string.Empty;
+            navi.NavigateTo(Url, true);
+    }
+    protected async void UpdateUserSettingsAndPermissions()
+    {
+        UserSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        var viewPermissions = Permissions.ViewPermissions;
+        seesAdminMenu = Permissions.isAdmin || viewPermissions.Contains("Users") || viewPermissions.Contains("Challenges") || viewPermissions.Contains("Bundles") || viewPermissions.Contains("Groups");
+        if (UserSettings.Roles == null)
+        {
+            UserSettings.Roles = new List<string>();
+        }
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        StateHasChanged();
+    }
+
+    protected async void UpdateCurrentMaintenanceState()
+    {
+        IsMaintenanceMode = await httpClient.GetFromJsonAsync<bool>("api/Admin/IsMaintenanceMode");
+        StateHasChanged();
+    }
+
+    string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    async void FetchSearchResults()
+    {
+        var input = SearchInput.ToLower();
+        if (!(input == null || input.Length < 2))
+        {
+            Results = await httpClient.GetFromJsonAsync<List<SearchResult>>($"api/Search/Results/{input}");
+            StateHasChanged();
+        }
+        else
+        {
+            Results = new List<SearchResult>();
+            StateHasChanged();
+        }
+    }
+
+    public class Menu
+    {
+        public string navItem { get; set; } = "";
+        public bool expanded { get; set; } = false;
+
+        public void ShowOrHide()
+        {
+            if (expanded)
+            {
+                navItem = "";
+                expanded = false;
+            }
+            else
+            {
+                navItem = "show";
+                expanded = true;
+            }
+        }
+    }
+
+}

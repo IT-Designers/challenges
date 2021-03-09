@@ -1,0 +1,24 @@
+﻿<div hidden="@(!hidden)" class="infoDiv">
+    <button type="button" class="closeButton" @onclick="() => { hidden = !hidden;hiddenChanged.InvokeAsync(hidden); }">x</button>
+    <h4>Willkommen im File-Explorer!</h4>
+
+    <p>
+        Um eine Datei hinzuzufügen, ziehe sie einfach in das Feld rechts oder klicke darauf.
+        <br/> <br/>
+        Einen neuen Ordner erstellst du mit dem "Neuer Ordner"-Button. ACHTUNG! Sonderzeichen und doppelte Namen sind nicht erlaubt.
+        <br/><br/>
+        Um einen Ordner oder eine Datei umzubennen, klicke einfach auf den Namen des Ordners. Löschen tust du eine Datei mit einem Klick auf den Mülleimer.
+        <br/> <br/>
+        In einen Ordner kannst du wechseln, in dem du darauf klickst. Ebenso kannst du eine Datei bearbeiten, in dem du auf das File-Icon klickst.
+    </p>
+</div>
+
+@code {
+
+    [Parameter]
+    public bool hidden { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> hiddenChanged { get; set; }
+
+}

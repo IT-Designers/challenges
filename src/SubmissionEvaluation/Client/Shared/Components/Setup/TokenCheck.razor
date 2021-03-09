@@ -1,0 +1,52 @@
+﻿@using System.Net.Http.Json
+@inject IToastService toaster
+@inject HttpClient httpClient
+<div hidden="@(Step != 0)" class="shadow text-center loginbox">
+    <div class="card post-area">
+        <div class="card-body">
+            <div class="form-group has-feedback">
+                <p>Willkommen zum initialen Setup. Bitte gib das Security-Token ein, um zu zeigen, dass du zum Setup berechtigt bist.</p>
+                <textarea @bind="securityToken" class="form-control" />
+            </div>
+            <div>
+                <button type="submit" @onclick="CheckSecurityToken" class="btn btn-info">Check</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public int Step { get; set; }
+
+    [Parameter]
+    public EventCallback<int> StepChanged { get; set; }
+
+    [Parameter]
+    public string securityToken { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> securityTokenChanged { get; set; }
+
+    async void CheckSecurityToken()
+    {
+        await securityTokenChanged.InvokeAsync(securityToken);
+        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Setup/TokenValid", securityToken);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var result = await responseMessage.Content.ReadFromJsonAsync<bool>();
+            if (!result)
+            {
+                toaster.ShowError("Invalid token.");
+            }
+            else
+            {
+                Step = 1;
+                await StepChanged.InvokeAsync(Step);
+                StateHasChanged();
+            }
+        }
+    }
+
+}

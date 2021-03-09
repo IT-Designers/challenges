@@ -1,0 +1,95 @@
+@using System.Net.Http.Json
+@inject HttpClient HttpClient
+
+@if (Note != null)
+{
+    <li class="dropdown nav-item @navItem">
+        <button id="notificationButton" class="dropdown-toggle navdroptext nav-link" data-toggle="dropdown" type="button" aria-haspopup="true" aria-expanded="@expanded" @onclick="ShowOrHide">
+            <span class="oi oi-bell"></span><span id="txtNewNotifications">@Note.Count</span>
+        </button>
+        <div id="pnlNotification" class="dropdown-menu notification-entries @navItem" aria-labelledby="notificationButton">
+            <div class="">
+                @if (Note != null && Note.Notifications.Any())
+                {
+                    foreach (var notification in Note.Notifications.Take(7))
+                    {
+                        <a class="dropdown-item" style="padding: .25rem .8rem" href="@notification.SourceUrl" @onclick="ShowOrHide">
+                            <img style="float: left; padding: 2pt 3pt 0 0" src="@notification.Image" width="25"/>
+                            <div>
+                                @((MarkupString) CheckNotificationImportance(notification))
+                            </div>
+                        </a>
+                        <hr class="row-no-margin"/>
+                    }
+                    if (Note.Notifications.Count() >= 7)
+                    {
+                        <NavLink class="dropdown-item" href="Account/Activities" style="font-size: large; text-align: center;" @onclick="ShowOrHide">
+                            ...
+                        </NavLink>
+                    }
+                }
+                else
+                {
+                    @((MarkupString) "Keine Benachrichtigungen vorhanden.")
+                }
+            </div>
+        </div>
+    </li>
+}
+
+@code {
+    public NotificationModel Note { get; set; }
+
+    [Parameter]
+    public string navItem { get; set; }
+
+    [Parameter]
+    public bool expanded { get; set; }
+
+    private bool isLoggedIn;
+
+    protected override async void OnInitialized()
+    {
+        isLoggedIn = await HttpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
+        if (isLoggedIn)
+        {
+            Note = await HttpClient.GetFromJsonAsync<NotificationModel>("api/Account/getnotifications");
+        }
+        StateHasChanged();
+    }
+
+    public string CheckNotificationImportance(SubmissionEvaluation.Shared.Models.Notification notification)
+    {
+        var Res = "";
+        if (notification.IsNew)
+        {
+            Res += "<b>";
+        }
+        Res += notification.Header + "<br />";
+        Res += "<InputText @bind-Value=\" @notification.Id\" hidden />";
+        Res += notification.Content;
+        if (notification.IsNew)
+        {
+            Res += "</ b > ";
+        }
+        return Res;
+    }
+
+    public async void ShowOrHide()
+    {
+        if (expanded)
+        {
+            navItem = "";
+            expanded = false;
+        }
+        else
+        {
+            navItem = "show";
+            expanded = true;
+            Note.Count = "";
+            var res = await HttpClient.PutAsync("api/Account/setLastNotifCheck", null);
+    // TODO> why is the result (boolean) not checked?
+        }
+    }
+
+}

@@ -1,0 +1,207 @@
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@page "/Members/List"
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+
+<style>
+    .rankChange { font-size: 1.2em; }
+
+    button {
+        background-color: inherit;
+        border: hidden;
+        color: #337ab7;
+    }
+
+    button:hover {
+        color: #0056b3;
+        text-decoration: underline;
+    }
+</style>
+
+<div class="col-sm-12">
+    <div class="post-area">
+        @if (Model != null)
+        {
+            <div class="post-header">
+                @((MarkupString) (Model.IsSemesterRanking ? "Semesterranking" : "Mitglieder"))
+            </div>
+            <div class="post">
+                @if (Settings.EnableRating)
+                {
+                    <div class="ranking_tabmenu">
+                        <div class="@(Model.IsSemesterRanking ? "ranking_tabmenu_tab" : "ranking_tabmenu_tab_selected")">
+                            <button @onclick="() => ChangeView(null, null, null, false)" class="@(Model.IsSemesterRanking ? "" : "ranking_tab_selected")">Gesamt</button>
+                        </div>
+                        <div class="@(!Model.IsSemesterRanking ? "ranking_tabmenu_tab" : "ranking_tabmenu_tab_selected")">
+                            <button @onclick="() => ChangeView(null, null, null, true)" title="@Model.CurrentSemester" class="@(!Model.IsSemesterRanking ? "" : "ranking_tab_selected")">Aktuelles Semester</button>
+                        </div>
+                    </div>
+                }
+
+                <table class="ranking_table">
+                    <thead>
+                    <tr class="ranking_head">
+                        @if (Permissions.isAdmin)
+                        {
+                            <th class="th_name">
+                                <button @onclick='() => ChangeView("Group", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Gruppen</button>
+                            </th>
+                        }
+                        <th class="th_name">
+                            <button @onclick='() => ChangeView("Name", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Name</button>
+                        </th>
+                        @if (Settings.EnableRating || Permissions.isAdmin)
+                        {
+                            <th class="th_not_name d-none d-sm-table-cell">
+                                <button @onclick='() => ChangeView("Solved", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Gelöst</button>
+                            </th>
+                            <th class="th_not_name d-none d-sm-table-cell">
+                                <button @onclick='() => ChangeView("Challenges", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Erstellt</button>
+                            </th>
+                            if (Permissions.isAdmin)
+                            {
+                                <th class="th_not_name d-none d-sm-table-cell">
+                                    <button @onclick='() => ChangeView("Duplication", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Duplikate</button>
+                                </th>
+                                <th class="th_not_name d-none d-sm-table-cell">
+                                    <button @onclick='() => ChangeView("Difficulty", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Difficulty</button>
+                                </th>
+                            }
+                        }
+                        @if (Settings.EnableReview)
+                        {
+                            <th class="th_not_name">
+                                <button @onclick='() => ChangeView("Stars", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Sterne</button>
+                            </th>
+                        }
+                        @if (Settings.EnableRating || Permissions.isAdmin)
+                        {
+                            <th class="th_not_name">
+                                <button @onclick='() => ChangeView("Points", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Punkte</button>
+                            </th>
+                        }
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var submitter in Model.Submitters)
+                    {
+                        var member = Model.Members[submitter.Id];
+                        <tr class="ranking_row">
+                            @if (Permissions.isAdmin)
+                            {
+                                <td>
+                                    @foreach (var group in member.Groups)
+                                    {
+                                        <button @onclick='(() => ChangeView(Model.Order, "group", group, Model.IsSemesterRanking))'>@group</button>
+                                    }
+                                </td>
+                            }
+                            <td>
+                                <a href=@($"/Members/Member/{submitter.Id}")>@member?.Name</a>
+                            </td>
+                            @if (Settings.EnableRating || Permissions.isAdmin)
+                            {
+                                <td class="number">
+                                    <span class="my-badge d-none d-sm-table-cell">@submitter.SolvedCount</span>
+                                </td>
+                                <td class="number d-none d-sm-table-cell">
+                                    <span class="my-badge">@submitter.ChallengesCreated</span>
+                                </td>
+                                if (Permissions.isAdmin)
+                                {
+                                    <td class="number d-none d-sm-table-cell">
+                                        <span class="my-badge">@submitter.DuplicationScore</span>
+                                    </td>
+                                    <td class="number d-none d-sm-table-cell">
+                                        <span class="my-badge">@member?.AverageDifficultyLevel</span>
+                                    </td>
+                                }
+                            }
+                            @if (Settings.EnableReview)
+                            {
+                                <td class="number">
+                                    @if (submitter.Stars > 0)
+                                    {
+                                        <img style="box-shadow: unset" src="/images/Rating@(submitter.Stars).png" width="48"/>
+                                    }
+                                    else
+                                    {
+                                        <img style="box-shadow: unset" title="Noch keine Bewertung" src="/images/Rating0.png" width="48"/>
+                                    }
+                                </td>
+                            }
+                            @if (Settings.EnableRating || Permissions.isAdmin)
+                            {
+                                <td class="number">
+                                    <span class="my-badge">
+                                        @submitter.Points (@submitter.Rank
+                                        @if (submitter.RankChange > 0)
+                                        {
+                                            <span style="color: #99ff99;" class="rankChange">&nbsp;&uarr;@submitter.RankChange</span>
+                                        }
+                                        else if (submitter.RankChange < 0)
+                                        {
+                                            <span style="color: #ffbbbb;" class="rankChange">&nbsp;&darr;@Math.Abs(submitter.RankChange)</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color: #cccccc;" class="rankChange">&nbsp;&plusmn;0</span>
+                                        }
+                                        )
+                                    </span>
+                                </td>
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+
+                @if (Model.IsSemesterRanking)
+                {
+                    <div class="current_semester_period">Aktuelles Semester: @Model.CurrentSemester</div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+        MemberListModel<Contracts.ClientPocos.Member> Model { get; set; }
+        FeatureSettings Settings { get; set; }
+        Permissions Permissions { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await HttpClient.GetFromJsonAsync<MemberListModel<Contracts.ClientPocos.Member>>("api/Members/ShowList/false");
+        Settings = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if(!PermissionHelper.CheckPermissions(Actions.VIEW, "Members", Permissions) &! Settings.EnableRating) {
+            NavigationManager.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+        StateHasChanged();
+    }
+
+    async void ChangeView(string order, string filterMode, string filterValue, bool semester)
+    {
+        if (order != null && filterMode != null && filterValue != null)
+        {
+            Model = await HttpClient.GetFromJsonAsync<MemberListModel<Contracts.ClientPocos.Member>>($"api/Members/ShowList/{semester}/{order}/{filterMode}/{filterValue}");
+        }
+        else if (order != null)
+        {
+            Model = await HttpClient.GetFromJsonAsync<MemberListModel<Contracts.ClientPocos.Member>>($"api/Members/ShowList/{semester}/{order}");
+        }
+        else
+        {
+            Model = await HttpClient.GetFromJsonAsync<MemberListModel<Contracts.ClientPocos.Member>>($"api/Members/ShowList/{semester}");
+        }
+        if (Model.HasError)
+        {
+            NavigationManager.NavigateTo($"Home/Error/{Model.Message}");
+        }
+        StateHasChanged();
+    }
+
+}

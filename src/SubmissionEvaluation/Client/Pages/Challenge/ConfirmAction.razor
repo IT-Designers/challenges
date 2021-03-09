@@ -1,0 +1,53 @@
+﻿@page "/Challenge/ConfirmAction/{challengeId}/{action}"
+@using SubmissionEvaluation.Shared.Models.Admin
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@inject HttpClient httpClient
+@inject NavigationManager navi
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+            @if (Model != null)
+            {
+                <p>@Model.ActivityMessage</p>
+                <button @onclick="() => DoAction(Model.Challenge)" style="margin-left: 2pt" class="btn btn-danger btn-margin col-3">Aktion durchführen</button>
+                <NavLink href="Challenges" style="margin-left: 2pt" class="btn btn-warning btn-margin col-3">Aktion nicht durchführen</NavLink>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string challengeId { get; set; }
+
+    [Parameter]
+    public string action { get; set; }
+
+    ConfirmChallengeActionModel Model { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Challenges", Permissions, Restriction.CHALLENGES, challengeId))
+        {
+            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        } else {
+            Model = await httpClient.GetFromJsonAsync<ConfirmChallengeActionModel>($"api/Challenge/GetConfirmActionModel/{challengeId}/{action}");
+        }
+    }
+
+    async void DoAction(string id)
+    {
+        switch (action)
+        {
+            case "Delete":
+                await httpClient.DeleteAsync($"/api/Challenge/DeleteChallenge/{id}");
+                navi.NavigateTo("/Challenges");
+                break;
+        }
+    }
+
+}

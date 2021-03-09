@@ -1,0 +1,175 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Shared.Models.Admin
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Client.Services
+@inject HttpClient httpClient
+@inject IToastService toaster
+@inject NavigationManager navi
+@inject LoginService loginService
+<div id="users-table_wrapper" class="dataTables_wrapper no-footer">
+    <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="searchvalue" placeholder="Suche nach einem Benutzer" />
+    <table id="users-table" class="display table dataTable no-footer" role="grid" aria-describedby="users-table_info">
+        <thead>
+            <tr>
+                <th>
+                    <button class="no-styling" @onclick='() => Sort("ID")'>Uid</button>
+                </th>
+                <th>
+                    <button class="no-styling" @onclick='() => Sort("Name")'>Name</button>
+                </th>
+                <th>
+                    <button class="no-styling" @onclick='() => Sort("Status")'>Status</button>
+                </th>
+                <th>
+                    <button class="no-styling" @onclick='() => Sort("Rollen")'>Rollen</button>
+                </th>
+                <th>
+                    <button class="no-styling" @onclick='() => Sort("Gruppen")'>Gruppen</button>
+                </th>
+                <th>
+                    <button class="no-styling" @onclick='() => Sort("Review-Level")'>Review-Level</button>
+                </th>
+                <th>Bearbeiten</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var member in memberships.Members.Where(x => x.Name.ToLower().Contains(searchvalue.ToLower())))
+            {
+            <tr>
+                <td>
+                    <a class="no-link-coloring" href=@($"Members/Member/{member.Id}")>@(member.Uid.Length > 8 ? member.Uid.Substring(0, 7) + ".." : member.Uid)</a>
+                </td>
+                <td>
+                    <a class="no-link-coloring" href=@($"Members/Member/{member.Id}")>@member.Name</a>
+                </td>
+                <td>@member.State</td>
+                <td>@string.Join(", ", member.Roles)</td>
+                <td>@string.Join(", ", member.Groups)</td>
+                <td>@member.ReviewLevel</td>
+                <td>
+                    @if (member.State == MemberState.Pending)
+                    {
+                        <a @onclick="() => ActivatePendingMember(member.Id)" title="Freischalten" class="btn btn-sm">
+                            <span class="oi oi-lock-unlocked"></span>
+                        </a>
+                    }else
+                     {
+                        <a @onclick="() => ImpersonateMember(member.Id)" title="Impersonieren" class="btn btn-sm">
+                            <span class="oi oi-person"></span>
+                        </a>
+                        <a href=@($"Admin/ManageMemberRoles/{member.Id}") title="Rollen verwalten" class="btn btn-sm">
+                            <span class="oi oi-people"></span>
+                        </a>
+                        <a href=@($"Admin/ManageMemberGroups/{member.Id}") title="Gruppen verwalten" class="btn btn-sm">
+                           <span class="oi oi-tags"></span>
+                        </a>
+                        <a @onclick="() => IncreaseMemberReviewLevel(member.Id)" title="Reviewlevel anheben" class="btn btn-sm">
+                           <span class="oi oi-arrow-circle-top"></span>
+                        </a>
+                        @if (member.Type != MemberType.LDAP)
+                        {
+                          <a href=@($"Admin/ConfirmAction/{member.Id}/ResetMemberPassword") title="Passwort zurücksetzen" class="btn btn-sm">
+                             <span class="oi-key oi"></span>
+                          </a>
+                        }
+                        <a href=@($"Admin/ConfirmAction/{member.Id}/DeleteMember") title="Löschen" class="btn btn-sm">
+                           <span class="oi-trash oi"></span>
+                        </a>
+                        }
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+@code {
+    [Parameter]
+    public GroupMemberships<Member> memberships { get; set; }
+    [Parameter]
+    public EventCallback<GroupMemberships<Member>> membershipsChanged { get; set; }
+    string searchvalue { get; set; } = string.Empty;
+
+    void Sort(string type)
+    {
+        var members = memberships.Members.ToList();
+        switch (type)
+        {
+            case "ID":
+                members.Sort((x, y) => x.Id.CompareTo(y.Id));
+                break;
+            case "Name":
+                members.Sort((x, y) => x.Name.CompareTo(y.Name));
+                break;
+            case "Status":
+                members.Sort((x, y) => x.State.CompareTo(y.State));
+                break;
+            case "Rollen":
+                members.Sort((x, y) =>
+                {
+                    if (x.Roles.Count() == y.Roles.Count())
+                    {
+                        return x.Roles.Length == 0 ? 0 : x.Roles.First().CompareTo(y.Roles.First());
+                    }
+                    return x.Roles.Count() > y.Roles.Count() ? -1 : 1;
+                });
+                break;
+            case "Gruppen":
+                members.Sort((x, y) =>
+                {
+                    if (x.Groups.Count() == y.Groups.Count())
+                    {
+                        return x.Groups.Length == 0 ? 0 : x.Groups.First().CompareTo(y.Groups.First());
+                    }
+                    return x.Groups.Count() > y.Groups.Count() ? -1 : 1;
+                });
+                break;
+            case "Review-Level":
+                members.Sort((x, y) => x.ReviewLevel.CompareTo(y.ReviewLevel));
+                break;
+        }
+        memberships.Members = members;
+    }
+    async void ActivatePendingMember(string Id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Admin/ActivatePendingMember", Id);
+        AdminUserModel<Member> model = new AdminUserModel<Member>();
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+        }
+        if (model.HasSuccess)
+        {
+            memberships = model.GroupMemberships.First();
+            await membershipsChanged.InvokeAsync(memberships);
+            toaster.ShowSuccess("Pending member was successfully activated.");
+        }
+        StateHasChanged();
+    }
+
+    async void ImpersonateMember(string Id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Admin/ImpersonateMember", Id);
+        AdminUserModel<Member> model = new AdminUserModel<Member>();
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+        }
+        if (model.HasSuccess)
+        {
+            loginService.InvokeEvent();
+            navi.NavigateTo("Account/View");
+        }
+    }
+    async void IncreaseMemberReviewLevel(string Id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Admin/IncreaseMemberReviewLevel", Id);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+            memberships = model.GroupMemberships.First();
+            await membershipsChanged.InvokeAsync(memberships);
+        }
+        StateHasChanged();
+    }
+}

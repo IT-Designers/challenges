@@ -1,0 +1,39 @@
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@if (PermissionHelper.CheckPermissions(Actions.VIEW, "Challenges", Permissions))
+{
+    <NavLink href="Challenges" class="dropdown-item" @onclick="ParentAction">Challenges</NavLink>
+}
+@if (PermissionHelper.CheckPermissions(Actions.VIEW, "ChallengeOverview", Permissions))
+{
+    <NavLink href="Challenge/Overlook" class="dropdown-item" @onclick="ParentAction">Übersicht aller Challenges</NavLink>
+}
+@if (PermissionHelper.CheckPermissions(Actions.VIEW, "Bundles", Permissions))
+{
+<NavLink href="Bundle/List" class="dropdown-item" @onclick="ParentAction">Bundles</NavLink>
+}
+@if (Permissions.isAdmin)
+{
+    <div role="separator" class="dropdown-divider"></div>
+}
+@if (PermissionHelper.CheckPermissions(Actions.VIEW, "Users", Permissions))
+{
+    <NavLink href="Admin/Users" class="dropdown-item" @onclick="ParentAction">Benutzer</NavLink>
+}@if(PermissionHelper.CheckPermissions(Actions.VIEW, "Groups", Permissions)) { 
+    <NavLink href="Groups" class="dropdown-item" @onclick="ParentAction">Gruppen</NavLink>
+}
+@if (Permissions.isAdmin)
+{
+    <div role="separator" class="dropdown-divider"></div>
+    <NavLink href="Admin/Operations" class="dropdown-item" @onclick="ParentAction">Wartung</NavLink>
+}
+
+@code {
+
+    [Parameter]
+    public Permissions Permissions { get; set; }
+
+    [Parameter]
+    public Action ParentAction { get; set; }
+
+}

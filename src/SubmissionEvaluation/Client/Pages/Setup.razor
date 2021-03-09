@@ -1,0 +1,31 @@
+﻿@page "/Setup"
+@using SubmissionEvaluation.Client.Shared.Components.Setup
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+
+<TokenCheck @bind-Step="@Step" @bind-securityToken="@SecurityToken"/>
+<CreateGlobalRanking @bind-Step="@Step"/>
+<RegisterFirstAdmin Step="Step" securityToken="@SecurityToken"/>
+
+@code {
+    public int Step { get; set; }
+    private string SecurityToken { get; set; }
+
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        var setupAlreadyHappened = await httpClient.GetFromJsonAsync<bool>("api/Members/ExistsAnyMember");
+        if (setupAlreadyHappened)
+        {
+            navi.NavigateTo("/");
+        }
+        var result = await httpClient.GetFromJsonAsync<bool>("api/Setup/RankingAlreadyExists");
+        if (result && Step == 1)
+        {
+            Step = 2;
+            StateHasChanged();
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+}

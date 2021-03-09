@@ -1,0 +1,17 @@
+﻿@if (Model != null)
+{
+    @if (Model.HasError || Model.HasSuccess)
+    {
+        <div class="alert @Model.AlertColor">
+            <button @onclick="() => { Model.HasError = false;Model.HasSuccess = false; }" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+            @Model.MessageTranslation
+        </div>
+    }
+}
+
+@code {
+
+    [Parameter]
+    public GenericModel Model { get; set; }
+
+}

@@ -1,0 +1,73 @@
+﻿@using SubmissionEvaluation.Contracts.Data.Ranklist
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+@inject IToastService toaster
+<div hidden="@(Step != 1)" class="shadow text-center loginbox">
+    <div class="card post-area">
+        <div class="post-header">
+            <b>Aktuelles Semester:</b>
+        </div>
+        <div class="card-body">
+            <EditForm Model="Ranklist" OnValidSubmit="CreateRanking">
+                <ValidationSummary/>
+                <DataAnnotationsValidator/>
+                <div class="form-group has-feedback">
+                    <label class="col-form-label" for="choosePeriod">Zeitraum</label>
+                    <select @bind="Ranklist.CurrentSemester.Period" id="choosePeriod" class="form-control">
+                        @foreach (SemesterPeriod period in Enum.GetValues(typeof(SemesterPeriod)))
+                        {
+                            <option value="@period">@period</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group has-feedback">
+                    <label class="col-form-label" for="chooseYears">Jahr(e)</label>
+                    <InputText @bind-Value="@Ranklist.CurrentSemester.Years" id="chooseYears" placeholder="XX/XX" class="form-control"></InputText>
+                </div>
+                <div class="form-group has-feedback">
+                    <label class="col-form-label" for="firstDay">Semesterbeginn (Datum)</label>
+                    <input @bind-value="Ranklist.CurrentSemester.FirstDay" type="date" pattern="{0:yyyy-MM-dd}" class="form-control" placeholder="FirstDay" id="firstDay"/>
+                </div>
+                <div class="form-group has-feedback">
+                    <label for="lastDay" class="col-form-label" form="lastDay">Semesterende (Datum)</label>
+                    <input @bind-value="Ranklist.CurrentSemester.LastDay" type="date" pattern="{0:yyyy-MM-dd}" class="form-control" placeholder="FirstDay" id="lastDay"/>
+                </div>
+                <div>
+                    <button class="btn btn-info">Globale Rangliste anlegen</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public int Step { get; set; }
+
+    [Parameter]
+    public EventCallback<int> StepChanged { get; set; }
+
+    GlobalRanklist Ranklist { get; set; } = new GlobalRanklist {LastRankingChange = DateTime.Now, CurrentSemester = new Semester(), Submitters = new List<GlobalSubmitter>()};
+
+    async void CreateRanking()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<GlobalRanklist>("api/Setup/CreateGlobalRanklist", Ranklist);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var success = await responseMessage.Content.ReadFromJsonAsync<bool>();
+            if (success)
+            {
+                Step = 2;
+                await StepChanged.InvokeAsync(Step);
+                StateHasChanged();
+            }
+            else
+            {
+                toaster.ShowError("Es scheint etwas schief gegangen zu sein. Möglicherweise existiert die Rangliste bereits.");
+            }
+        }
+    }
+
+}

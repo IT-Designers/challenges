@@ -1,0 +1,69 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <StartupObject>SubmissionEvaluation.Server.Program</StartupObject>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazor.ContextMenu" Version="1.8.0" />
+    <PackageReference Include="Blazored.LocalStorage" Version="2.1.6" />
+    <PackageReference Include="Blazored.TextEditor" Version="1.0.3" />
+    <PackageReference Include="BlazorInputFile" Version="0.2.0" />
+    <PackageReference Include="Html2Markdown" Version="4.0.0.427" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="3.1.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="3.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.0" />
+    <PackageReference Include="BCrypt.Net-Next" Version="3.1.2" />
+    <PackageReference Include="CommonMark.NET" Version="0.15.1" />
+    <PackageReference Include="Docker.DotNet" Version="3.125.4" />
+    <PackageReference Include="HangFire.Core" Version="1.7.18" />
+    <PackageReference Include="Hangfire.MemoryStorage" Version="1.7.0" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.7.18" />
+    <PackageReference Include="Novell.Directory.Ldap.NETStandard" Version="2.3.8" />
+    <PackageReference Include="Serilog" Version="2.10.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="3.4.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
+    <PackageReference Include="Serilog.Sinks.Observable" Version="2.0.2" />
+    <PackageReference Include="YamlDotNet" Version="6.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\SubmissionEvaluation.ChallengeEstimator\SubmissionEvaluation.ChallengeEstimator.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Compilers\SubmissionEvaluation.Compilers.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Contracts\SubmissionEvaluation.Contracts.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Domain\SubmissionEvaluation.Domain.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Providers.FileProvider\SubmissionEvaluation.Providers.FileProvider.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Providers.LogProvider\SubmissionEvaluation.Providers.LogProvider.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Providers.MailProvider\SubmissionEvaluation.Providers.MailProvider.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Providers.MemberProvider\SubmissionEvaluation.Providers.MemberProvider.csproj" />
+    <ProjectReference Include="..\..\SubmissionEvaluation.Providers.ProcessProvider\SubmissionEvaluation.Providers.ProcessProvider.csproj" />
+	<ProjectReference Include="..\..\SubmissionEvaluation.Providers.CryptographyProvider\SubmissionEvaluation.Providers.CryptographyProvider.csproj" />
+    <ProjectReference Include="..\Client\SubmissionEvaluation.Client.csproj" />
+    <ProjectReference Include="..\Shared\SubmissionEvaluation.Shared.csproj" />
+  </ItemGroup>
+
+  <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptTarget>ES2020</TypeScriptTarget>
+    <TypeScriptJSXEmit>React</TypeScriptJSXEmit>
+    <TypeScriptModuleKind>AMD</TypeScriptModuleKind>
+    <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>
+    <TypeScriptNoImplicitAny>False</TypeScriptNoImplicitAny>
+    <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
+    <TypeScriptOutFile />
+    <TypeScriptOutDir />
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
+    <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
+    <TypeScriptSourceMap>True</TypeScriptSourceMap>
+    <TypeScriptMapRoot />
+    <TypeScriptSourceRoot />
+  </PropertyGroup>
+
+</Project>

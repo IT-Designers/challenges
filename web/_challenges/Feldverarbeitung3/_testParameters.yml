@@ -1,0 +1,34 @@
+parameters: []
+input:
+  content: "4\n4\n3\n7\n1"
+expectedOutput:
+  content: "[7, 3, 8, 1]\n"
+  settings:
+    compareMode: Contains
+---
+hint: "Funktioniert das Programm mit einer ungeraden Anzahl an Elementen?"
+parameters: []
+input:
+  content: "7\n83\n65\n18\n25\n23\n46\n45"
+expectedOutput:
+  content: "[148, 65, 43, 25, 69, 46, 45]"
+  settings:
+    compareMode: Contains
+---
+hint: "Funktionieren negative Zahlen richtig?"
+parameters: []
+input:
+  content: "12\n-501230\n-123123\n-12234234\n-23423652\n-234234\n-23424\n-2342324\n-245236\n-234234\n-233432\n-2342346\n-63493"
+expectedOutput:
+  content: "[-624353, -123123, -35657886, -23423652, -257658, -23424, -2587560, -245236, -467666, -233432, -2405839, -63493]"
+  settings:
+    compareMode: Contains
+---
+hint: "Funktioniert die Eingabe des Arrays richtig?"
+parameters: []
+input:
+  content: "1\n-1\n1\n-5\n-6\n8\n83\n65\n18\n25\n23\n45\n46\n32"
+expectedOutput:
+  content: "Bitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\n[148, 65, 43, 25, 68, 45, 78, 32]"
+  settings:
+    compareMode: Contains

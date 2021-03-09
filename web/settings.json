@@ -1,0 +1,246 @@
+{
+    "Duplicate": {
+        "duplicate-check-window": 365
+    },
+    "Permissions": {
+        "Creator": {
+            "ViewPermissions": ["Challenges", "Bundles", "Test", "Submissions"],
+            "EditPermissions": ["Challenges", "Bundles", "Test", "Submissions"],
+            "CreatePermissions": ["Challenges", "Bundles", "Test"]
+        },
+        "GroupAdmin": {
+            "ViewPermissions": ["Index", "Members", "Member", "Submissions", "Groups", "Review", "ChallengeOverview", "Users"],
+            "EditPermissions": ["Groups", "Review", "Submissions"],
+            "CreatePermissions": []
+        },
+        "GroupReviewer": {
+            "ViewPermissions": ["Review"],
+            "EditPermissions": ["Review"],
+            "CreatePermissions": []
+        }
+    },
+    "ToolPaths": {
+        "CCompiler": "gcc",
+        "CppCheck": "cppcheck",
+        "CppCompiler": "g++",
+        "CMake": "cmake",
+        "DotNet": "dotnet",
+        "Go": "go",
+        "HaskellCompiler": "ghc",
+        "Java": "java",
+        "Maven": "mvn",
+        "Julia": "julia",
+        "KotlinCompiler": "kotlinc",
+        "Miktex": "/usr/local/bin",
+        "NodeJS": "node",
+        "Npm": "npm",
+        "Pandoc": "pandoc",
+        "Perl": "perl",
+        "Python": "python3",
+        "Rust": "rustc",
+        "RustCargo": "cargo",
+        "Scala": "scala",
+        "ScalaCompiler": "scalac",
+        "TypeScriptCompiler": "tsc"
+    },
+    "Application": {
+        "Delaytime": "60",
+        "Inactive": "false",
+        "InstancePort": "80",
+        "InstanceName": "Test",
+        "WebApiPassphrase": "Pappna$e",
+        "PathToServerWwwRoot": "/app/wwwroot",
+        "PathToLogger": "../log/log.txt",
+        "BaseUrl": "http://localhost"
+    },
+    "Ldap": {
+        "Ip": "127.0.0.1",
+        "Port": "10389",
+        "Domain": "awe",
+        "OrganizationalUnit": "awe",
+        "AccessUser": "awe",
+        "AccessPassword": "awe",
+        "UidAttribute": "awe"
+    },
+    "Mail": {
+        "Username": "awe",
+        "Password": "awe",
+        "ImapServer": "awe",
+        "SmtpServer": "awe",
+        "SendMailAddress": "awe",
+        "HelpMailAddress": "awe"
+    },
+    "Features": {
+        "EnableReview": true,
+        "EnableReviewerPromotion": true,
+        "EnableRating": true,
+        "EnableAchivements": true,
+        "EnableSendMail": false,
+        "EnableUseGogs": false,
+        "EnableEffortEstamination": true,
+        "EnableAutoUpdate": false,
+        "EnableLdap": false,
+        "RequiresMemberActivation": false
+    },
+    "Authentication": {
+        "RegistrationMessage": ""
+    },
+    "Customization": {
+        "RatingMethods": {
+            "fixed": {
+                "title": "Feste Punktzahl",
+                "color": "AF9B60"
+            },
+            "exec_time": {
+                "title": "Ausführzeit",
+                "color": "79a66E"
+            },
+            "submission_time": {
+                "title": "Einreichdatum",
+                "color": "72A7A7"
+            },
+            "score": {
+                "title": "Punkte",
+                "color": "BB00FF"
+            }
+        },
+        "Categories": {
+            "Grundlagen": {
+                "title": "Grundlagen",
+                "color": 0
+            },
+            "Fortgeschritten": {
+                "title": "Fortgeschritten",
+                "color": 0
+            },
+            "Katas": {
+                "title": "Katas",
+                "color": 0
+            },
+            "Maths": {
+                "title": "Maths",
+                "color": 0
+            }
+        },
+        "Achievements": {
+            "selfpublisher": {
+                "description": "Veröffentliche eine Aufgabe",
+                "titel": "Selbstverleger"
+            },
+            "coach": {
+                "description": "Reviewe 3 Einreichung",
+                "titel": "Coach"
+            },
+            "beginner": {
+                "description": "Reiche erfolgreich eine Lösung ein",
+                "titel": "Anfänger"
+            },
+            "working": {
+                "description": "Reiche erfolgreich 25 Lösungen ein",
+                "titel": "Arbeiter"
+            },
+            "gettingOld": {
+                "description": "Neue Mitglieder (mind. 5) nach deiner Anmeldung. Wie wäre es mit ein bisschen Werbung? ;-)",
+                "titel": "Altern"
+            },
+            "polyglot": {
+                "description": "Löse eine Aufgabe mit allen verfügbaren Sprachen",
+                "titel": "Polyglot"
+            },
+            "teacher": {
+                "description": "Reviewe 30 Einreichungen",
+                "titel": "Lehrer"
+            },
+            "writer": {
+                "description": "Veröffentliche fünf Aufgaben",
+                "titel": "Schreiberling"
+            },
+            "fiveInARow": {
+                "description": "Reiche erfolgreich 5 Lösungen hintereinander ein, ohne dass eine Einreichung fehlschlägt (mit jeweils der ersten Einreichung)",
+                "titel": "Perfektionist"
+            },
+            "heavyWorking": {
+                "description": "Reiche erfolgreich 50 Lösungen ein",
+                "titel": "Schwerstarbeit"
+            },
+            "hillClimber": {
+                "description": "Löse eine Aufgabe als Erster in einer Programmiersprache die bisher noch nicht verwendet wurde",
+                "titel": "Hügelbesteiger"
+            },
+            "kingOfAmazon": {
+                "description": "Veröffentliche 25 Aufgaben",
+                "titel": "König vom großen Fluß"
+            },
+            "contributor": {
+                "description": "Hilf uns beim Weiterentwickeln der Plattform",
+                "titel": "Mitmacher"
+            },
+            "chainmaster": {
+                "description": "Reiche erfolgreich 20 Lösungen hintereinander ein, ohne dass eine Einreichung fehlschlägt (mit jeweils der ersten Einreichung)",
+                "titel": "Kettenmeister"
+            },
+            "mountainClimber": {
+                "description": "Löse eine Aufgabe als Erster",
+                "titel": "Bergsteiger"
+            },
+            "dayOne": {
+                "description": "Löse eine neue Aufgabe innerhalb eines Tages nach deren Veröffentlichung",
+                "titel": "Day One"
+            },
+            "numberOneSemester": {
+                "description": "Sei auf dem ersten Platz in der Rangliste am Ende des abgelaufenen Semesters",
+                "titel": "Semesterbester"
+            },
+            "teachingMaster": {
+                "description": "Reviewe 100 Einreichungen",
+                "titel": "Lehrmeister"
+            },
+            "topPupil": {
+                "description": "Schließe das Semester als Semesterbester ab.",
+                "titel": "Semesterbester"
+            },
+            "nobelLaureate": {
+                "description": "Veröffentliche 50 Aufgaben",
+                "titel": "Nobelpreisträger"
+            },
+            "numberOne": {
+                "description": "Erreiche den ersten Platz in der Rangliste (Gesamt)",
+                "titel": "Gugelhupf"
+            }
+        },
+        "Results": {
+            "Undefined": {
+                "description": "???",
+                "color": "aaaaaa"
+            },
+            "UnknownError": {
+                "description": "Error",
+                "color": "ffdddd"
+            },
+            "CompilationError": {
+                "description": "Kompilierfehler",
+                "color": "ffdddd"
+            },
+            "NotAllowedLanguage": {
+                "description": "Nicht erlaubte Sprache",
+                "color": "ffdddd"
+            },
+            "Timeout": {
+                "description": "Zeitüberschreitung",
+                "color": "ffdddd"
+            },
+            "TestsFailed": {
+                "description": "Test fehlgeschlagen",
+                "color": "ffdddd"
+            },
+            "SucceededWithTimeout": {
+                "description": "Erfolgreich (mit Timeout)",
+                "color": "ffffaa"
+            },
+            "Succeeded": {
+                "description": "Erfolgreich",
+                "color": "ddffdd"
+            }
+        }
+    }
+}

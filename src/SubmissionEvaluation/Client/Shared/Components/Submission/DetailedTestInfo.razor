@@ -1,0 +1,74 @@
+﻿@if (detail != null)
+{
+    <div>
+        <h4>Details für ersten fehlerhaften Testfall</h4>
+        @foreach (var category in detail)
+        {
+            @if (category.Hints.Count > 0)
+            {
+                @if (!string.IsNullOrWhiteSpace(category.Title))
+                {
+                    <h5>@category.Title</h5>
+                }
+                @if (category.IsTabbed && category.Hints.Count > 1)
+                {
+                    var prefix = category.GetHashCode().ToString();
+                    <div class="nav nav-tabs" id="tab_@prefix">
+                        @for (var i = 0; i < category.Hints.Count; i++)
+                        {
+                            var number = i;
+                            <button class="nav-link @(i == selected ? "active" : "")" selected="@(i == selected)" id="tab_@prefix @i" data-toggle="tab" role="tab" @onclick="() => ChangeSelectedButton(number)">@category.Hints[i].Header</button>
+                        }
+                    </div>
+                    <div class="tab-content" id="tab_@prefix Content">
+                        @for (var i = 0; i < category.Hints.Count; i++)
+                        {
+                            var hint = category.Hints[i];
+                            var active = i == selected ? " show active" : "";
+                            <div class="tab-pane fade @active" id="tr @prefix @i" role="tabpanel" aria-labelledby="tab @prefix @i">
+                                @if (hint.IsHtml)
+                                {
+                                    @((MarkupString) hint.Content)
+                                }
+                                else
+                                {
+                                    <pre><code>@hint.Content</code></pre>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    foreach (var hint in category.Hints)
+                    {
+                        <h6>@hint.Header</h6>
+                        if (hint.IsHtml)
+                        {
+                            @((MarkupString) hint.Content)
+                        }
+                        else
+                        {
+                            <pre><code>@hint.Content</code></pre>
+                        }
+                    }
+                }
+            }
+        }
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public List<HintCategory> detail { get; set; }
+
+    int selected { get; set; } = 0;
+
+    void ChangeSelectedButton(int index)
+    {
+        selected = index;
+        StateHasChanged();
+    }
+
+}

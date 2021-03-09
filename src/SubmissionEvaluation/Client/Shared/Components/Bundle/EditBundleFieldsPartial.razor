@@ -1,0 +1,109 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Classes 
+@inject HelperService helper
+<div class="row">
+    <ValidationSummary/>
+    <div id="settingsCol" class="col-4">
+        <div id="title-group" class="form-group">
+            <h4 class="col-form-label">Titel*</h4>
+            <InputText @bind-Value="@Model.Title" class="form-control"/>
+
+        </div>
+        <h4 class="col-form-label">Ersteller*</h4>
+        <InputText @bind-Value="@Model.Author" readonly class="form-control"/>
+        <h4 class="col-form-label">Kategorie*</h4>
+        <div class="form-group">
+            <InputSelect @bind-Value="@Model.Category" class="form-control">
+                <option selected>--Bitte wähle eine Kategorie--</option>
+                @foreach (var kvp in Settings.Categories)
+                {
+                    <option value="@(kvp.Value)">@kvp.Key</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="() => Model.Category"/>
+        </div>
+        <h4 class="col-form-label">Challenges*</h4>
+        <button id="btnUpChallenge" type="button" value="upChallenge" class="btn btn-outline-dark" @onclick="@MoveChallengeUp">
+            <span class="oi oi-arrow-thick-top"></span>
+        </button>
+        <button id="btnDownChallenge" type="button" value="downChallenge" class="btn btn-outline-dark" @onclick="@MoveChallengeDown">
+            <span class="oi oi-arrow-thick-bottom"></span>
+        </button>
+        <div class="form-group">
+            <InputSelect @bind-Value="@Model.SelectedChallenge" class="form-control" size="6">
+                @foreach (var challenge in Model.Challenges)
+                {
+                    <option value="@challenge">@challenge</option>
+                }
+            </InputSelect>
+        </div>
+
+        <h4 class="col-form-label">Überprüft vorherige Challenges:</h4>
+        <div class="form-group">
+            <InputCheckbox @bind-Value="Model.HasPreviousChallengesCheck"/>
+        </div>
+
+        <h4 class="col-form-label">Neue Challenge hinzufügen</h4>
+        <div class="form-group">
+            <button id="btnRemoveChallenge" type="button" value="removeChallenge" class="btn btn-outline-dark" @onclick="@RemoveChallenge">
+                <span class="oi oi-minus"></span>
+            </button>
+            <button id="btnAddChallenge" type="button" value="addChallenge" class="btn btn-outline-dark " @onclick="@AddChallenge">
+                <span class="oi oi-plus"></span>
+            </button>
+            <InputSelect @bind-Value="@Model.SelectedAddChallenge" class="form-control">
+                <option value="" selected>-Bitte wähle eine Challenge, die du hinzufügen möchtest-</option>
+                @foreach (var challenge in Model.AvailableChallenges)
+                {
+                    <option value="@challenge.Id">@challenge.Title</option>
+                }
+            </InputSelect>
+        </div>
+        <br/>
+        <span class="input-field-padding">Mit * markierte Felder, sind Pflichtfelder.</span>
+    </div>
+    <div id="descriptionPanel" class="input-field-padding col-8">
+        <h4 class="col-form-label">Beschreibung*</h4>
+        <TextEditor @ref="DescriptionEditor" EditorContent="@(MarkdownToHtml.Convert(Model.Description ?? string.Empty, null, false))"></TextEditor>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public BundleModel Model { get; set; }
+
+    [Parameter]
+    public CustomizationSettingsClient Settings { get; set; }
+    TextEditor DescriptionEditor;
+
+    private void MoveChallengeUp()
+    {
+        helper.MoveChallengeUp(Model.Challenges, Model.SelectedChallenge);
+        StateHasChanged();
+    }
+    public async Task SaveEditor()
+    {
+        Model.Description = await DescriptionEditor.GetHTML();
+    }
+    private void MoveChallengeDown()
+    {
+        helper.MoveChallengeDown(Model.Challenges, Model.SelectedChallenge);
+        StateHasChanged();
+    }
+
+    private void RemoveChallenge()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedChallenge))
+            Model.Challenges.Remove(Model.SelectedChallenge);
+        StateHasChanged();
+    }
+
+    private void AddChallenge()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedAddChallenge))
+            Model.Challenges.Add(Model.SelectedAddChallenge);
+        StateHasChanged();
+    }
+
+}

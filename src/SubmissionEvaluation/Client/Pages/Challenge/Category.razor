@@ -1,0 +1,43 @@
+﻿@page "/Challenge/Category/{Name}"
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+<div class="home">
+    <div class="col-sm-12">
+        <div class="post-area">
+            @if (Model != null)
+            {
+                <div class="post-header">
+                    @Model.Category
+                </div>
+                <div class="post-list-body">
+                    <div class="all-posts" post-cate="All">
+                        @foreach (var entry in Model.Entries)
+                        {
+                            <ChallengeTile entry="entry" Member="Model.Member" bundles="bundles"/>
+                        }
+                    </div>
+                    <div style="clear: both"></div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string Name { get; set; }
+
+    CategoryListModel<Member> Model { get; set; }
+    List<BundleModel> bundles { get; set; }
+
+    protected override async void OnInitialized()
+    {
+        Model = await httpClient.GetFromJsonAsync<CategoryListModel<Member>>($"api/Challenge/Category/{Name}");
+        bundles = await httpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
+        bundles = bundles.Where(x => x.Category.Equals(Name)).ToList();
+        StateHasChanged();
+    }
+
+}

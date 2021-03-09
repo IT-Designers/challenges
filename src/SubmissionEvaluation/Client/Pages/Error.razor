@@ -1,0 +1,38 @@
+﻿@page "/Home/Error/{error}"
+@page "/Home/Error"
+<div class="post-area">
+    <div class="post-header">Fehler beim Aufrufen der Seite.</div>
+    <div class="card-body challenge-creation-panel">
+        <MessageHeader Model="Model"/>
+        <h3>Die entsprechende Ressource konnte nicht aufgerufen werden.</h3>
+        <h4>Dies kann u.a. folgende Gründe haben:</h4>
+        <ul>
+            <li>Die Seite wurde dauerhaft gelöscht oder verschoben.</li>
+            <li>Du hast keine Berechtigungen, die Seite anzuzeigen.</li>
+            <li>Du bist nicht <a href="Account/Login">angemeldet</a> und hast daher keinen Zugriff.</li>
+        </ul>
+        Falls du denkst, dass hier ein Fehler vorliegt, <a href="Help/ViewPage">lass es uns wissen</a>.
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string error { get; set; }
+
+    GenericModel Model { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(error))
+        {
+            Model = new GenericModel();
+            Model.HasError = true;
+        }
+        else
+        {
+            Model = new GenericModel {HasError = true, Message = error};
+        }
+    }
+
+}

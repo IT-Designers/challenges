@@ -1,0 +1,32 @@
+@if (Model != null && Features != null)
+{
+    <div class="col-12">
+        <MessageHeader Model="Model"/>
+
+        <div class="post-area post">
+            <h1>Profil</h1>
+            <b>Mitglied seit:</b> @Model.DateOfEntry.ToShortDateString()&emsp;
+            @if (Features.EnableRating)
+            {
+                <b>Punkte:</b>
+                @Model.TotalPoints
+                @((MarkupString) "&emsp;")
+            }
+            @if (Features.EnableReview)
+            { 
+                <b>Sterne (Review):</b> 
+                <img style="box-shadow: none; vertical-align: top; width: 5rem;" src="@($"/images/Rating{Model.Stars}.png")"/>
+            }
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public FeatureSettings Features { get; set; }
+
+    [Parameter]
+    public ProfileHeaderModel Model { get; set; }
+
+}

@@ -1,0 +1,56 @@
+@page "/Activities"
+
+@using SubmissionEvaluation.Shared.Models.Activities
+@using System.Net.Http.Json
+
+@* ReSharper disable once RedundantUsingDirective *@
+@using SubmissionEvaluation.Client.Shared.Components.Activities
+
+@inject HttpClient httpClient
+
+<div class="row">
+    <div class="col-sm-12">
+        <div class="post-area">
+            <div class="post-header">
+                <h1>Die letzten Aktivitäten</h1>
+            </div>
+            <div class="post">
+                @if (Model != null)
+                {
+                    <table class="ranking_table">
+                        <thead>
+                        <tr class="ranking_head">
+                            <th class="th_name d-none d-sm-table-cell">Datum</th>
+                            <th class="th_name">Typ</th>
+                            <th class="th_name">Aufgabe/Wettbewerb</th>
+                            @if (UserSettings.Roles.Contains("admin"))
+                            {
+                                <th class="th_name">Benutzer</th>
+                            }
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var entry in Model.Entries.Where(x => x.Type != ActivityType.NewReviewResult && x.Type != ActivityType.NewUser))
+                        {
+                            <ActivitiesTableRow RowClass="ranking_row" Activity="entry" Extended="true" OnPageAndAdmin='UserSettings.Roles.Contains("admin")'/>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    ActivitiesModel Model { get; set; }
+    SettingsModel UserSettings { get; set; }
+
+    protected override async void OnInitialized()
+    {
+        UserSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Model = await httpClient.GetFromJsonAsync<ActivitiesModel>("api/Activities/Activities");
+        StateHasChanged();
+    }
+
+}

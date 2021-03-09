@@ -1,0 +1,140 @@
+@inject IJSRuntime jsRuntime
+@using SubmissionEvaluation.Shared.Classes
+<style>
+    option:not(checked) { background-color: white; }
+</style>
+<div class="row">
+    <div id="settingsCol" class="col-4">
+        <div id="title-group" class="form-group">
+            <h4 class="col-form-label">Titel*</h4>
+            <InputTextArea @bind-Value="@Model.Title" class="form-control"/>
+            <ValidationMessage For="@(() => Model.Title)" class="text-danger"/>
+        </div>
+        <h4 class="col-form-label">Ersteller*</h4>
+        <InputText readonly class="form-control" @bind-Value="@Model.Author"/>
+        <InputText @bind-Value="@Model.AuthorID" hidden readonly/>
+        @if (!Model.IsGettingCreated)
+        {
+            <h4 class="col-form-label">Letzter Bearbeiter*</h4>
+            <InputText readonly class="form-control" @bind-Value="@Model.LastEditor"/>
+            <InputText @bind-Value="@Model.LastEditorID" hidden readonly/>
+        }
+        else
+        {
+            <InputText @bind-Value="@Model.LastEditorID" hidden readonly/>
+        }
+        @if (!Model.IsDraft)
+        {
+            <h4 class="col-form-label">Veröffentlichungsdatum*</h4>
+            <InputText readonly class="form-control" @bind-Value="@DateToString"/>
+        }
+        else
+        {
+            <InputText @bind-Value="@DateToString" hidden readonly/>
+        }
+        <h4 class="col-form-label">Kategorie*</h4>
+        <div class="form-group">
+            <select name="categories" @bind="@Model.Category" class="form-control">
+                @((MarkupString) createDropdowns(Model.Categories, Model.Category))
+            </select>
+        </div>
+        <h4 class="col-form-label">Bewertungsmodus*</h4>
+        <div class="form-group">
+            <select name="ratingmethods" @bind="@Model.RatingMethodInput" class="form-control">
+                @((MarkupString) createDropdowns(Model.RatingMethods, Model.RatingMethodInput))
+            </select>
+        </div>
+        <div class="form-group">
+            <h4 class="col-form-label">Basierend auf:</h4>
+            <select name="sourcetypes" @bind="@Model.SourceType" class="form-control">
+                @((MarkupString) createDropdowns(Model.SourceTypes, ""))
+            </select>
+            @if(Model.SourceType == "other") { 
+            <h4 id="lblSourceUrl" class="col-form-label">URL der Quelle:</h4>
+            <InputText @bind-Value="@Model.SourceUrl" class="form-control"/>
+            }
+            <h4 class="col-form-label">Aufgabenserie:</h4>
+            <InputText readonly @bind-Value="@Model.Bundle" class="form-control"/>
+        </div>
+        <h4 class="col-form-label">Nur folgende Sprachen unterstützen:</h4>
+        <div class="form-group">
+            <!--TODO: Implement, that styling actually shows, what is selected. -->
+            @if (Model.KnownLanguages != null && Model.Languages != null)
+            {
+                <select size="4" multiple id="multiselect" name="languages" class="form-control" @onchange="e => AddToLanguages(e)">
+                    @foreach (var option in Model.KnownLanguages)
+                    {
+                        <option value="@option" selected="@(Model.Languages.Contains(option) ? "true" : "false")">@option</option>
+                    }
+                </select>
+            }
+        </div>
+        <h4 class="col-form-label">Challenges deren Tests ebenfalls getestet werden sollen:</h4>
+        <div class="form-group">
+            <InputTextArea @bind-Value="@Model.IncludeTests" class="form-control"/>
+        </div>
+        <h4 class="col-form-label">Challenges die vor dieser Aufgabe gelöst werden müssen:</h4>
+        <div class="form-group">
+            <InputTextArea @bind-Value="@Model.DependsOn" class="form-control"/>
+        </div>
+        <h4 class="col-form-label">Lernziel:</h4>
+        <div class="form-group">
+            <InputTextArea @bind-Value="@Model.LearningFocus" class="form-control"/>
+        </div>
+        <InputText @bind-Value="draft" hidden readonly/>
+        <InputText @bind-Value="@Model.Referer" hidden readonly/>
+        <span class="input-field-padding">Mit * markierte Felder, sind Pflichtfelder.</span>
+    </div>
+    <div id="descriptionPanel" class="input-field-padding col-8" style="height: 90%;">
+        <h4 class="col-form-label">Beschreibung*</h4>
+        <div style="background-color: white">
+            <ValidationMessage For="@(() => Model.Description)" class="text-danger" />
+            <TextEditor @ref="DescriptionEditor" EditorContent="@(MarkdownToHtml.Convert(Model.Description ?? string.Empty, null, false))"/>
+        </div>
+    </div>
+</div>
+
+
+@code {
+
+    [Parameter]
+    public ExtendedChallengeModel Model { get; set; }
+
+    string DateToString { get; set; } = string.Empty;
+    string draft = string.Empty;
+    TextEditor DescriptionEditor;
+
+    protected override void OnInitialized()
+    {
+        DateToString = Model.Date.ToString("MM/dd/yyyy");
+        draft = Model.IsDraft ? "true" : "false";
+    }
+    public async Task SaveEditor()
+    {
+        Model.Description = await DescriptionEditor.GetHTML();
+    }
+    public string createDropdowns(Dictionary<string, string> toIterate, string selected)
+    {
+        var result = string.Empty;
+
+        foreach (var entry in toIterate)
+        {
+            if (selected != null && entry.Key.Equals(selected))
+            {
+                result += "<option value=\"" + entry.Key + "\" selected>" + entry.Value + "</option>";
+            }
+            else
+            {
+                result += "<option value=\"" + entry.Key + "\">" + entry.Value + "</option>";
+            }
+        }
+        return result;
+    }
+
+    async void AddToLanguages(ChangeEventArgs e)
+    {
+        var languages = await jsRuntime.InvokeAsync<string[]>("getSelectedValues");
+        Model.Languages = languages.ToList();
+    }
+
+}

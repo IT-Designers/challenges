@@ -1,0 +1,26 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Shared.Models.Members
+
+<div class="col-sm-12">
+    <div class="post-area">
+        @if (Model != null)
+        {
+            <div class="post-header">
+                @Model.Name
+            </div>
+            <div class="post">
+                <p>
+                    Mitglied seit: @Model.DateOfEntry.ToShortDateString()<br />
+                    Erreichte Punkte: @Model.GlobalScore
+                </p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public MemberModel<Result, Member> Model { get; set; }
+
+}

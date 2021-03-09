@@ -1,0 +1,30 @@
+@page "/Account/Logout"
+@using SubmissionEvaluation.Client.Services
+@inject LoginService loginService
+@inject HttpClient httpClient
+@inject NavigationManager navi
+<head runat="server">
+    <title>Abmeldung erfolgreich...</title>
+    <meta http-equiv="Refresh" content="0;url=/"/>
+</head>
+<div class="shadow text-center">
+    <div class="card post-area">
+        <div class="post-header">Abmeldung erfolgreich.</div>
+        <div class="card-body challenge-creation-panel">
+            <div class="col-lg-12">
+                Sie wurden erfolgreich vom System abgemeldet und werden gleich weitergeleitet...
+                Sollte die Weiterleitung nicht funktionieren, klicken Sie bitte <NavLink href="/Account/Login">hier</NavLink>.
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        loginService.InvokeEvent();
+        navi.NavigateTo("Account/Login");
+    }
+
+}

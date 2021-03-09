@@ -1,0 +1,133 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Models.Shared
+@using System.Net.Http.Json
+@inject FileExplorerDomain domain
+@inject IToastService ToastService
+@inject HttpClient httpClient
+@inject IJSRuntime jsRuntime
+@inject NavigationManager navi
+<div hidden="@hidden">
+    <div style="display: flex;">
+        <div class="file-view-left explorer file-view">
+            <img src="images/file.png"/>
+        </div>
+        <div class="file-view-right explorer file-view">
+            <label>Filename:</label>
+            <InputText @bind-Value="Name"/>
+            <div>
+                <InputCheckbox @bind-Value="FileIsHidden"></InputCheckbox>hidden
+                <InputCheckbox @bind-Value="FileIsDelete"></InputCheckbox>delete
+            </div>
+            <!-- Is null, if it is no test and therefore you cannot modify the date.-->
+            @if (domain.FlatFiles != null)
+            {
+                <label>Last Modified dd.MM.yyyy hh:mm:ss</label>
+                <InputText @bind-Value="LastModifiedHolder"/>
+            }
+            @if (!(file is DetailedInputFile))
+            {
+                <button @onclick="DownloadFile" title="Download" class="btn btn-outline-dark btn-margin btn-block"><span class="oi oi-data-transfer-download"></span>Download</button>
+            }
+            else
+            {
+                <button @onclick="ShowDownloadDisabledPrompt" title="Download" class="btn btn-outline-dark btn-margin btn-block disabled"><span class="oi oi-data-transfer-download"></span>Download</button>
+            }
+            <div>
+                <button type="button" @onclick="SaveChanges" class="btn btn-primary newFolderButtonFlexed">Speichern</button>
+                <button type="button" @onclick="Abort" class="btn btn-primary newFolderButtonFlexed">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public File file { get; set; } = new File();
+
+    [Parameter]
+    public bool hidden { get; set; }
+
+    [Parameter]
+    public string DownloadUrl { get; set; }
+
+    private bool FileIsHidden { get; set; } = false;
+    private bool FileIsDelete { get; set; } = false;
+    private string Name { get; set; }
+    private string LastModifiedHolder { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Name = file.Name;
+        if (file.Path != null)
+        {
+            FileIsHidden = file.Path.StartsWith("_") ? true : false;
+        }
+        FileIsDelete = file.IsDelete;
+        if (file.LastModified == null)
+        {
+            file.LastModified = domain.FlatFiles?.Where(x => x.OriginalName.Equals(file.Path + file.OriginalName)).FirstOrDefault()?.LastModified;
+        }
+        LastModifiedHolder = file.LastModified;
+        base.OnParametersSet();
+    }
+
+    private void SaveChanges()
+    {
+        if (InputButtonHelper.CheckValidity(domain.Files, domain.NewFiles, Name, file))
+        {
+            if (LastModifiedHolder != string.Empty && LastModifiedHolder != null)
+            {
+                DateTime date;
+                if (!DateTime.TryParse(LastModifiedHolder, out date))
+                {
+                    ToastService.ShowError("Bitte gib ein gültiges Format ein!", "Error");
+                    return;
+                }
+                file.LastModified = LastModifiedHolder;
+            }
+            file.Name = Name;
+            if (FileIsHidden & !file.Path.StartsWith("_"))
+            {
+                file.Path = "_" + file.Path;
+            }
+            file.IsDelete = FileIsDelete;
+            domain.InFileEdit = false;
+            domain.InvokeEvent();
+        }
+        else
+        {
+            ToastService.ShowError("Es gibt bereits eine Datei mit diesem Namen.", "Error");
+        }
+    }
+
+    private void Abort()
+    {
+        domain.InFileEdit = false;
+        domain.InvokeEvent();
+    }
+
+    private void ShowDownloadDisabledPrompt()
+    {
+        ToastService.ShowWarning("Du musst den Test erst speichern, bevor du den File downloaden kannst.", "Warnung");
+    }
+
+    private async void DownloadFile()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<string>(DownloadUrl, file.Path + file.OriginalName);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var info = await responseMessage.Content.ReadFromJsonAsync<DownloadInfo>();
+            if (info.Data != null)
+            {
+                await jsRuntime.InvokeAsync<object>("saveAsFile", file.Path + file.OriginalName, Convert.ToBase64String(info.Data));
+            }
+            else
+            {
+                navi.NavigateTo($"Home/Error/{info.ErrorMessage}");
+            }
+        }
+    }
+
+}

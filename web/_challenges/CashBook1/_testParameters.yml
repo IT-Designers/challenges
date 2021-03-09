@@ -1,0 +1,82 @@
+﻿clearSandbox: true
+id: 1
+parameters:
+- add
+- 2.9.2015
+- Filter
+- -4,20
+input:
+  content: "j\n"
+inputFiles:
+- name: bookings.csv
+  contentFile: _bookings1.csv
+expectedOutput:
+  content: "Buchung angelegt: 2.9.2015, Filter, -4,20"
+  settings:
+    compareMode: Contains
+expectedOutputFile:
+  name: bookings.csv
+  content: "2.9.2015;Filter;-4.2\n"
+  settings: {}
+---
+clearSandbox: true
+id: 2
+hint: "Am Ende Hinzufügen mit bereits vorhandenen Buchungen klappt nicht."
+parameters:
+- add
+- 1.1.2000
+- Haribos
+- -5,1
+input:
+  content: "J\n"
+inputFiles:
+- name: bookings.csv
+  contentFile: _bookings2.csv
+expectedOutput:
+  content: "Buchung angelegt: 1.1.2000, Haribos, -5,10"
+  settings:
+    compareMode: Contains
+expectedOutputFile:
+  name: bookings.csv
+  content: "2.9.2015;Filter;-4.2\n1.1.2000;Haribos;-5.1\n"
+  settings: {}
+---
+clearSandbox: true
+id: 3
+hint: "Am Ende Hinzufügen mit bereits vorhandenen Buchungen klappt nicht."
+parameters:
+- add
+- 31.12.2017
+- Kaffee
+- -13,37
+input:
+  content: "J\n"
+inputFiles:
+- name: bookings.csv
+  contentFile: _bookings2.csv
+expectedOutput:
+  content: "Buchung angelegt: 31.12.2017, Kaffee, -13,37"
+  settings:
+    compareMode: Contains
+expectedOutputFile:
+  name: bookings.csv
+  content: "2.9.2015;Filter;-4.2\n31.12.2017;Kaffee;-13.37\n"
+  settings: {}
+---
+clearSandbox: true
+id: 4
+hint: "Buchung abbrechen klappt nicht"
+parameters:
+- add
+- 3.9.2015
+- More Filter
+- -4,19
+input:
+  content: "n\n"
+inputFiles:
+- name: bookings.csv
+  contentFile: _bookings3.csv
+expectedOutputFile:
+  name: bookings.csv
+  content: "2.9.2015;Filter;-4.2\n"
+  settings: {}

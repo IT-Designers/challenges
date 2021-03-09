@@ -1,0 +1,234 @@
+@inject HttpClient httpClient
+@inject NavigationManager navi
+@page "/Members/Member/{id}"
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Members
+@using SubmissionEvaluation.Client.Shared.Components.Members
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+
+<div class="row">
+    <MemberHeader Model="Model"/>
+    <Achievements Model="Model"/>
+
+    <div class="col-sm-12">
+        <div class="post-area">
+            <div class="post-header">
+                Punktewertungen
+            </div>
+            @if (Model != null)
+            {
+                <div class="post">
+                    <table class="ranking_table">
+                        <thead>
+                        <tr class="ranking_head">
+                            <th class="th_name">Name</th>
+                            <th class="th_name">Platz</th>
+                            <th class="th_name">Punkte</th>
+                            @if (PermissionHelper.CheckPermissions(Actions.VIEW, "Member", Permissions, Restriction.MEMBERS, id))
+                            {
+                                <th class="th_name">Übereinstimmung (%)</th>
+                            }
+                            <th class="th_name">Info</th>
+                        </tr>
+                        </thead>
+                        @foreach (var submission in Model.Points)
+                        {
+                            <tr>
+
+                                <td>
+                                    @switch (submission.Entry?.Challenge)
+                                    {
+                                        case "ChallengeCreators":
+                                            @((MarkupString) "Aufgabenerstellung")
+                                            break;
+                                        case "Achievements":
+                                            @((MarkupString) "Aufgabenerstellung")
+                                            break;
+                                        case "Reviews":
+                                            @((MarkupString) "Review")
+                                            break;
+                                        default:
+                                            <a href=@($"/Challenge/View/{submission.Entry?.Challenge}")>@submission.Entry?.Challenge</a>
+                                            break;
+                                    }
+                                </td>
+
+                                <td>
+                                    @((MarkupString) (submission.Entry.Rank > 0 ? submission.Entry.Rank.ToString() : "-"))
+                                </td>
+                                <td>
+                                    @((MarkupString) (submission.Entry.Points > 0 ? submission.Entry.Points.ToString() : "-"))
+                                </td>
+                                @if (PermissionHelper.CheckPermissions(Actions.VIEW, "Member", Permissions, Restriction.MEMBERS, id))
+                                {
+                                    @if (submission.DuplicatedFrom != null)
+                                    {
+                                        <td>@submission.Entry.DuplicateScore (<a href=@($"/Submission/View/{submission.Entry.Challenge}/{submission.Submission?.SubmissionId}")>@(Model.Name ?? Model.Id)</a> / <a href=@($"/Submission/View/{submission.Entry.Challenge}/{submission.DuplicatedFrom.SubmissionId}")>@(submission.DuplicatedFrom.MemberName ?? submission.DuplicatedFrom.MemberId)</a>)</td>
+                                    }
+                                    else
+                                    {
+                                        <td>-</td>
+                                    }
+                                }
+                                <td>
+                                    @switch (submission.Entry.Challenge)
+                                    {
+                                        case "ChallengeCreators":
+                                            <a href=@($"/Challenge/View/{submission.Entry.Language}")>@submission.Entry.Language</a>
+                                            break;
+                                        case "Achievements":
+                                            CustomSettings.Achievements.TryGetValue(submission.Entry.Language, out var config);
+                                            @((MarkupString) (config?.Title ?? "Achievement"))
+                                            break;
+                                        case "Reviews":
+                                            @((MarkupString) submission.Entry.Language)
+                                            break;
+                                        default:
+                                            if (submission.Entry.Language != null)
+                                            {
+                                                <a href=@("/Help/ViewPage/Compilers")>@submission.Entry.Language</a>
+                                            }
+                                            else
+                                            {
+                                                @((MarkupString) "-")
+                                            }
+                                            break;
+                                    }
+                                </td>
+                            </tr>
+                        }
+
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-sm-12">
+        <div class="post-area">
+            <div class="post-header">
+                Die neuesten Aktivitäten
+            </div>
+            <div class="post">
+                <table class="ranking_table">
+                    <thead>
+                    <tr class="ranking_head">
+                        <th class="th_name">Datum</th>
+                        <th class="th_name">Challenge</th>
+                        <th class="th_name">Sprache</th>
+                        <th class="th_name">Ergebnis</th>
+                    </tr>
+                    </thead>
+                    @if (Model != null)
+                    {
+                        var hasPermission = PermissionHelper.CheckPermissions(Actions.VIEW, "Member", Permissions, Restriction.MEMBERS, id);
+                        foreach (var entry in hasPermission ? Model.History : Model.History.Take(30))
+                        {
+                            switch (entry.Type)
+                            {
+                                case HistoryType.ChallengeSubmission:
+                                    if (!CustomSettings.Results.TryGetValue(entry.Result?.ToString(), out var resultConfig))
+                                    {
+                                        resultConfig = CustomSettings.Results["Undefined"];
+                                    }
+                                    <tr style="background: #@resultConfig.Color">
+                                        <td>
+                                            @entry.Date.ToShortDateString()
+                                        </td>
+                                        <td>
+                                            @if (Permissions.isAdmin)
+                                            {
+                                                <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                            }
+                                            else
+                                            {
+                                                @entry.Challenge
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (entry.Language != null)
+                                            {
+                                                <a href="Help/ViewPage/Compilers">@entry.Language</a>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (hasPermission)
+                                            {
+                                                <a href=@($"Submission/View/{entry.Challenge}/{entry.Id}")>@resultConfig.Description</a>
+                                            }
+                                            else
+                                            {
+                                                @resultConfig.Description
+                                            }
+                                        </td>
+                                    </tr>
+                                    break;
+                                case HistoryType.ReviewAvailable:
+                                    <tr style="background: #f08080">
+                                        <td>@entry.Date.ToShortDateString()</td>
+                                        <td>
+                                            <a href="/Review/Overview">@entry.Challenge</a>
+                                        </td>
+                                        <td></td>
+                                        <td>
+                                            <b>Ausstehendes Review</b>
+                                        </td>
+                                    </tr>
+                                    break;
+                                case HistoryType.SubmissionRated:
+                                    <tr style="background: #ddffdd">
+                                        <td>@entry.Date.ToShortDateString()</td>
+                                        <td>
+                                            <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                        </td>
+                                        <td></td>
+                                        <td>Reviewergebnis verfügbar</td>
+                                    </tr>
+                                    break;
+                                case HistoryType.SubmissionNowFailing:
+                                    <tr style="background: #f08080">
+                                        <td>@entry.Date.ToShortDateString()</td>
+                                        <td>
+                                            <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                        </td>
+                                        <td></td>
+                                        <td>Bisher laufende Einreichung schlägt nun fehl (=Aufgabenänderung)</td>
+                                    </tr>
+                                    break;
+                            }
+                        }
+                    }
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    MemberModel<Result, Contracts.ClientPocos.Member> Model { get; set; }
+    Permissions Permissions { get; set; }
+    CustomizationSettingsClient CustomSettings { get; set; }
+
+    [Parameter]
+    public string id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        var features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        if (!features.EnableRating && !PermissionHelper.CheckPermissions(Actions.VIEW, "Member", Permissions, Restriction.MEMBERS, id))
+        {
+            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+        CustomSettings = await httpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        Model = await httpClient.GetFromJsonAsync<MemberModel<Result, Contracts.ClientPocos.Member>>($"api/Members/Get/{id}");
+        if (Model.HasError)
+        {
+            navi.NavigateTo($"Home/Error/{Model.Message}");
+        }
+        StateHasChanged();
+    }
+
+}

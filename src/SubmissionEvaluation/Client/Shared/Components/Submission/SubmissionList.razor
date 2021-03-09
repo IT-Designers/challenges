@@ -1,0 +1,108 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+<style>
+
+    .myTab td {
+        padding: 0 2px;
+        vertical-align: middle;
+    }
+
+    .myTab th {
+        padding: 0 2px;
+        vertical-align: middle;
+    }
+
+    .myTab { cursor: pointer; }
+</style>
+
+
+@if (Model.Submissions != null && Model.Submissions.Count == 0)
+{
+    <h4> Es gibt bisher keine Einreichungen zu dieser Challenge. </h4>
+}
+else
+{
+    <table class="ranking_table table myTab">
+        <thead>
+        <tr class="ranking_head">
+            <th class="th_name">Datum</th>
+            <th class="th_name" style="width: 99%">Sprache</th>
+            <th class="th_name" colspan="2">Ergebnis</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr style="@(Model.SubmissionId != null ? null : "background-color: lavender")" class="clickable-row" @onclick="() => SelectSubmission(null)">
+            <td colspan="4" style="text-align: center">
+                <b>Neue Einreichung</b>
+            </td>
+        </tr>
+        @if (Model.Submissions != null)
+        {
+            @foreach (var submission in Model.Submissions)
+            {
+                <tr style="@(submission.Id != Model.SubmissionId ? "" : "background-color: lavender")" class="clickable-row" @onclick="() => SelectSubmission(submission.Id)">
+                    <td> @submission.SubmissionDate</td>
+                    <td>
+                        @submission.Language
+                        @if (submission.IsPassed && submission.ExecutionDuration.HasValue)
+                        {
+                            <br/>
+                            @(submission.ExecutionDuration + " ms")
+                        }
+                    </td>
+                    <td>
+                        @if (submission.IsPassed)
+                        {
+                            <img src=@($"/images/rating_star{submission.ReviewResult}.png") style="height: 24px; width: 24px;"/>
+                        }
+                        else if (!submission.IsQueued)
+                        {
+                            <img src="@("/images/rating_unsolved.png")" style="height: 24px; width: 24px;"/>
+                        }
+                        else
+                        {
+                            <img src="@("/images/rating_missing.png")" style="height: 24px; width: 24px;"/>
+                        }
+                    </td>
+                    <td>
+                        @if (submission.IsPassed)
+                        {
+                            if (submission.HasReviewData)
+                            {
+                                <a href="/Reviews/View/@Model.Id/submission.Id" class="btn" title="Reviewergebnis anzeigen (BETA)" style="padding: 0;">
+                                    <span class="oi oi-eye"></span>
+                                </a>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+        }
+
+        </tbody>
+    </table>
+}
+
+@code {
+
+    [Parameter]
+    public UploadModel<Result, Member> Model { get; set; }
+
+    [Parameter]
+    public EventCallback<UploadModel<Result, Member>> ModelChanged { get; set; }
+
+    private async void SelectSubmission(string submissionId)
+    {
+        Model.SubmissionId = submissionId;
+        Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{Model.Id}/{submissionId}");
+        if (Model.HasError)
+        {
+            navi.NavigateTo($"Home/Error/{Model.Message}");
+        }
+        await ModelChanged.InvokeAsync(Model);
+        StateHasChanged();
+    }
+
+}

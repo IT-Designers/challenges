@@ -1,0 +1,25 @@
+﻿Zeit: @ActualTime
+
+@code {
+
+    [Parameter]
+    public DateTime ReviewStartTime { get; set; }
+
+    string ActualTime { get; set; } = "00:00:00";
+
+    protected override void OnInitialized()
+    {
+        StartTimer();
+    }
+
+    void StartTimer()
+    {
+        var timer = new System.Threading.Timer(_ =>
+        {
+            var time = DateTime.Now - ReviewStartTime;
+            ActualTime = time.ToString(@"hh\:mm\:ss");
+            StateHasChanged();
+        }, null, 1000, 1000);
+    }
+
+}

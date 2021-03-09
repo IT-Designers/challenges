@@ -1,0 +1,41 @@
+﻿id: 1
+parameters: []
+input:
+  content: "8\n83\n65\n18\n25\n23\n45\n45\n32"
+expectedOutput:
+  content: "2"
+  alternatives:
+  - Hallo
+  - Yay, es funzt!
+  settings:
+    compareMode: ContainsWord
+---
+id: 2
+hint: "Werden negative Zahlen richtig verarbeitet?"
+parameters: []
+input:
+  content: "12\n2325\n212\n-1231\n1231\n-123\n-2324\n3223\n-234\n234\n123\n4232\n12\n"
+expectedOutput:
+  content: "9640"
+  settings:
+    compareMode: ContainsWord
+---
+id: 3
+hint: "Funktioniert die Kontroller der Array größe richtig?"
+parameters: []
+input:
+  content: "1\n8\n83\n65\n18\n25\n23\n45\n45\n32"
+expectedOutput:
+  content: "Bitte geben Sie eine Zahl größer 1 ein!\n2"
+  settings:
+    compareMode: ContainsWord
+---
+id: 4
+hint: "Funktioniert die Kontrolle der Array größe richtig? Der Nutzer kann diese Zahl auch mehrmals falsch eingeben."
+parameters: []
+input:
+  content: "1\n-1\n1\n-5\n-6\n8\n83\n65\n18\n25\n23\n45\n45\n32"
+expectedOutput:
+  content: "Bitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\n2"
+  settings:
+    compareMode: ContainsWord

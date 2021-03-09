@@ -1,0 +1,85 @@
+@page "/Test/CreateWithGenerator/{challengeid}"
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Models.Shared
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes 
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+@inject FileExplorerDomain domain
+
+<div class="post-area">
+    <TestGeneratorInput Model="Model" action="CreateTest" hidden="!hidden"/>
+    @if (TestFolder != null && TestFolder.NewFilesInFolder.Count != 0)
+    {
+        <TestGeneratorConfirmation Model="Model" @bind-hidden="hidden" Input='domain.FetchFolder("Input", TestFolder)' ChallengeModel="ChallengeModel"/>
+    }
+</div>
+
+@code{
+    private TestGeneratorModel<Result, Member> Model { get; set; } = new TestGeneratorModel<Result, Member>();
+
+    [Parameter]
+    public string ChallengeId { get; set; }
+
+    private Folder TestFolder { get; set; }
+    private ExtendedChallengeModel ChallengeModel { get; set; }
+    private bool hidden { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ChallengeId == null)
+            navi.NavigateTo("/Challenges");
+        else
+        {
+            var Permissions = await httpClient.GetFromJsonAsync<Permissions>($"api/Members/Permissions");
+            if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Test", Permissions, Restriction.CHALLENGES, ChallengeId))
+            {
+                navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            }
+            Model = await httpClient.GetFromJsonAsync<TestGeneratorModel<Result, Member>>($"/api/Test/GetTestGeneratorModel/{ChallengeId}");
+        }
+
+        ChallengeModel = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Model.ChallengeId}");
+        if (ChallengeModel == null)
+        {
+            navi.NavigateTo("Challenges");
+        }
+        else if (Model.HasError)
+        {
+            navi.NavigateTo($"Home/Error/{Model.Message}");
+        }
+        var Id = 1;
+        while (ChallengeModel.Tests.Any(x => x.Id == Id))
+        {
+            Id++;
+        }
+        Model.Test.Index = ChallengeModel.Tests.Count.ToString();
+        Model.Test.Id = Id;
+        TestFolder = domain.CreateFoldersForTest(ChallengeModel, Model.Test).Item1;
+        domain.FlatFiles = Model.Test.InputFiles;
+        Model.SubmissionChanged += StateHasChanged;
+    }
+
+    private async void CreateTest()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<TestGeneratorModel<Result, Member>>("api/Test/CreateTestWithTestGeneratorResult", Model);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var result = await responseMessage.Content.ReadFromJsonAsync<TestGeneratorModel<Result, Member>>();
+            if (!result.HasError)
+            {
+                Model = result;
+                UnHideConfirm();
+            }
+        }
+    }
+
+    private void UnHideConfirm()
+    {
+        hidden = false;
+        StateHasChanged();
+    }
+
+}

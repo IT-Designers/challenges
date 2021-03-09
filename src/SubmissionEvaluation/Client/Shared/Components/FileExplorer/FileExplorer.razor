@@ -1,0 +1,59 @@
+﻿@page "/Challenges/Edit/FileExplorer"
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Models.Shared
+@inject FileExplorerDomain domain
+<div class="row">
+    <div id="filelistCol" class="col-12">
+        <div>
+            <div class="folder-structure explorer">
+                <div class="explorer-header">Ordner</div>
+                <ul class="less-padding" hidden="@InfoActive">
+                    <FolderComponent folder="RootFolder"/>
+                    <li>
+                        <NewFolderButton @bind-Files="RootFolder.NewFilesInFolder" OtherFiles="RootFolder.FilesInFolder" Path="@(Index + domain.Path.Replace("/", Folder.pathSeperator))"/>
+                    </li>
+                </ul>
+                <button class="infoButton" type="button" hidden="@InfoActive" @onclick="() => InfoActive = !InfoActive">
+                    <span class="oi oi-info"></span>
+                </button>
+                <InfoField @bind-hidden="@InfoActive"></InfoField>
+            </div>
+            <div class="file-overview explorer">
+                <div class="explorer-header">@domain.Path</div>
+                <div class="no-overflow flex-column h-82 explorer-content">
+                    <DropDownZone @bind-Files="domain.NewFiles" OtherFiles="domain.Files" hidden="@domain.InFileEdit" Path="@(Index + domain.Path.Replace("/", Folder.pathSeperator))"/>
+                    <EditFileProperties file="domain.SelectedFile" hidden="@(!domain.InFileEdit)" DownloadUrl="@DownloadUrl"/>
+                </div>
+                <div>
+                    <NewFolderButton @bind-Files="domain.NewFiles" OtherFiles="domain.Files" Small="false" Path="@(Index + domain.Path.Replace("/", Folder.pathSeperator))"/>
+                </div>
+            </div>
+        </div>
+        <div class="label label-info lb-md" id="filelabel"></div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public Folder RootFolder { get; set; }
+
+    [Parameter]
+    public string Index { get; set; } = string.Empty;
+
+    [Parameter]
+    public string DownloadUrl { get; set; } = string.Empty;
+
+    private bool InfoActive { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        RootFolder.IsExpanded = false;
+        domain.Path = "/" + RootFolder.Name + "/";
+        domain.Files = RootFolder.FilesInFolder;
+        domain.NewFiles = RootFolder.NewFilesInFolder;
+        domain.DomainEvent += StateHasChanged;
+        StateHasChanged();
+    }
+
+}

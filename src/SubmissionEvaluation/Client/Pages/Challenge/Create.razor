@@ -1,0 +1,84 @@
+@page "/Challenge/Create"
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes 
+@inject HttpClient httpClient
+@inject NavigationManager nav
+<style>
+    .consoleblock {
+        background: #000 !important;
+        border-width: 1px !important;
+        color: #DDD !important;
+        font-family: Menlo, Monaco, Consolas, "Courier New", monospace !important;
+        font-size: 13px !important;
+        line-height: 1.1 !important;
+        padding: 9.5px !important;
+    }
+</style>
+<div>
+    <div class="post-area">
+        @if (Model != null)
+        {
+            <div class="post-header">
+                Neue Aufgabe erstellen
+            </div>
+            <div class="card-body challenge-creation-panel">
+                <EditForm @ref="Form" OnValidSubmit="@CreateChallenge" Model="@Model" id="challengeform" enctype="multipart/form-data" OnInvalidSubmit="@SaveText">
+                    <DataAnnotationsValidator/>
+                    <div class="card-body challenge-creation-panel">
+                        <MessageHeader Model="@Model"/>
+                        <div id="project-group" class="form-group">
+                            <h4 class="col-form-label">ID* (Späteres Ändern nicht möglich!)</h4>
+                            <InputText @bind-Value="@Model.Id" class="form-control"/>
+                            <ValidationMessage For="@(() => Model.Id)"/>
+                        </div>
+                        <EditChallengePartial Model="@Model" @ref="Partial"/>
+                        <button id="create" type="submit" class="btn btn-primary btn-block text-center input-field-padding" value="Aufgabe erstellen!"><span class="oi oi-book"></span> Aufgabe erstellen</button>
+                    </div>
+                </EditForm>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    ExtendedChallengeModel Model;
+    EditChallengePartial Partial;
+    EditForm Form;
+
+    protected override async void OnInitialized()
+    {
+        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Challenges", Permissions))
+        {
+            nav.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+        Model = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>("api/Challenge/getDraftForUser");
+        StateHasChanged();
+    }
+    public async void SaveText()
+    {
+        await Partial.SaveEditor();
+    }
+    public async void CreateChallenge()
+    {
+        await Partial.SaveEditor();
+        var responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>("api/Challenge/CreateChallenge", Model);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var result = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
+            if (result.HasSuccess)
+            {
+                nav.NavigateTo($"/Challenge/Edit/{Model.Id}");
+            }
+            else
+            {
+                Model.Message = result.Message;
+                Model.HasError = result.HasError;
+            }
+        }
+        StateHasChanged();
+    }
+
+}

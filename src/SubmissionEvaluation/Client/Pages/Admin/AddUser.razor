@@ -1,0 +1,61 @@
+@page "/Admin/AddUser"
+@using SubmissionEvaluation.Shared.Models.Admin
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+
+<div class="input-field-padding add-user-form" style="margin-top: 20px;">
+    <h3>Neuen Nutzer erstellen</h3>
+    @if (Model != null)
+    {
+        <EditForm OnValidSubmit="CreateUser" Model="@Model">
+            <ValidationSummary/>
+            <DataAnnotationsValidator/>
+            <div class="flex-column" style="margin-top: 20px">
+                <div id="title-group" class="form-group">
+                    <label class="col-form-label">Uid:</label>
+                    <InputText @bind-Value="Model.Name" class="form-control add-user"/>
+                    <ValidationMessage For="@(() => Model.Name)"/>
+                </div>
+                <div id="title-group" class="form-group">
+                    <label class="col-form-label">Password:</label>
+                    <InputText @bind-Value="Model.Password" class="form-control add-user" type="password"/>
+                    <ValidationMessage For="@(() => Model.Password)"/>
+                </div>
+                <div id="title-group" class="form-group">
+                    <label class="col-form-label">Mail:</label>
+                    <InputText @bind-Value="Model.Mail" class="form-control add-user"/>
+                    <ValidationMessage For="@(() => Model.Mail)"/>
+                </div>
+            </div>
+            <input class="btn btn-warning" type="submit" name="Submit" id="Submit" value="Anlegen"/>
+        </EditForm>
+    }
+</div>
+
+
+@code {
+    AddTempUserModel Model { get; } = new AddTempUserModel();
+
+    protected override async void OnInitialized()
+    {
+        var userSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        if(!userSettings.Roles.Contains("admin"))
+        {
+            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+    }
+    async void CreateUser()
+    {
+        var res = await httpClient.PostAsJsonAsync<AddTempUserModel>("api/Admin/AddUser", Model);
+        if (res.IsSuccessStatusCode)
+        {
+            var result = await res.Content.ReadFromJsonAsync<GenericModel>();
+            if (result.HasSuccess)
+            {
+                navi.NavigateTo("Admin/Users");
+            }
+        }
+    }
+
+}

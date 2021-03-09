@@ -1,0 +1,29 @@
+﻿id: 1
+parameters: []
+input:
+  content: "Markus\n"
+expectedOutput:
+  content: "Hallo, Markus!"
+  settings:
+    whitespaces: RemoveEvenNewlines
+    compareMode: Contains
+---
+id: 2
+parameters: []
+input:
+  content: "Chuck\n"
+expectedOutput:
+  content: "Hallo, Chuck!"
+  settings:
+    whitespaces: RemoveEvenNewlines
+    compareMode: Contains
+---
+id: 3
+parameters: []
+input:
+  content: "MickeyTheLittleMouse\n"
+expectedOutput:
+  content: "Hallo, MickeyTheLittleMouse!"
+  settings:
+    whitespaces: RemoveEvenNewlines
+    compareMode: Contains

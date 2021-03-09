@@ -1,0 +1,18 @@
+﻿title: Grundlagen
+groupAdminIds:
+- a05a8990b757261074bdc564a90d53c5
+- d1a2fe81da0330cc494b577270619669
+availableChallenges:
+- Feldverarbeitung1
+- Feldverarbeitung2
+- Feldverarbeitung3
+- Filename
+- FizzBuzz
+- HelloWorld
+maxUnlockedChallenges: 2
+forcedChallenges:
+- HelloWorld
+requiredPoints: 4
+startDate: 0001-01-01T00:00:00.0000000
+isSuperGroup: false
+subGroups: []

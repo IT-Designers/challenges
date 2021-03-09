@@ -1,0 +1,261 @@
+@page "/Challenges"
+@page "/Challenges/{task}"
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Models.Permissions
+
+@inject NavigationManager Navi
+@inject HttpClient HttpClient
+
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+            <div class="post-header">
+                <h1>
+                    Challenges verwalten
+                    <NavLink href="Challenge/Create" title="Neue Challenge anlegen" class="btn btn-sm">
+                        <span class="oi oi-plus"></span>
+                    </NavLink>
+                    <NavLink href="Challenge/UploadChallenge" title="Challenge hochladen" class="btn btn-sm">
+                        <span class="oi oi-file-upload"></span>
+                    </NavLink>
+                </h1>
+            </div>
+            <MessageHeader Model="Model"/>
+            <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="searchInput" placeholder="Suche nach einer Challenge (via Titel)"/>
+            <table id="challenges-table" class="table display dataTable no-footer" role="grid" aria-describedby="challenges-table_info">
+                <thead>
+                <tr style="font-size: x-small">
+                    <th>!</th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("ID")'>Id</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Title")'>Titel</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Author")'>Autor</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Category")'>Kategorie</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Groups")'>Gruppen</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Published")'>Veröffentlicht</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Changed")'>Geändert</button>
+                    </th>
+                    <th>
+                        <button class="no-styling" @onclick='() => Sort("Difficulty")'>Machb.</button>
+                    </th>
+                    <th><button class="no-styling" @onclick='() => Sort("Points")'></button>Pkt</th>
+                    <th>Aktionen</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (Model != null && Model.Challenges != null)
+                {
+                    @foreach (var cp in Model.Challenges.Where(x => x.Title.ToLower().Contains(searchInput.ToLower())))
+                    {
+                        <tr>
+                            <td class="@(cp.HasChallengeError ? "error-challenge" : null) smalltd">
+                                @if (cp.HasChallengeError)
+                                {
+                                    <span title="@cp.ChallengeErrorDescription" class="oi oi-exclamation-triangle"></span>
+                                }
+                            </td>
+                            <td class="smalltd">
+                                <NavLink class="no-link-coloring" href=@GetUrl(cp.Id) title="@cp.Id">@(cp.Id.Length > 16 ? cp.Id.Substring(0, 14) + ".." : cp.Id)</NavLink>
+                            </td>
+                            <td class="smalltd">
+                                <NavLink class="no-link-coloring" href=@GetUrl(cp.Id) title="@cp.Title">@(cp.Title.Length > 20 ? cp.Title.Substring(0, 18) + ".." : cp.Title)</NavLink>
+                            </td>
+                            <td class="smalltd" style="font-size: small">
+                                <NavLink href=@("Members/Member/" + cp.AuthorID) title="@cp.Author">@cp.Author.Split(' ').Last()</NavLink>
+                            </td>
+                            <td class="smalltd" style="font-size: small">@Model.Categories[cp.Category]</td>
+                            <td class="smalltd" style="font-size: xx-small">@string.Join(", ", cp.Groups.Select(x => x.Id))</td>
+                            @if (cp.IsDraft)
+                            {
+                                <td data-sort="0" class="smalltd" style="font-size: xx-small">Unveröffentlicht</td>
+                                <td></td>
+                            }
+                            else
+                            {
+                                <td data-sort="@cp.Date.Ticks" class="smalltd" style="font-size: small">@cp.Date.ToShortDateString()</td>
+                                <td data-sort="@cp.Date.Ticks" class="smalltd" style="font-size: small">@cp.LastEdit.ToShortDateString()</td>
+                            }
+                            <td class="smalltd">@cp.FeasibilityIndex</td>
+                            <td class="smalltd">@cp.Points.Mid</td>
+                            <td class="smalltd">
+                                <a href="Challenge/Edit/@cp.Id" title="Bearbeiten" class="btn btn-sm" style="padding: 2px">
+                                    <span class="oi oi-pencil"></span>
+                                </a>
+                                <a href="Submission/Task/@cp.Id" title="Alle Einreichungen" class="btn btn-sm" style="padding: 2px">
+                                    <span class="oi-list oi"></span>
+                                </a>
+                                <a href="Challenge/Copy/@cp.Id" title="Kopieren" class="btn btn-sm" style="padding: 2px">
+                                    <span class="oi-copywriting oi"></span>
+                                </a>
+                                <a href="Challenge/ConfirmAction/@cp.Id/Delete" title="Löschen" class="btn btn-sm" style="padding: 2px">
+                                    <span class="oi-trash oi"></span>
+                                </a>
+                                @if (Permissions.isAdmin)
+                                {
+                                    <button @onclick="@(async () => await RateDown(cp))" title="Schwierigkeitslevel reduzieren" class="btn btn-sm iconed challenge-btn">
+                                        <span class="oi oi-chevron-bottom"></span>
+                                    </button>
+                                    <button @onclick="@(async () => await RateDown10(cp))" title="Schwierigkeitslevel reduzieren * 10" class="btn btn-sm iconed challenge-btn">
+                                        <span class="oi oi-caret-bottom"></span>
+                                    </button>
+                                    <button @onclick="@(async () => await RateUp(cp))" title="Schwierigkeitslevel erhöhen" class="btn btn-sm iconed challenge-btn">
+                                        <span class="oi oi-chevron-top"></span>
+                                    </button>
+                                    <button @onclick="@(async () => await RateUp10(cp))" title="Schwierigkeitslevel erhöhen * 10" class="btn btn-sm iconed challenge-btn">
+                                        <span class="oi oi-caret-top"></span>
+                                    </button>
+                                    <DownloadComponent Class="btn btn-sm iconed challenge-btn" title="Challenge herunterladen" content='<span class="oi oi - data - transfer - download"></span>' Id="@cp.Id" URL="api/Challenge/Download" FileName=@($"{cp.Id}.zip")/>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+            <div>
+                <NavLink href="Challenge/Create" class="btn btn-outline-dark btn-margin col-12">Challenge anlegen</NavLink>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    ChallengeOverviewModel Model { get; set; } = new ChallengeOverviewModel();
+    Permissions Permissions { get; set; } = new Permissions();
+
+    [Parameter]
+    public string task { get; set; }
+
+    string searchInput { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.VIEW, "Challenges", Permissions))
+        {
+            Navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+        if (task == null)
+        {
+            Model = await HttpClient.GetFromJsonAsync<ChallengeOverviewModel>("api/Challenge/GetAllChallengesForMember");
+        }
+        else
+        {
+            Model = await HttpClient.GetFromJsonAsync<ChallengeOverviewModel>($"api/Challenge/GetAllChallengesForMember/{task}");
+        }
+    }
+
+    public async Task RateUp(ChallengeModel model)
+    {
+        var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateUp/{model.Id}");
+        updateChallenge(updated);
+    }
+
+    public async Task RateUp10(ChallengeModel model)
+    {
+        var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateUp10/{model.Id}");
+        updateChallenge(updated);
+    }
+
+    public async Task RateDown(ChallengeModel model)
+    {
+        var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateDown/{model.Id}");
+        updateChallenge(updated);
+    }
+
+    public async Task RateDown10(ChallengeModel model)
+    {
+        var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateDown10/{model.Id}");
+        updateChallenge(updated);
+    }
+
+    public void updateChallenge(ChallengeModel updated)
+    {
+        var list = new List<ChallengeModel>();
+        foreach (var model in Model.Challenges)
+        {
+            if (!model.Id.Equals(updated.Id))
+            {
+                list.Add(model);
+            }
+            else
+            {
+                list.Add(updated);
+            }
+        }
+        Model.Challenges = list;
+    }
+
+    private string Source(ChallengeModel challenge)
+    {
+        if (challenge.SourceType?.Equals("own", StringComparison.CurrentCultureIgnoreCase) == true)
+        {
+            return "none";
+        }
+
+        return challenge.SourceUrl;
+    }
+
+    private string GetUrl(string ID)
+    {
+        return "Challenge/View/" + ID;
+    }
+
+    void Sort(string type)
+    {
+        var challenges = Model.Challenges.ToList();
+        switch (type)
+        {
+            case "Changed":
+                challenges.Sort((x, y) => x.LastEdit.CompareTo(y.Id));
+                break;
+            case "Difficulty":
+                challenges.Sort((x, y) => x.FeasibilityIndex.CompareTo(y.FeasibilityIndex));
+                break;
+            case "Points":
+                challenges.Sort((x, y) => x.Points.Mid.CompareTo(y.Points.Mid));
+                break;
+            case "ID":
+                challenges.Sort((x, y) => x.Id.CompareTo(y.Id));
+                break;
+            case "Title":
+                challenges.Sort((x, y) => x.Title.CompareTo(y.Title));
+                break;
+            case "Author":
+                challenges.Sort((x, y) => x.Author.CompareTo(y.Author));
+                break;
+            case "Category":
+                challenges.Sort((x, y) => x.Category.CompareTo(y.Category));
+                break;
+            case "Groups":
+                challenges.Sort((x, y) =>
+                {
+                    if (x.Groups.Count() == y.Groups.Count())
+                    {
+                        return x.Groups.Count == 0 ? 0 : x.Groups.First().Id.CompareTo(y.Groups.First().Id);
+                    }
+                    return x.Groups.Count() > y.Groups.Count() ? -1 : 1;
+                });
+                break;
+            case "Published":
+                challenges.Sort((x, y) => x.Date.CompareTo(y.Date));
+                break;
+        }
+        Model.Challenges = challenges;
+        StateHasChanged();
+    }
+
+}

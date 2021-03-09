@@ -1,0 +1,32 @@
+﻿@if (Parameters != null)
+{
+    for (var i = 0; i < Parameters.Count; i++)
+    {
+        var index = i;
+        <div class="form-inline">
+            <textarea @onchange="e => Parameters[index] = e.Value.ToString()" class="form-control" value="@Parameters[index]"></textarea>
+            <a class="btn btn-danger" @onclick="@(e => removeInputTextArea(index))">@NameOfParameter entfernen</a>
+        </div>
+    }
+}
+
+@code {
+
+    [Parameter]
+    public string NameOfParameter { get; set; }
+
+    [Parameter]
+    public List<string> Parameters { get; set; }
+
+    [Parameter]
+    public EventCallback<List<string>> ParametersChanged { get; set; }
+
+    public async Task removeInputTextArea(int pramindex)
+    {
+        Parameters[pramindex] = null;
+        Parameters = Parameters.Where(x => x != null).ToList();
+        await ParametersChanged.InvokeAsync(Parameters);
+        StateHasChanged();
+    }
+
+}

@@ -1,0 +1,127 @@
+@page "/Review/View/{challengeId}/{submissionId}"
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Contracts.Data.Review
+@using SubmissionEvaluation.Shared.Models.Review
+@using Newtonsoft.Json
+
+@* ReSharper disable once RedundantUsingDirective *@
+@using SubmissionEvaluation.Client.Shared.Components.Review
+
+@inject ReviewSynchronizer synchronizer
+@inject HttpClient httpClient
+@inject NavigationManager navi
+<style>
+    .category-comments {
+        border: orange 4px solid;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .category-comments > p:first-of-type { background-color: orange }
+</style>
+<link href="css/review.css" rel="stylesheet"/>
+@if (Model != null)
+{
+    <div class="post-area">
+        <div class="post-header">
+            <span id="challengeTilePostHeader">Review for Challenge:<a class="no-link-coloring" href="Challenge/View/@Model.ChallengeId">@Model.ChallengeId</a></span>
+        </div>
+        <div class="card-body challenge-creation-panel">
+            <table>
+                @foreach (var category in Model.ReviewRating.Childs)
+                {
+                    <tr>
+                        @if (Model.CalculateReviewRating(category) > 0)
+                        {
+                            <td>@category.Title</td>
+                            <td>@(Model.CalculateReviewRating(category)) Sterne</td>
+                        }
+                        else
+                        {
+                            <td>@category.Title</td>
+                            <td>NICHT BEWERTET</td>
+                        }
+                    </tr>
+                }
+                <tr>
+                    <td>Gesamt</td>
+                    <td>@Model.Stars Sterne</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div class="post-area">
+        <div class="card-body challenge-creation-panel">
+            <div id="reviewer">
+                <div class="row form-group">
+                    <SideMenu SourceFiles="Model.SourceFiles.ToList()"/>
+                    <div class="col-sm-10 col-12 editor-wrapper">
+                        <div id="editorContainer">
+                            <ReviewerFile Categories="Model.Categories" AllComments="new HashSet<ReviewComments>(GetAllComments())" IsReadOnly="true"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="post-area">
+        <div class="post-header">
+            Detailbewertung
+        </div>
+        <div class="card-body challenge-creation-panel">
+            <p>
+                Es folgen die Bewertungen im Detail für jede einzelne Kategorie, sowie eine kurze Beschreibung.
+            </p>
+            @foreach (var category in Model.ReviewRating.Childs)
+            {
+                <h4>@(category.Title) (Sterne: @(Model.CalculateReviewRating(category)))</h4>
+                <div>@((MarkupString) category.Description)</div>
+
+                <div style="border-color: orange" class="category-comments">
+                    <p>Kommentar</p>
+                    <p>@category.Comment</p>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public string challengeId { get; set; }
+
+    [Parameter]
+    public string submissionId { get; set; }
+
+    ReviewViewModel Model { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var stringify = await httpClient.GetStringAsync($"api/Review/GetReviewView/{challengeId}/{submissionId}");
+        Model = JsonConvert.DeserializeObject<ReviewViewModel>(stringify);
+        if (Model != null)
+        {
+            if (Model.HasError)
+            {
+                navi.NavigateTo($"Home/Error/{Model.Message}");
+            }
+            synchronizer.SetAllFilesWithComments(Model.ReviewData.ResultComments.ToList(), Model.SourceFiles.ToList());
+            synchronizer.CurrentAssoziation = synchronizer.AllFilesWithComments[0];
+        }
+        StateHasChanged();
+    }
+
+    IEnumerable<ReviewComments> GetAllComments()
+    {
+        var preresult = Model.ReviewData.ResultComments.Select(x => x.Comments);
+        foreach (var comments in preresult)
+        {
+            foreach (var comment in comments)
+            {
+                yield return comment;
+            }
+        }
+    }
+
+}

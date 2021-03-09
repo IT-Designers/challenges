@@ -1,0 +1,339 @@
+@using SubmissionEvaluation.Shared.Models.Shared
+@using SubmissionEvaluation.Client.Shared.Components.FileExplorer
+@if (Model != null)
+{
+    <div>
+        <label for="inputTextBox">Simulierte Eingabe</label>
+        <input type="text" @bind="Model.Input" id="inputTextBox" class="form-control" style="min-height: 200px"/>
+        <p id="inputHelpBlock" class="form-text text-muted">
+            Beschreibt die Tastatureingaben, die während des Programmablaufs gemacht werden sollen.
+        </p>
+    </div>
+
+    <div>
+        <label for="parametersTextAreaArrays">Startparameter</label>
+        <div id="parametersTextAreas">
+            <ForEachInputText @bind-Parameters="Model.Parameters" NameOfParameter="Parameter"/>
+
+        </div>
+        <button id="addParameterButton" type="button" class="btn btn-outline-dark" @onclick="addInputTextArea">Parameter hinzufügen</button>
+        <p id="parametersHelpBlock" class="form-text text-muted">
+            Gibt die Parameter an, die beim Programmstart übergeben werden. Eine Textbox entspricht einem Parameter. Der entfernen Button wird erst nach dem Speichern hinzugefügt.
+        </p>
+    </div>
+
+    <hr/>
+
+    <div>
+        <label for="outputTextBox">Erwartete Ausgabe</label>
+        <textarea @bind="Model.Output.Content" id="outputTextBox" class="form-control" style="min-height: 200px"></textarea>
+        @if (Model.Output.Alternatives != null)
+        {
+            for (var i = 0; i < Model.Output.Alternatives.Count; i++)
+            {
+                var index = i;
+                <textarea @bind="Model.Output.Alternatives[index]" class="form-control" style="min-height: 200px"></textarea>
+            }
+        }
+        <button id="btnNewExpectedOutput" name="command" type="button" @onclick="addExpectedOutput" class="btn btn-outline-dark btn-upload"><span class="oi oi-plus"></span> Alternative hinzufügen</button>
+        <p id="outputHelpBlock" class="form-text text-muted">
+            Beschreibt die erwartete Programmausgabe. Wird diese nicht erfüllt, schlägt der Test fehl.
+        </p>
+        <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#consoleOutputCompareSettings" aria-controls="collapseExample" @onclick="() => collapse = !collapse">
+            Zeige Vergleichseinstellungen der erwarteten Ausgabe
+        </button>
+        <div hidden="@collapse" id="consoleOutputCompareSettings">
+            <div class="card card-body">
+                <h6>Vergleichs Modus</h6>
+                <select @bind="Model.Output.CompareSettings.CompareMode">
+                    <option value="@CompareModeType.Exact">Exact</option>
+                    <option value="@CompareModeType.ExactSubstring">ExactSubstring</option>
+                    <option value="@CompareModeType.Contains">Contains</option>
+                    <option value="@CompareModeType.ContainsWord">ContainsWord</option>
+                    <option value="@CompareModeType.Regex">Regex</option>
+                    <option value="@CompareModeType.Numbers">Numbers</option>
+                </select>
+                <span class="form-text text-muted">
+                    Nach welchem Verfahren soll der Text überprüft werden:
+                </span>
+                <ul class="form-text text-muted">
+                    <li><b>Exact (Defaultwert):</b> Text und erwarteter Text muss, nach Berücksichtigung der anderen Regeln, genau übereinstimmen.</li>
+                    <li><b>ExactSubstring:</b> Text muss den erwarteten Text, nach Berücksichtigung der anderen Regeln, genau enthalten.</li>
+                    <li><b>Contains:</b> Der Text muss den erwarteten Text enthalten.</li>
+                    <li><b>ContainsWord:</b> Der Text muss den erwarteten Text enthalten. Dieser darf nicht von Buchstaben oder Zahlen umschlossen sein.</li>
+                    <li><b>Regex:</b> Der erwartete Text beschreibt einen Regulären Ausdruck, der erfüllt werden muss.</li>
+                    <li>
+                        <b>Numbers:</b> Der erwartete Text wird Zeile für Zeile in Zahlen konvertiert und es wird dann Zeilenweise verglichen ob die Differenz der Zahlen kleiner des Thresholds ist.
+                        Beispiel: Ausgabe:6.12 Erwartete Ausgabe: 6.1 Threshold:0.1 -> Test wird bestanden
+                    </li>
+                </ul>
+
+                <h6>Trimmungs Modus</h6>
+                <select @bind="Model.Output.CompareSettings.Trim">
+                    @foreach (var val in (TrimMode[]) Enum.GetValues(typeof(TrimMode)))
+                    {
+                        <option value="@val">@val.ToString()</option>
+                    }
+
+                </select>
+                <span class="form-text text-muted">
+                    Jede Zeile des Ergebnistextes und erwarteten Textes wird nach dem gewählten Verfahren getrimmt:
+                </span>
+                <ul class="form-text text-muted">
+                    <li><b>None:</b> Trimming deaktiviert.</li>
+                    <li><b>Start:</b> Trimming nur am Anfang der Zeile.</li>
+                    <li><b>End:</b> Trimming nur am Ende der Zeile.</li>
+                    <li><b>StartEnd(Defaultwert):</b> Trimming am Anfang und am Ende der Zeile.</li>
+                </ul>
+
+                <h6>Leerzeichen Modus</h6>
+                <select>
+                    @foreach (var val in (WhitespacesMode[]) Enum.GetValues(typeof(WhitespacesMode)))
+                    {
+                        <option value="@val">@val.ToString()</option>
+                    }
+                </select>
+
+                <span class="form-text text-muted">
+                    Entfernen/Reduzieren von Whitespaces. Dabei sind folgende Modi möglich:
+                </span>
+                <ul class="form-text text-muted">
+                    <li><b>Reduce:</b> Reduziere mehrer Leerzeichen sowie Tabs auf ein einzelnes Leerzeichen.</li>
+                    <li><b>Remove:</b> Entferne alle Leerzeichen.</li>
+                    <li><b>RemoveEvenNewlines:</b> Entferne neben allen Leerzeichen auch alle Newlines.</li>
+                    <li><b>LeaveAsIs (Defaultwert):</b> Belasse die Leerzeichen so wie sie sind.</li>
+                </ul>
+
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="inputPassword4">Unify Floating Numbers</label>
+                        <input type="checkbox" @bind="Model.Output.CompareSettings.IsUnifyFloatingNumbers"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            Werden . und , als Trennzeichen für die Nachkommastellen bei Zahlen akzeptiert.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="">Behalte Umlaute</label>
+                        <input type="checkbox" @bind="Model.Output.CompareSettings.IsKeepUmlauts"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            Umlaute müssen zwingend als ä,ö,ü,ß geschrieben werden. Es werden Alternativ wie ae, oe, ue und ss nicht akzeptiert.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="">Behalte Groß- und Kleinschreibung</label>
+                        <input type="checkbox" @bind="Model.Output.CompareSettings.IsIncludeCase"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            Groß- und Kleinschreibung behalten.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="">Grenzwert für Zahlenvergleiche:</label>
+                        <input type="text" @bind="Model.Output.CompareSettings.Threshold"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            (Nur bei Vergleichsmodus <b>Numbers</b> verwendet)
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <p>
+            <label>Erwartete Ausgabedatei</label>
+        </p>
+        <label for="outputFileNameTextBox">Name der erwarteten Ausgabedatei</label>
+        <input type="text" @bind="Model.OutputFile.Name" id="outputFileNameTextBox" class="form-control"/>
+        <p id="outputFileNameHelpBlock" class="form-text text-muted">
+            Beschreibt den Namen der erwarteten Ausgabedatei.
+        </p>
+
+        <label for="outputFileTextArea">Inhalt der erwarteten Ausgabedatei</label>
+        <input type="text" @bind="Model.OutputFile.Content" id="outputFileTextArea" class="form-control" style="min-height: 200px"/>
+        <p id="inputHelpBlock" class="form-text text-muted">
+            Beschreibt den Inhalt der erwarteten Ausgabedatei.
+        </p>
+
+        <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#fileOutputCompareSettings" aria-controls="collapseExample" @onclick="() => collapseFileCompareSettings = !collapseFileCompareSettings">
+            Zeige Vergleichseinstellungen der erwarteten Ausgabedatei
+        </button>
+        <div hidden="@collapseFileCompareSettings" id="fileOutputCompareSettings">
+            <div class="col-border">
+                <h6>Vergleichs Modus</h6>
+                <select @bind="Model.OutputFile.CompareSettings.CompareMode">
+                    @foreach (var val in (CompareModeType[]) Enum.GetValues(typeof(CompareModeType)))
+                    {
+                        <option value="@val">@val.ToString()</option>
+                    }
+                </select>
+                <span class="form-text text-muted">
+                    Nach welchem Verfahren soll der Text überprüft werden:
+                </span>
+                <ul class="form-text text-muted">
+                    <li><b>Exact (Defaultwert):</b> Text und erwarteter Text muss, nach Berücksichtigung der anderen Regeln, genau übereinstimmen.</li>
+                    <li><b>ExactSubstring:</b> Text muss den erwarteten Text, nach Berücksichtigung der anderen Regeln, genau enthalten.</li>
+                    <li><b>Contains:</b> Der Text muss den erwarteten Text enthalten.</li>
+                    <li><b>ContainsWord:</b> Der Text muss den erwarteten Text enthalten. Dieser darf nicht von Buchstaben oder Zahlen umschlossen sein.</li>
+                    <li><b>Regex:</b> Der erwartete Text beschreibt einen Regulären Ausdruck, der erfüllt werden muss.</li>
+                    <li>
+                        <b>Numbers:</b> Der erwartete Text wird Zeile für Zeile in Zahlen konvertiert und es wird dann Zeilenweise verglichen ob die Differenz der Zahlen kleiner des Thresholds ist.
+                        Beispiel: Ausgabe:6.12 Erwartete Ausgabe: 6.1 Threshold:0.1 -> Test wird bestanden
+                    </li>
+                </ul>
+
+                <h6>Trimmungs Modus</h6>
+                <select @bind="Model.OutputFile.CompareSettings.CompareMode">
+                    @foreach (var val in (TrimMode[]) Enum.GetValues(typeof(TrimMode)))
+                    {
+                        <option value="@val">@val.ToString()</option>
+                    }
+                </select>
+
+                <span class="form-text text-muted">
+                    Jede Zeile des Ergebnistextes und erwarteten Textes wird nach dem gewählten Verfahren getrimmt:
+                </span>
+                <ul class="form-text text-muted">
+                    <li><b>None:</b> Trimming deaktiviert.</li>
+                    <li><b>Start:</b> Trimming nur am Anfang der Zeile.</li>
+                    <li><b>End:</b> Trimming nur am Ende der Zeile.</li>
+                    <li><b>StartEnd(Defaultwert):</b> Trimming am Anfang und am Ende der Zeile.</li>
+                </ul>
+
+                <h6>Leerzeichen Modus</h6>
+                <select @bind="Model.OutputFile.CompareSettings.Whitespaces">
+                    @foreach (var val in (WhitespacesMode[]) Enum.GetValues(typeof(WhitespacesMode)))
+                    {
+                        <option value="@val">@val.ToString()</option>
+                    }
+                </select>
+                <span class="form-text text-muted">
+                    Entfernen/Reduzieren von Whitespaces. Dabei sind folgende Modi möglich:
+                </span>
+                <ul class="form-text text-muted">
+                    <li><b>Reduce:</b> Reduziere mehrere Leerzeichen sowie Tabs auf ein einzelnes Leerzeichen.</li>
+                    <li><b>Remove:</b> Entferne alle Leerzeichen.</li>
+                    <li><b>RemoveEvenNewlines:</b> Entferne neben allen Leerzeichen auch alle Newlines.</li>
+                    <li><b>LeaveAsIs (Defaultwert):</b> Belasse die Leerzeichen so wie sie sind.</li>
+                </ul>
+
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="inputPassword4">Unify Floating Numbers</label>
+                        <input type="checkbox" @bind="Model.OutputFile.CompareSettings.IsUnifyFloatingNumbers"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            Werden . und , als Trennzeichen für die Nachkommastellen bei Zahlen akzeptiert.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="">Behalte Umlaute</label>
+                        <input type="checkbox" @bind="Model.OutputFile.CompareSettings.IsKeepUmlauts"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            Umlaute müssen zwingend als ä,ö,ü,ß geschrieben werden. Es werden Alternativ wie ae, oe, ue und ss nicht akzeptiert.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="">Behalte Groß- und Kleinschreibung</label>
+                        <input type="checkbox" @bind="Model.OutputFile.CompareSettings.IsIncludeCase"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            Groß- und Kleinschreibung behalten.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-inline">
+                    <div class="form-group">
+                        <label for="">Grenzwert für Zahlenvergleiche:</label>
+                        <input type="checkbox" @bind="Model.OutputFile.CompareSettings.Threshold"/>
+                        <small id="passwordHelpInline" class="text-muted">
+                            (Nur bei Vergleichsmodus <b>Numbers</b> verwendet)
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <FileExplorer RootFolder='Input' Index="@Model.Id.ToString()" DownloadUrl=@($"api/Download/Challenges/{ChallengeId}")/>
+
+    </div>
+
+    @*TODO: Change from Text Based to File Based like InputFile*@
+    <div>
+        <label for="customTestRunnerTextBox">Custom Test Runner</label>
+        <textarea @bind="Model.CustomTestRunnerName" id="customTestRunnerTextBox" class="form-control"></textarea>
+        <p id="customTestRunnerHelpBlock" class="form-text text-muted">
+            Ermöglicht einen eigenen Test Runner für die Tests zu erstellen. Hier soll der Dateiname des Testrunner angegeben werden.
+        </p>
+    </div>
+
+    <div>
+        <label for="hintTextBox">Hinweis</label>
+        <textarea @bind="Model.Hint" id="hintTextBox" class="form-control"></textarea>
+        <p id="hintHelpBlock" class="form-text text-muted">
+            Enthält einen Text der dem Teilnehmer bei fehlschlagen des Tests einen Tipp gibt. Wird ein Tipp eingegeben, so sollte darauf geachtet werden, dass dieser einem sinnvoll weiterhilft und nicht demotivierend wirkt.
+        </p>
+    </div>
+
+
+    <div>
+        <label for="timeoutTextBox">Timeout</label>
+        <textarea @bind="Model.Timeout" id="timeoutTextBox" class="form-control"></textarea>
+        <p id="timeoutHelpBlock" class="form-text text-muted">
+            Gibt den maximal erlaubten Timeout in Sekunden an. Der Default ist derzeit 5 Sekunden und ist für fast alle Tests bisher mehr als ausreichend. Den Wert bitte mit Bedacht erhöhen, da dadurch die Testlaufzeit stark verlängert werden kann.
+        </p>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public ChallengeTest Model { get; set; }
+
+    [Parameter]
+    public string ChallengeId { get; set; }
+
+    [Parameter]
+    public Folder Input { get; set; }
+
+    bool collapse { get; set; } = true;
+    bool collapseFileCompareSettings { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        if (Model == null)
+        {
+            Model = new ChallengeTest();
+        }
+    }
+
+    private void addInputTextArea()
+    {
+        Model.Parameters = Model.Parameters ?? new List<string>();
+        Model.Parameters.Add(string.Empty);
+        StateHasChanged();
+    }
+    private void addExpectedOutput()
+    {
+        if (Model.Output.Alternatives == null) Model.Output.Alternatives = new List<string>();
+        Model.Output.Alternatives.Add("<Alternative>");
+    }
+
+}

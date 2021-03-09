@@ -1,0 +1,118 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Models.Shared
+@inject FileExplorerDomain domain
+<div id=@($"file_{File.Name}") class="file file_component col-2">
+    <div id=@($"fileheader_{File.Name}") class="col-12 filepart fileheader" hidden="@(!hidden)" style="white-space: nowrap" @onclick="() => ShowOrHide(File.Name)">
+        @File.Name
+    </div>
+    <input hidden="@hidden" @bind-value="NewName" style="@fontColor" class="folder_input fileheader" @onkeypress:preventDefault="@preventDefault" @onkeypress:stopPropagation="@preventDefault" @onkeypress="e => OnKeyPressed(e)"/>
+    <button type="button" class="btn btn-primary" @onclick="() => Rename(File)" hidden="@hidden">Submit</button>
+    <div id=@($"fileepic_{File.Name}") class="col-12 filepart filepic">
+        @if (File.Type.Equals("folder"))
+        {
+            try
+            {
+                <img src="images/folder.png" @onclick="@(e => CatchEventAndOpenFolderZone(e, (Folder) File))" class="file_image_sized"/>
+            }
+            catch (InvalidCastException)
+            {
+                <img src="images/file.png" class="file_image_sized" @onclick="@(() => OpenFilePropsEdit(File))"/>
+            }
+        }
+        else
+        {
+            <img src="@GetImageUrl(File)" class="file_image_sized" @onclick="@(() => OpenFilePropsEdit(File))"/>
+        }
+
+        <InputCheckbox @bind-Value="File.IsDelete" id=@($"deleteCheck_{File.Name}")></InputCheckbox>
+        <label for=@($"deleteCheck_{File.Name}") class="deleteLabel">
+            <span class="oi oi-trash"></span>
+        </label>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public File File { get; set; } = new File();
+
+    private string NewName { get; set; }
+    private bool hidden { get; set; } = true;
+    private string fontColor { get; set; } = "font:black;";
+    private bool preventDefault { get; set; } = false;
+
+    private void CatchEventAndOpenFolderZone(MouseEventArgs e, Folder file)
+    {
+        domain.OpenFolderZone(file);
+    }
+
+    private void Rename(File file)
+    {
+        if (InputButtonHelper.CheckValidity(domain.Files, domain.NewFiles, NewName, file))
+        {
+            if (file.LastModified == null)
+            {
+                file.LastModified = domain.FlatFiles?.Where(x => x.OriginalName.Equals(file.Path + file.OriginalName)).FirstOrDefault()?.LastModified;
+            }
+            file.Name = NewName;
+            ShowOrHide(NewName);
+        }
+        else
+        {
+            fontColor = "color:red;";
+        }
+    }
+
+    private void ShowOrHide(string name)
+    {
+        hidden = !hidden;
+        NewName = name;
+    }
+
+    private void OnKeyPressed(KeyboardEventArgs e)
+    {
+        if (e.Key.Equals("Enter"))
+        {
+            preventDefault = true;
+        }
+        fontColor = InputButtonHelper.GetNormalColor();
+        StateHasChanged();
+    }
+
+    private void OpenFilePropsEdit(File file)
+    {
+        domain.SelectedFile = file;
+        domain.InFileEdit = true;
+        domain.InvokeEvent();
+    }
+
+    private string GetImageUrl(File file)
+    {
+        if (File.Type.StartsWith("image/"))
+        {
+            return "images/image.png";
+        }
+        if (File.Name.EndsWith(".exe"))
+        {
+            return "images/executable.png";
+        }
+        if (File.Name.EndsWith(".conf"))
+        {
+            return "images/config.png";
+        }
+        if (File.Name.EndsWith(".zip") || File.Name.EndsWith(".gzip"))
+        {
+            return "images/archive.png";
+        }
+        if (File.Type.StartsWith("application/") || File.Type.Equals("text/javascript"))
+        {
+            return "images/source.png";
+        }
+        if (File.Type.Equals("file"))
+        {
+            return "images/file.png";
+        }
+        return "images/generic.png";
+    }
+
+}

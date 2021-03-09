@@ -1,0 +1,157 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Contracts.Data.Review
+@using Newtonsoft.Json
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+<div class="col-12">
+    <h2>Einreichung vom @Model.SelectedSubmission.SubmissionDate</h2>
+
+    @if (Model.SelectedSubmission.EvaluationState != EvaluationState.Evaluated)
+    {
+        <p>
+            @if (Model.SelectedSubmission.EvaluationState == EvaluationState.Dead)
+            {
+                @((MarkupString) "Einreichung wurde gelöscht<br />")
+                <DownloadComponent Class="btn" title="Download Einreichung" content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" URL="api/Submission/Download" FileName="source.zip"/>
+                <a href="/Submission/View/@Model.Id/@Model.SubmissionId" class="btn" title="Zeige Einreichung" style="padding-left: 0;">
+                    <span class="oi oi-eye"> Quellcode anzeigen</span>
+                </a>
+            }
+            else
+            {
+                @((MarkupString) "Einreichung wird derzeit ausgeführt.<br />")
+                <DownloadComponent Class="btn" title="Download Einreichung" content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" URL="api/Submission/Download" FileName="source.zip"/>
+                <a href="/Submission/View/@Model.Id/@Model.SubmissionId" class="btn" title="Zeige Einreichung" style="padding-left: 0;">
+                    <span class="oi oi-eye"> Quellcode anzeigen</span>
+                </a>
+            }
+        </p>
+    }
+    else
+    {
+        <p>
+            @if (Model.SelectedSubmission.IsPassed)
+            {
+                @((MarkupString) "Tests bestanden.<br />")
+                @((MarkupString) $"Ausführungszeit: {Model.SelectedSubmission.ExecutionDuration}ms<br />")
+            }
+            else
+            {
+                if (Model.SelectedSubmission.TestsPassed > 0)
+                {
+                    @((MarkupString) $"<b>{Model.SelectedSubmission.TestsFailed}</b> von <b>{Model.SelectedSubmission.TestsFailed + Model.SelectedSubmission.TestsPassed + Model.SelectedSubmission.TestsSkipped}</b> Tests fehlgeschlagen!<br />")
+                }
+                else
+                {
+                    <b>@Model.SelectedSubmission.TestsFailed</b>
+                    @((MarkupString) "Test(s) fehlgeschlagen! <br />")
+                }
+                if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.Timeout)
+                {
+                    <b>Timeout:</b>
+                    @((MarkupString) "Die Einreichung lief zu lange und musste abgebrochen werden! Evtl. ist eine Endlosschleife vorhanden?<br />")
+                }
+                if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.SucceededWithTimeout)
+                {
+                    <b>Timeout:</b>
+                    @((MarkupString) "Die Einreichung hat zwar den Test bestanden, aber sie lief zu lange und musste abgebrochen werden! Evtl. ist eine Endlosschleife vorhanden?<br />")
+                }
+            }
+            Dateigröße: @Model.SelectedSubmission.SizeInBytes byte<br/>
+            @switch (RatingMethodForSelectedSubmission)
+            {
+                case RatingMethod.Score:
+                    @($"Erreichte Punktzahl: {Model.SelectedSubmission.CustomScore} ")
+                    <br/>
+                    break;
+                case RatingMethod.Submission_Time:
+                    @($"Einreichedatum/-zeit: {Model.SelectedSubmission.LastSubmissionDate}, erreichte Punktzahl: {Model.SelectedSubmission.CustomScore} ")
+                    <br/>
+                    break;
+            }
+
+            @if (Model.SelectedSubmission.ReviewState == ReviewStateType.Reviewed)
+            {
+                @((MarkupString) $"Deine Einreichung wurde von einem Reviewer bewertet und bekam {Model.SelectedSubmission.ReviewRating} Sterne. <br />")
+            }
+        </p>
+
+        <p>
+            <DownloadComponent Class="btn" title="Download Einreichung" content='<span class="oi oi - cloud - download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" URL="api/Submission/Download" FileName="source.zip"/>
+            <a href="/Submission/View/@Model.Id/@Model.SubmissionId" class="btn" title="Zeige Einreichung" style="padding-left: 0;">
+                <span class="oi oi-eye"> Quellcode anzeigen</span>
+            </a>
+
+            @if (!Model.SelectedSubmission.IsPassed)
+            {
+                <button type="button" @onclick="@RerunSubmission" class="btn" title="Erneut ausführen" style="padding-left: 0;">
+                    <span class="oi oi-action-redo"> Erneut testen</span>
+                </button>
+                <button @onclick="ReportSubmission" class="btn" title="Fehlerhafte Ausführung melden" style="padding-left: 0;">
+                    <span class="oi oi-share"> Fehler melden</span>
+                </button>
+            }
+
+            @if (Model.SelectedSubmission.HasReviewData)
+            {
+                <a href="Review/View/@Model.Id/@Model.SubmissionId" class="btn" title="Reviewergebnis anzeigen (BETA)" style="padding: 0;">
+                    <span class="oi-eye oi"> Review anzeigen</span>
+                </a>
+            }
+        </p>
+        @if (!Model.SelectedSubmission.IsPassed && Model.ErrorDetails != null)
+        {
+            <DetailedTestInfo detail="Model.ErrorDetails"/>
+        }
+        else if (!Model.SelectedSubmission.IsPassed)
+        {
+            @((MarkupString) "<p>Kein Testergebnis verfügbar.</p>")
+        }
+    }
+</div>
+
+@code {
+
+    [Parameter]
+    public UploadModel<Result, Member> Model { get; set; }
+
+    [Parameter]
+    public RatingMethod RatingMethodForSelectedSubmission { get; set; }
+
+    [Parameter]
+    public EventCallback<UploadModel<Result, Member>> ModelChanged { get; set; }
+
+    private async void RerunSubmission()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<bool>($"api/Submission/RerunSubmission/{Model.Id}/{Model.SubmissionId}", false);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            Model = await responseMessage.Content.ReadFromJsonAsync<UploadModel<Result, Member>>();
+            await ModelChanged.InvokeAsync(Model);
+            CheckForErrors();
+            JsonConvert.SerializeObject(Model);
+            StateHasChanged();
+        }
+    }
+
+    private async void ReportSubmission()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<string>($"api/Submission/ReportError/{Model.Id}", Model.SubmissionId);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            Model = await responseMessage.Content.ReadFromJsonAsync<UploadModel<Result, Member>>();
+            await ModelChanged.InvokeAsync(Model);
+            StateHasChanged();
+        }
+    }
+
+    private void CheckForErrors()
+    {
+        if (Model.HasError)
+        {
+            navi.NavigateTo($"Home/Error/{Model.Message}");
+        }
+    }
+
+}

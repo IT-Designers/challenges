@@ -1,0 +1,66 @@
+@page  "/Bundle/View/{bundlename}"
+@using SubmissionEvaluation.Client.Services
+@using Markdig
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Classes
+@inject HttpClient httpClient
+@inject HelperService helper
+<div class="col-sm-9">
+    <div class="post-area">
+        <div class="post-header">
+            <h1>Aufgabenserie: @model?.Title</h1>
+        </div>
+        <div class="post">
+            <div class="all-posts" post-cate="All">
+                @if (model?.Description != null)
+                {
+                    <p>@((MarkupString)MarkdownToHtml.Convert(model?.Description))</p>
+                }
+                @{
+                    var i = 1;
+                    if (model?.Challenges != null)
+                        foreach (var challenge in model?.Challenges)
+                        {
+                            <NavLink href="@($"/Challenge/View/{challenge.Id}")">@($"{i++}. {challenge.Title}")</NavLink>
+                            if (model.Member.SolvedChallenges.Contains(challenge.Id))
+                            {
+                                <span style="color: #ab7">&#x2713;</span>
+                            }
+                            else
+                            {
+                                <div class="challengeTileLevelBack" style="display: inline-block; margin-bottom: 0.4em; margin-left: 1em; width: 10em;">
+                                    @if (challenge.State.DifficultyRating == null)
+                                    {
+                                        <div class="challengeTileLevelUnknown"> ? </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="challengeTileLevelKnown" style="background: @(helper.CalculateDifficultyColor(challenge.State.DifficultyRating)); left: @(challenge.State.DifficultyRating - 2)%;"></div>
+                                    }
+                                </div>
+                            }
+                            <br/>
+                        }
+                }
+                <p>
+                    <small>Bei dieser Aufgabe handelt es sich um eine Aufgabenserie, die aus mehreren Teilschritten besteht. Um den vollen Spaß genießen zu können, sollte die Beschreibung der Folgeiterationen erst nach Lösung des vorherigen Teilschritts gelesen werden. Nur so ist es möglich sich der vollen Überraschung auszusetzen, um zu erfahren, ob die bisherige Codebasis auch wirklich mit Änderungen der Anforderungen umgehen kann.</small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string Bundlename { get; set; }
+
+    BundleViewModel model;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        model = await httpClient.GetFromJsonAsync<BundleViewModel>($"/api/Bundle/Get/{Bundlename}");
+    }
+
+
+}

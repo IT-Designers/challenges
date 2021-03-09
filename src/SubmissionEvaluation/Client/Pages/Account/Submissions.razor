@@ -1,0 +1,88 @@
+@page "/Account/Submissions"
+@using SubmissionEvaluation.Client.Services
+@using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge
+@using System.Net.Http.Json
+
+@inject HttpClient HttpClient
+@inject HelperService Help
+
+<div class="row">
+    <ProfileHeader Model="Model" Features="Features"/>
+
+    <div class="col-12">
+        <div class="post-area post">
+            <div>
+                <ProfileMenu Model="Model"/>
+            </div>
+            <div class="table-responsive-xl">
+                @if (Model != null)
+                {
+                    <table class="ranking_table table">
+                        <thead>
+                        <tr class="ranking_head">
+                            <th class="th_name">Name</th>
+                            @foreach (var compiler in Model.Compilers)
+                            {
+                                <th class="th_name_compilers">
+                                    <div class="vert_text">
+                                        <div class="vert_text_inner">@compiler</div>
+                                    </div>
+                                </th>
+                            }
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var stats in Model.Challenges.OrderBy(x => x.State.DifficultyRating ?? 101))
+                        {
+                            <tr class="solved_row">
+                                <td style="padding-left: .75rem; text-align: left;">
+                                    <a href=@($"Challenge/View/{stats.Id}")>@stats.Title</a>
+                                    <br>
+                                    <span style="color: @Help.CalculateDifficultyColor(stats.State.DifficultyRating); font-size: small">@(stats.State.DifficultyRating?.ToString() ?? "?") %</span>
+                                </td>
+                                @foreach (var compiler in Model.Compilers)
+                                {
+                                    Model.Solved.TryGetValue(stats.Id, out var challengeInfo);
+                                    SolvedInfo stat = null;
+                                    challengeInfo?.TryGetValue(compiler, out stat);
+                                    if (stat?.State == SolvedState.Solved)
+                                    {
+                                        <td class="@("td_rating_solved" + stat.Stars)">
+                                            <a href=@($"Submission/Add/{stats.Id}") style="display: block; height: 32px; width: auto;"/>
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        if (stat?.State == SolvedState.Failed)
+                                        {
+                                            <td class="td_rating_unsolved">
+                                                <a href=@($"Submission/Add/{stats.Id}") style="display: block; height: 32px; width: auto;"/>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td>-</td>
+                                        }
+                                    }
+                                }
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    MemberSolvedModel<Challenge> Model { get; set; }
+    FeatureSettings Features { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await HttpClient.GetFromJsonAsync<MemberSolvedModel<Challenge>>("api/Account/Submissions");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        StateHasChanged();
+    }
+}

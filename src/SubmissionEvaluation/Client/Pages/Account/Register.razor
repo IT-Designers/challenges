@@ -1,0 +1,51 @@
+@page "/Account/Register"
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using System.Net.Http.Json
+
+@* ReSharper disable once RedundantUsingDirective *@
+@using SubmissionEvaluation.Client.Shared.Components.Account
+
+@inject HttpClient httpClient
+@inject NavigationManager navi
+
+@if (!Features.EnableLdap)
+{
+    <RegisterComponent Model="Model" Features="Features" SendRegistration="SendRegistration"/>
+}
+else
+{
+    @((MarkupString) "Manuelle Registrierung ist nicht aktiviert.")
+}
+
+@code {
+    RegisterModel Model { get; set; } = new RegisterModel();
+    FeatureSettings Features { get; set; } = new FeatureSettings();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        StateHasChanged();
+    }
+
+    async void SendRegistration()
+    {
+        var res = await httpClient.PostAsJsonAsync("api/Account/Register", Model);
+        if (res.IsSuccessStatusCode)
+        {
+            Model = await res.Content.ReadFromJsonAsync<RegisterModel>();
+        }
+        if (Model.HasError && Model.Message.Equals(ErrorMessages.ActivationNeeded))
+        {
+            navi.NavigateTo("Account/Login");
+        }
+        else if (Model.HasSuccess)
+        {
+            navi.NavigateTo("Account/View");
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+}

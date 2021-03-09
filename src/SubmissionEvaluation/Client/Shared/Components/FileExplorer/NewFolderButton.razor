@@ -1,0 +1,62 @@
+﻿@using SubmissionEvaluation.Shared.Models.Shared
+<div class="@ButtonStyling">
+    <button type="button" hidden="@(!hidden)" class="btn btn-primary file-button @ButtonStyling new_button" @onclick="ShowOrHide">Neuer Ordner</button>
+    <input hidden="@hidden" @bind-value="@FolderName" style="@fontColor" class="folder_input @ButtonStyling" @onkeypress="() => { fontColor = InputButtonHelper.GetNormalColor();StateHasChanged(); }"/>
+    <div class="align-center">
+        <button type="button" hidden="@hidden" class="btn btn-primary file-button @ButtonStyling" @onclick="NewFolder">Anlegen</button>
+        <button type="button" hidden="@hidden" class="btn btn-primary file-button @ButtonStyling" @onclick="ShowOrHide">Abbrechen</button>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public List<DetailedInputFile> Files { get; set; } = new List<DetailedInputFile>();
+
+    [Parameter]
+    public List<File> OtherFiles { get; set; } = new List<File>();
+
+    [Parameter]
+    public bool Small { get; set; } = true;
+
+    [Parameter]
+    public string Path { get; set; }
+
+    public bool hidden { get; set; } = true;
+    private string ButtonStyling { get; set; } = "newFolderButtonFlexed";
+    public string FolderName { get; set; } = "Enter a name.";
+    public string fontColor { get; set; } = InputButtonHelper.GetNormalColor();
+
+    [Parameter]
+    public EventCallback<List<DetailedInputFile>> FilesChanged { get; set; } = new EventCallback<List<DetailedInputFile>>();
+
+    protected override void OnInitialized()
+    {
+        if (!Small)
+        {
+            ButtonStyling = "newFolderButtonBig";
+        }
+    }
+
+    public void ShowOrHide()
+    {
+        hidden = !hidden;
+    }
+
+    public void NewFolder()
+    {
+        if (InputButtonHelper.CheckValidity(OtherFiles, Files, FolderName, new File()))
+        {
+            var folder = new Folder {Name = FolderName, OriginalName = FolderName, Path = Path.StartsWith(Folder.pathSeperator) ? "" : Path};
+            Files.Add(folder);
+            ShowOrHide();
+            FilesChanged.InvokeAsync(Files);
+        }
+        else
+        {
+            fontColor = "color:red;";
+        }
+        StateHasChanged();
+    }
+
+}

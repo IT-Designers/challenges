@@ -1,0 +1,108 @@
+﻿@page "/Help/ViewPage"
+@page "/Help/ViewPage/{pathOne}/{pathTwo}"
+@page "/Help/ViewPage/{pathOne}"
+@using SubmissionEvaluation.Shared.Models.Help
+@using SubmissionEvaluation.Shared.Classes
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+<style>
+    button {
+        -webkit-appearance: none;
+        background-color: transparent;
+        border: none;
+        color: #337ab7;
+        text-decoration: none;
+    }
+</style>
+<div class="row">
+    @if (Model != null)
+    {
+        <div class="col-lg-9">
+            <div class="post-area">
+
+                <div class="post-header">
+                    <h1>
+                        @Model.Title
+                        @if (UserSettings.Roles.Contains("admin"))
+                        {
+                            <a class="btn btn-outline-dark" href=@($"/Admin/EditHelpPage/{Model.Path}")>Bearbeiten</a>
+                        }
+                    </h1>
+                </div>
+                <div class="post">
+                    @((MarkupString) MarkdownToHtml.Convert(Model.Description, $"/files/help/{Model.Path}/"))
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="shadow-bottom-center" style="margin-bottom: 10px">
+                <div class="categories-list-header">Topics</div>
+                <ol>
+                    @if (Model.Pages != null)
+                    {
+                        foreach (var hp in Model.Pages)
+                        {
+                            <li>
+                                <button @onclick="() => UpdateViewPage(hp.Path)">@hp.Title</button>
+                                @if (hp.SubPages.Count > 0)
+                                {
+                                    <ul>
+                                        @foreach (var shp in hp.SubPages)
+                                        {
+                                            <li>
+                                                <button @onclick="() => UpdateViewPage(shp.Path)">@shp.Title</button>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </li>
+                        }
+                    }
+                </ol>
+            </div>
+
+        </div>
+    }
+</div>
+
+@code {
+    HelpModel Model { get; set; }
+    SettingsModel UserSettings { get; set; }
+
+    [Parameter]
+    public string pathOne { get; set; }
+
+    [Parameter]
+    public string pathTwo { get; set; }
+
+    string path { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        path = pathTwo == null ? pathOne : pathOne + "\\" + pathTwo;
+        await FetchFromServer();
+    }
+
+    async void UpdateViewPage(string newPath)
+    {
+        path = newPath;
+        await FetchFromServer();
+    }
+
+    async Task FetchFromServer()
+    {
+        if (path == null)
+        {
+            path = " ";
+        }
+    //Sincerely a get-request, but the path-string could contain slashes itself, so it needs to be transferred as a model.
+        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Help/getViewPage", path);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            Model = await responseMessage.Content.ReadFromJsonAsync<HelpModel>();
+        }
+        UserSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        StateHasChanged();
+    }
+
+}

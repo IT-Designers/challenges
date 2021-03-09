@@ -1,0 +1,201 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Models.Admin
+@using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using Group = SubmissionEvaluation.Contracts.ClientPocos.Group
+@inject HelperService helper
+<div class="row">
+    <div id="settingsCol" class="col-4">
+        <div id="title-group" class="form-group">
+            <h4 class="col-form-label">Titel*</h4>
+            <InputText @bind-Value="Model.Title" class="form-control"/>
+            <ValidationMessage For="() => Model.Title" class="text-danger"/>
+        </div>
+        <div id="groupAdminsGroup" class="form-group">
+            <h4 class="col-form-label groupEdit">Gruppenadmin(s) (Hinweis: Die GruppenAdmins von Übergruppen werden automatisch geerbt.)</h4>
+            <ForEachInputTextWithRecommendation @bind-Parameters="Model.GroupAdminsIds" RecommendationsAvailable="@Model.AdminsSelectable"/>
+            <button id="addGroupAdmin" @onclick="AddGroupAdmin" type="button" class="btn btn-outline-dark">
+                <span class="oi oi-plus"></span>
+            </button>
+        </div>
+        <div>
+            <h4 class="col-form-label groupEdit">Die Gruppe fasst mehrere Gruppen zusammen.</h4>
+            <InputCheckbox @bind-Value=Model.IsSuperGroup @onchange=base.StateHasChanged/>
+        </div>
+        @if(Model.IsSuperGroup)
+        {
+            <h4 class="col-form-label">Untergruppen</h4>
+            <div class="form-group">
+                <select size="6" @bind="Model.SelectedSubGroup" class="form-control">
+                    @foreach (var group in Model.SubGroups)
+                    {
+                        <option value="@group">@(Model.SelectableSubGroups.FirstOrDefault(x=> x.Id.Equals(group))?.Title ?? group)</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <button id="btnRemoveSubGroup" @onclick="RemoveFromSubGroups" type="button" class="btn btn-outline-dark">
+                    <span class="oi oi-minus"></span>
+                </button>
+                <button id="btnAddSubGroup" @onclick="AddToSubGroups" type="button" class="btn btn-outline-dark ">
+                    <span class="oi-plus oi"></span>
+                </button>
+                <select @bind="Model.SelectedAddSubGroup" class="form-control">
+                    <option value="" selected>Bitte wähle eine Gruppe, die du hinzufügen möchtest</option>
+                    @foreach (var group in Model.SelectableSubGroups.Where(x => !(Model.SubGroups.Contains(x.Id) || Model.Id.Equals(x.Id))))
+                    {
+                        Console.WriteLine(Model.SubGroups.ToString());
+                        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(group));
+                        <option value="@group.Id" title="@group.Id">@group.Title</option>
+                    }
+                </select>
+            </div>
+        } else
+        {
+            
+            <h4 class="col-form-label">Verfügbare Challenges</h4>
+            <div class="form-group">
+                <select size="6" @bind="Model.SelectedAvailableChallenge" class="form-control">
+                    @foreach (var challenge in Model.AvailableChallenges)
+                    {
+                        <option value="@challenge">@challenge</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <button id="btnRemoveAvailableChallenge" @onclick="RemoveFromAvailableChallenges" type="button" class="btn btn-outline-dark ">
+                    <span class="oi oi-minus"></span>
+                </button>
+                <button id="btnAddAvailableChallenge" @onclick="AddToAvailableChallenges" type="button" class="btn btn-outline-dark ">
+                    <span class="oi-plus oi"></span>
+                </button>
+                <select @bind="Model.SelectedAddAvailableChallenge" class="form-control">
+                    <option value="" selected>Bitte wähle eine Challenge, die du hinzufügen möchtest</option>
+                    @foreach (var challenge in Model.SelectableAvailableChallenges.Where(x => !Model.AvailableChallenges.Contains(x.Id)))
+                    {
+                        <option value="@challenge.Id" title="@challenge.Id">@challenge.Title</option>
+                    }
+                </select>
+            </div>
+            <h4 class="col-form-label">In Reihenfolge erzwungene Challenges</h4>
+            <div class="form-group">
+                <select size="6" class="form-control" @bind="Model.SelectedForcedChallenge">
+                    @foreach (var challenge in Model.ForcedChallenges)
+                    {
+                        <option value="@challenge">@challenge</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <button id="btnUpForcedChallenge" @onclick="MoveSelectedForcedChallengeUp" type="button" class="btn btn-outline-dark ">
+                    <span class="oi oi-arrow-top"></span>
+                </button>
+                <button id="btnDownForcedChallenge" @onclick="MoveSelectedForcedChallengeDown" type="button" class="btn btn-outline-dark ">
+                    <span class="oi oi-arrow-bottom"></span>
+                </button>
+                <button id="btnRemoveForcedChallenge" @onclick="RemoveForcedChallenge" type="button" class="btn btn-outline-dark ">
+                    <span class="oi oi-minus"></span>
+                </button>
+                <button id="btnAddForcedChallenge" @onclick="AddForcedChallenge" type="button" class="btn btn-outline-dark ">
+                    <span class="oi-plus oi"></span>
+                </button>
+                <select class="form-control" @bind="Model.SelectedAddForcedChallenge">
+                    <option value="" selected>Bitte wähle eine Challenge, die du hinzufügen möchtest</option>
+                    @foreach (var challenge in  Model.SelectableForcedChallenges.Where(x => !Model.ForcedChallenges.Contains(x.Title)))
+                    {
+                        <option value="@challenge.Id" title="@challenge.Title">@challenge.Title</option>
+                    }
+                </select>
+            </div>
+
+            <h4 class="col-form-label">Maximale gleichzeitige Challenges</h4>
+            <input type="number" @bind-value="Model.MaxUnlockedChallenges" class="form-control"/>
+        
+            <h4 class="col-form-label">Benötigte Punkte</h4>
+            <input type="number" @bind-value="Model.RequiredPoints" class="form-control"/>
+        }
+
+        @*
+            todo> start date of groups needed?
+            <h4 class="col-form-label">Start Datum</h4>
+            @if (Model.StartDate == null)
+            {
+                Model.StartDate = new DateTime();
+            }
+            <input @bind-value="Model.StartDate" type="date" pattern="{0:dd.mm.yy}" class="form-control" placeholder="StartDate" id="datepicker2"/>*@
+    </div>
+
+</div>
+
+@code {
+    [Parameter]
+    public GroupModel<Challenge, Member, Group> Model { get; set; }
+
+    void RemoveFromSubGroups()
+    {
+        if(!string.IsNullOrWhiteSpace(Model.SelectedSubGroup))
+        {
+            Model.SubGroups.Remove(Model.SelectedSubGroup);
+        }
+        StateHasChanged();
+    }
+    void AddToSubGroups()
+    {
+        if(!string.IsNullOrWhiteSpace(Model.SelectedAddSubGroup) & !Model.SubGroups.Contains(Model.SelectedAddSubGroup))
+        {
+            Model.SubGroups.Add(Model.SelectedAddSubGroup);
+        }
+    }
+    void AddToAvailableChallenges()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedAddAvailableChallenge) & !Model.AvailableChallenges.Contains(Model.SelectedAddAvailableChallenge))
+        {
+            Model.AvailableChallenges.Add(Model.SelectedAddAvailableChallenge);
+        }
+        StateHasChanged();
+    }
+
+    void RemoveFromAvailableChallenges()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedAvailableChallenge))
+        {
+            Model.AvailableChallenges.Remove(Model.SelectedAvailableChallenge);
+        }
+        StateHasChanged();
+    }
+
+    void MoveSelectedForcedChallengeUp()
+    {
+        helper.MoveChallengeUp(Model.ForcedChallenges, Model.SelectedForcedChallenge);
+        StateHasChanged();
+    }
+
+    void MoveSelectedForcedChallengeDown()
+    {
+        helper.MoveChallengeDown(Model.ForcedChallenges, Model.SelectedForcedChallenge);
+        StateHasChanged();
+    }
+
+    void RemoveForcedChallenge()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedForcedChallenge))
+            Model.ForcedChallenges.Remove(Model.SelectedForcedChallenge);
+        StateHasChanged();
+    }
+
+    void AddForcedChallenge()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SelectedAddForcedChallenge) & !Model.ForcedChallenges.Contains(Model.SelectedAddForcedChallenge))
+        {
+            Model.ForcedChallenges.Add(Model.SelectedAddForcedChallenge);
+        }
+        StateHasChanged();
+    }
+
+    void AddGroupAdmin()
+    {
+        Model.GroupAdminsIds.Add(string.Empty);
+        StateHasChanged();
+    }
+
+}

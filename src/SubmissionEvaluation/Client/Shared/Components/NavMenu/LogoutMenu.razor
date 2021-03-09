@@ -1,0 +1,26 @@
+﻿@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+<NavLink href="Account/View" class="dropdown-item" @onclick="ParentAction"><span class="oi oi-user"></span> Angemeldet als: <br/> <b> @UserSettings.Name</b></NavLink>
+<div role="separator" class="dropdown-divider"></div>
+<NavLink href="Account/View" class="dropdown-item" @onclick="ParentAction">Übersicht</NavLink>
+<NavLink href="Account/Activities" class="dropdown-item" @onclick="ParentAction">Aktivitäten</NavLink>
+<NavLink href="Account/Submissions" class="dropdown-item" @onclick="ParentAction">Einreichungen</NavLink>
+<div role="separator" class="dropdown-divider"></div>
+<button @onclick="Logout" class="dropdown-item"><span class="oi oi-sign-out-alt"></span> Logout</button>
+
+@code {
+
+    [Parameter]
+    public SettingsModel UserSettings { get; set; } = new SettingsModel();
+
+    [Parameter]
+    public Action ParentAction { get; set; }
+
+    async void Logout()
+    {
+        var res = await httpClient.PostAsJsonAsync<GenericModel>("api/Account/Logout", null);
+        navi.NavigateTo("/Account/Logout");
+    }
+
+}

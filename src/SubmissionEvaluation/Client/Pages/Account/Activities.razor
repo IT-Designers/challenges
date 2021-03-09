@@ -1,0 +1,112 @@
+@page "/Account/Activities"
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Shared.Models.Members
+@using System.Net.Http.Json
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
+<div class="row">
+    <ProfileHeader Model="Model" Features="Features"/>
+
+    <div class="col-12">
+        <div class="post-area post">
+            <div>
+                <ProfileMenu Model="Model"/>
+            </div>
+            <table class="ranking_table">
+                <thead>
+                <tr class="ranking_head">
+                    <th class="th_name d-none d-sm-table-cell">Datum</th>
+                    <th class="th_name">Challenge</th>
+                    <th class="th_name">Sprache</th>
+                    <th class="th_name">Ergebnis</th>
+                </tr>
+                </thead>
+                @if (Model != null && CustomSettings != null)
+                {
+                    @foreach (var entry in Model.History.Take(30))
+                    {
+                        switch (entry.Type)
+                        {
+                            case HistoryType.ChallengeSubmission:
+                                if (!CustomSettings.Results.TryGetValue(entry.Result?.ToString(), out var resultConfig))
+                                {
+                                    resultConfig = CustomSettings.Results["Undefined"];
+                                }
+                                <tr style="background: #@resultConfig.Color">
+                                    <td class="d-none d-sm-table-cell">
+                                        @entry.Date.ToShortDateString()
+                                    </td>
+                                    <td>
+                                        <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                    </td>
+                                    <td>
+                                        @if (entry.Language != null)
+                                        {
+                                            <a href="Help/ViewPage/Compilers">@entry.Language</a>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a href=@($"Submission/Add/{entry.Challenge}/{entry.Id}")>@resultConfig.Description</a>
+                                    </td>
+                                </tr>
+                                break;
+                            case HistoryType.SubmissionRated:
+                                <tr style="background: #ddffdd">
+                                    <td>@entry.Date.ToShortDateString()</td>
+                                    <td>
+                                        <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                    </td>
+                                    <td></td>
+                                    <td>Reviewergebnis verfügbar</td>
+                                </tr>
+                                break;
+                            case HistoryType.SubmissionNowFailing:
+                                <tr style="background: #f08080">
+                                    <td>@entry.Date.ToShortDateString()</td>
+                                    <td>
+                                        <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                    </td>
+                                    <td></td>
+                                    <td>Bisher laufende Einreichung schlägt nun fehl (=Aufgabenänderung)</td>
+                                </tr>
+                                break;
+                            case HistoryType.ReviewAvailable:
+                                <tr style="background: #f08080">
+                                    <td>@entry.Date.ToShortDateString()</td>
+                                    <td>
+                                        <a href=@("Review/Overview")>@entry.Challenge</a>
+                                    </td>
+                                    <td></td>
+                                    <td>
+                                        <b>Ausstehendes Review</b>
+                                    </td>
+                                </tr>
+                                break;
+                        }
+                    }
+                }
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    MemberModel<Result, Member> Model { get; set; }
+    CustomizationSettingsClient CustomSettings { get; set; }
+    FeatureSettings Features { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await HttpClient.GetFromJsonAsync<MemberModel<Result, Member>>("api/Account/Activities");
+        if (Model.HasError)
+        {
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
+        }
+        CustomSettings = await HttpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        StateHasChanged();
+    }
+
+}

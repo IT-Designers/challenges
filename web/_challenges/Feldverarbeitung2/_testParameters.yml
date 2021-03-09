@@ -1,0 +1,28 @@
+﻿id: 1
+parameters: []
+input:
+  content: "8\n83\n65\n18\n25\n23\n46\n45\n32"
+expectedOutput:
+  content: "65"
+  settings:
+    compareMode: ContainsWord
+---
+id: 2
+hint: "Funktionieren negative Zahlen richtig?"
+parameters: []
+input:
+  content: "12\n-501230\n-123123\n-12234234\n-23423652\n-234234\n-23424\n-2342324\n-245236\n-234234\n-233432\n-2342346\n-63493"
+expectedOutput:
+  content: "-63493"
+  settings:
+    compareMode: ContainsWord
+---
+id: 3
+hint: "Funktioniert die Überprüfung der Arraylänge richtig?"
+parameters: []
+input:
+  content: "1\n-1\n1\n-5\n-6\n8\n83\n65\n18\n25\n23\n45\n46\n32"
+expectedOutput:
+  content: "Bitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\nBitte geben Sie eine Zahl größer 1 ein!\n65\n"
+  settings:
+    compareMode: ContainsWord

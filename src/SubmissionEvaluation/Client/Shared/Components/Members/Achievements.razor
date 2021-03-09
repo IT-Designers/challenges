@@ -1,0 +1,53 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Shared.Models.Members
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+
+@if (FeatureSettings != null && FeatureSettings.EnableAchievements)
+{
+    <div class="col-sm-12">
+        <div class="post-area">
+            @if (Model != null && MemberAchievements != null && CustomSettings != null)
+            {
+                <div class="post-header">
+                    Auszeichnungen
+                </div>
+                <div class="post">
+                    @foreach (var achievement in MemberAchievements)
+                    {
+                        CustomSettings.Achievements.TryGetValue(achievement.Id, out var config);
+                        var title = config?.Title ?? "Missing";
+                        var description = config?.Description ?? "Missing";
+                        if (Model.Achievements.TryGetValue(achievement.Id, out var award))
+                        {
+                            <img style="box-shadow: unset; padding-right: 4px" title="@title &nbsp; @award.Date&#013;@description" src="/images/Achievement@(achievement.Quality)On.png" width="36px"/>
+                        }
+                        else
+                        {
+                            <img style="box-shadow: unset; padding-right: 4px" title="@title &#013;@description" src="/images/Achievement@(achievement.Quality)Off.png" width="36px"/>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public MemberModel<Result, Member> Model { get; set; }
+    List<Achievement> MemberAchievements { get; set; }
+    CustomizationSettingsClient CustomSettings { get; set; }
+    FeatureSettings FeatureSettings { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        MemberAchievements = await httpClient.GetFromJsonAsync<List<Achievement>>("api/Members/GetAchievements");
+        CustomSettings = await httpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        FeatureSettings = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        StateHasChanged();
+    }
+
+}

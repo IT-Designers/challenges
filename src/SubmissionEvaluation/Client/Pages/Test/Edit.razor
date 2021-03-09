@@ -1,0 +1,129 @@
+@page "/Test/Edit/{challenge}/{index}"
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Models.Shared
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes 
+@inject HttpClient httpClient
+@inject FileExplorerDomain domain
+@inject NavigationManager navi
+<div>
+    <div class="post-area">
+        <div class="post-header">
+            Test für Challenge "@Model.ChallengeId" bearbeiten
+        </div>
+        <div class="card-body challenge-creation-panel">
+            <EditForm Model="@Model" Context="formContext">
+                <input type="hidden" @bind-value="@Model.Referer"/>
+                <input type="hidden" @bind-value="@Model.TestId"/>
+                <input type="hidden" @bind-value="@Model.ChallengeId"/>
+                <div class="card-body challenge-creation-panel">
+                    <MessageHeader Model="Model"/>
+                    @if (Model.Test != null)
+                    {
+                        <EditTestFieldsPartial Model="@Model.Test" Input='domain.FetchFolder("Input", TestFolder)' ChallengeId="@Challenge"/>
+                    }
+                    <button id="btnSave" name="command" type="button" value="Save" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "Save")'><span class="oi oi-data-transfer-upload"></span> Test speichern</button>
+                    <button id="btnSaveAndClose" name="command" type="button" value="SaveAndClose" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "SaveAndClose")'><span class="oi oi-data-transfer-upload"></span><span class="oi oi-media-skip-backward"></span> Test speichern und zurück</button>
+                    <button id="btnSaveAndNext" name="command" type="button" value="SaveAndNext" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "SaveAndNext")'><span class="oi oi-data-transfer-upload"></span><span class="oi oi-media-skip-forward"></span> Test speichern und nächster</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string Index { get; set; }
+
+    [Parameter]
+    public string Challenge { get; set; }
+
+    private ChallengeTestUpdateModel Model { get; set; } = new ChallengeTestUpdateModel();
+    public ExtendedChallengeModel ChallengeModel { get; set; } = new ExtendedChallengeModel();
+
+    private Folder TestFolder { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadModels(Index);
+    }
+
+    private async Task EditTest(EditContext editContext, string command)
+    {
+        if (editContext.Validate())
+        {
+            ChallengeModel.NewFiles = domain.ExtractFoldersToServerFiles(ChallengeModel.NewFiles);
+            foreach (var file in TestFolder.FilesInFolder)
+            {
+                if (file is Folder)
+                {
+                    domain.ExtractFoldersToServerFiles(((Folder) file).NewFilesInFolder).ForEach(x => ChallengeModel.NewFiles.Add(x));
+                }
+            }
+            ChallengeModel.Files = domain.UpdateAllChanges(TestFolder.FilesInFolder, ChallengeModel.Files);
+            //Here the mapping is quickly made before sending it to the server.
+            Model.Test.InputFiles = new List<File>();
+            domain.MapFilesToTest(ChallengeModel.Files, Model.Test.InputFiles, Model.Test.Id.ToString());
+            domain.MapFilesToTest(ChallengeModel.NewFiles, Model.Test.InputFiles, Model.Test.Id.ToString());
+            var responseMessage = await httpClient.PostAsJsonAsync<ChallengeTestUpdateModel>("api/Test/EditTest/Save", Model);
+            if (responseMessage.IsSuccessStatusCode)
+            {
+                Model = await responseMessage.Content.ReadFromJsonAsync<ChallengeTestUpdateModel>();
+            }
+            responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>("api/Challenge/Edit/Save", ChallengeModel);
+            if (responseMessage.IsSuccessStatusCode)
+            {
+                ChallengeModel = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
+            }
+            TestFolder = domain.ReloadingFolderStructure(ChallengeModel, Model.Test);
+            switch (command)
+            {
+                case "SaveAndNext":
+                    if (ChallengeModel.Tests.Count > Model.TestId)
+                    {
+                        await LoadModels((Model.TestId + 1).ToString());
+                        navi.NavigateTo($"/Test/Edit/{Model.ChallengeId}/{(Model.TestId + 1).ToString()}");
+                    }
+                    break;
+                case "SaveAndClose":
+                    navi.NavigateTo($"/Challenge/Edit/{Model.ChallengeId}");
+                    break;
+            }
+        }
+    }
+
+    private async Task LoadModels(string index)
+    {
+        if (Challenge == null)
+        {
+            navi.NavigateTo("Challenges");
+        }
+        var Permissions = await httpClient.GetFromJsonAsync<Permissions>($"api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Test", Permissions, Restriction.CHALLENGES, Challenge))
+        {
+            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        }
+        Model = await httpClient.GetFromJsonAsync<ChallengeTestUpdateModel>($"api/Test/GetTest/{Challenge}/{index}");
+        CheckForErrors(Model);
+        ChallengeModel = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Challenge}");
+        if (ChallengeModel == null)
+        {
+            navi.NavigateTo("Challenges");
+        }
+        CheckForErrors(ChallengeModel);
+        TestFolder = domain.ReloadingFolderStructure(ChallengeModel, Model.Test);
+        domain.FlatFiles = Model.Test.InputFiles;
+        StateHasChanged();
+    }
+
+    private void CheckForErrors(GenericModel model)
+    {
+        if (model.HasError)
+        {
+            navi.NavigateTo($"Home/Error/{model.Message}");
+        }
+    }
+
+}

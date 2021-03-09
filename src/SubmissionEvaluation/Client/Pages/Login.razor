@@ -1,0 +1,78 @@
+@page "/Account/Login"
+@using SubmissionEvaluation.Client.Services
+@using System.Net.Http.Json
+
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject LoginService loginService
+
+
+<div class="shadow text-center loginbox">
+    <div class="card post-area">
+        <div class="post-header">Login</div>
+        <div class="card-body">
+
+            <EditForm OnValidSubmit="@HandleLogin" Model="@Model">
+                <MessageHeader Model="@Model"/>
+                <DataAnnotationsValidator/>
+                <ValidationSummary/>
+                <div class="form-group has-feedback">
+                    <i class="oi oi-user form-control-feedback"></i><label class="col-form-label">Username</label>
+                    <InputText @bind-Value="@Model.Username"/><br/>
+                </div>
+                <ValidationMessage For="@(() => Model.Username)"/>
+                <div class="form-group has-feedback">
+                    <i class="oi oi-lock form-control-feedback"></i><label class="col-form-label">Password</label>
+                    <InputText @bind-Value="@Model.Password" type="password"/><br/>
+                </div>
+                <ValidationMessage For="@(() => Model.Password)"/>
+
+                <hr/>
+                @if (!Features.EnableLdap)
+                {
+                    <a class="btn btn-outline-dark" href="Account/Register">Registrieren</a>
+                }
+                <button class="btn btn-info" type="submit">Login</button>
+
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    public LoginModel Model { get; set; } = new LoginModel {};
+    FeatureSettings Features { get; set; } = new FeatureSettings();
+
+    protected override async void OnInitialized()
+    {
+    //Check, if it´s necessary to do an initial setup. (No members existing)
+        var membersExist = await httpClient.GetFromJsonAsync<bool>("api/Members/ExistsAnyMember");
+        if (!membersExist)
+        {
+            navigationManager.NavigateTo("/Setup");
+        }
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+    }
+
+    public async void HandleLogin()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<LoginModel>("api/Account/Login", Model);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            var result = await responseMessage.Content.ReadFromJsonAsync<LoginModel>();
+            if (result.HasSuccess)
+            {
+                navigationManager.NavigateTo("/");
+                loginService.InvokeEvent();
+            }
+            else
+            {
+                Model.Message = result.Message;
+                Model.HasError = result.HasError;
+                StateHasChanged();
+            }
+        }
+    }
+
+}

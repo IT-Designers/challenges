@@ -1,0 +1,76 @@
+@page "/Account/Groups"
+@using System.Net.Http.Json
+@inject HttpClient HttpClient
+@inject NavigationManager navi
+
+<div class="row">
+    <MessageHeader Model="Model"/>
+
+    <div class="col-12">
+        <div class="post-area post">
+            <div>
+                <ProfileHeader Model="Model"/>
+            </div>
+
+            <div>
+                <h3>Verfügbare Gruppen</h3>
+            </div>
+            @if (Model != null)
+            {
+                <EditForm Model="Model" OnValidSubmit="UpdateGroups">
+                    <ul>
+                        @for (var i = 0; i < Model.Groups.Length; i++)
+                        {
+                            var index = i;
+                            <li>
+                                <label><InputCheckbox @bind-Value="Model.Groups[index].Selected" onchange="base.StateHasChanged"></InputCheckbox>@Model.Groups[i].Title &nbsp;</label>
+                                @if(Model.Groups[index].IsSuperGroup)
+                                {
+                                    <ul>
+                                        @foreach(var group in Model.Groups[index].SubGroups)
+                                        {
+                                            <li>
+                                              <label>@group.Title &nbsp;</label>  
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </li>
+                        }
+                    </ul>
+                    <div class="input-field-padding">
+                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Änderungen übernehmen"/>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    SelectGroupModel Model { get; set; }
+
+    protected override async void OnInitialized()
+    {
+        Model = await HttpClient.GetFromJsonAsync<SelectGroupModel>("api/Account/Groups");
+        StateHasChanged();
+    }
+
+    async void UpdateGroups()
+    {
+        var res = await HttpClient.PostAsJsonAsync<SelectGroupModel>("api/Account/Groups", Model);
+        if(res.IsSuccessStatusCode)
+        {
+            Model = await res.Content.ReadFromJsonAsync<SelectGroupModel>();
+        }
+        if (Model.HasSuccess)
+        {
+            navi.NavigateTo("Account/View");
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+}

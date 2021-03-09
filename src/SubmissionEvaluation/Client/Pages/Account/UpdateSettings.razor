@@ -1,0 +1,71 @@
+@page "/Account/UpdateSettings"
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@inject NavigationManager navi
+
+<div class="panel-group shadow text-center loginbox">
+    <div class="post-area post">
+        <div class="post-header">
+            <b>Nutzerdaten aktualisieren</b>
+        </div>
+        <div class="post-body">
+            @if (Model != null)
+            {
+                <EditForm Model="Model" OnValidSubmit="SendNewSettings">
+                    <ValidationSummary/>
+                    <DataAnnotationsValidator/>
+                    <MessageHeader Model="Model"/>
+                    @if (!Features.EnableLdap)
+                    {
+                        <div class="form-group has-feedback">
+                            <i class="oi oi-account-login form-control-feedback"></i><label class="col-form-label">Benutzername</label>
+                            <InputText @bind-Value="Model.Uid" class="form-control" placeholder="Benutzername"/>
+                        </div>
+                    }
+                    <div class="form-group has-feedback">
+                        <i class="oi oi-person form-control-feedback"></i><label class="col-form-label">Anzeigename</label>
+                        <InputText @bind-Value="Model.Name" class="form-control" placeholder="Anzeigename"/>
+                    </div>
+                    <div class="form-group has-feedback">
+                        <i class="oi oi-person form-control-feedback"></i><label class="col-form-label">E-Mail-Adresse</label>
+                        <InputText @bind-Value="Model.Mail" class="form-control" placeholder="E-Mail"/>
+                    </div>
+                    <ValidationMessage For="() => Model.Uid" class="text-danger"/>
+                    <ValidationMessage For="() => Model.Name" class="text-danger"/>
+                    <ValidationMessage For="() => Model.Mail" class="text-danger"/>
+                    <hr/>
+                    <div>
+                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Aktualisieren"/>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    SettingsModel Model { get; set; }
+    FeatureSettings Features { get; set; } = new FeatureSettings();
+
+    protected override async void OnInitialized()
+    {
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Model = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        StateHasChanged();
+    }
+
+    async void SendNewSettings()
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync<SettingsModel>("api/Account/UpdateSettings", Model);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            Model = await responseMessage.Content.ReadFromJsonAsync<SettingsModel>();
+        }
+        if (Model.HasSuccess)
+        {
+            navi.NavigateTo("Account/View");
+        }
+        StateHasChanged();
+    }
+
+}

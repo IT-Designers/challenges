@@ -1,0 +1,115 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Contracts.Data.Review
+@using Newtonsoft.Json
+@inject IJSRuntime runtime
+@inject ReviewSynchronizer synchronizer
+
+<div id="Editorparent">
+    <div>
+        <div @ref="MyElementReference" id="editor" class="ace_editor" style="z-index: 0"></div>
+        <div>
+            <Comments_Box Categories="Categories" isReadOnly="IsReadOnly" AllComments="AllComments"/>
+        </div>
+        <div id="reviewContextMenu" class="context-menu dropdown" hidden="@(!IsContextMenuActive)" style="@ContextMenuStyle">
+            <ul class="dropdown-menu context-drop" role="menu" aria-labelledby="dropdownMenu">
+                @foreach ((string, string) tupel in Categories)
+                {
+                    <li class="dropdown-item" @onclick="() => MarkCodeSmellFromSelection(tupel.Item1)">
+                        <a class="pseudo-link">@tupel.Item2</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public IEnumerable<(string Id, string title)> Categories { get; set; }
+
+    [Parameter]
+    public Issue CurrentIssue { get; set; }
+
+    bool IsContextMenuActive { get; set; } = false;
+    string ContextMenuStyle { get; set; } = "top: 0px; left: 0px;";
+    ElementReference MyElementReference { get; set; }
+
+    [Parameter]
+    public HashSet<ReviewComments> AllComments { get; set; }
+
+    [Parameter]
+    public bool IsReadOnly { get; set; }
+
+    protected override void OnInitialized()
+    {
+        synchronizer.SomeDataChanged += StateHasChanged;
+        synchronizer.FileHasChanged += ReloadEditor;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+    //Includes event listeners and style.
+            await runtime.InvokeVoidAsync("loadEditorForReview", synchronizer.CurrentAssoziation.SourceFile.Name, synchronizer.CurrentAssoziation.SourceFile.Content, DotNetObjectReference.Create(this));
+        }
+    }
+
+    async void MarkCodeSmellFromSelection(string Id)
+    {
+        if (!IsReadOnly)
+        {
+            var marker = await runtime.InvokeAsync<string>("MarkCodeSmellFromSelection", Id);
+            synchronizer.CurrentAssoziation.Comments.Comments.Add(JsonConvert.DeserializeObject<ReviewComments>(marker));
+            UpdateAllComments();
+        }
+        HideMenu();
+    }
+
+    [JSInvokable("ShowMenu")]
+    public async void ShowMenu(double[] positionEvent)
+    {
+        IsContextMenuActive = true;
+        var position = await runtime.InvokeAsync<double[]>("CalculatePosition", positionEvent[0], positionEvent[1]);
+        ContextMenuStyle = $"top: {position[1]}px; left: {position[0]}px;";
+        StateHasChanged();
+    }
+
+    [JSInvokable("HideMenu")]
+    public void HideMenu()
+    {
+        IsContextMenuActive = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable("AddCommentToIssue")]
+    public async void AddCommentToIssue()
+    {
+        if (CurrentIssue == null)
+        {
+            return;
+        }
+        if (IsReadOnly)
+        {
+            return;
+        }
+        var marker = await runtime.InvokeAsync<string>("MarkIssue", CurrentIssue.Category, CurrentIssue.Id, CurrentIssue.SmellComment);
+        synchronizer.CurrentAssoziation.Comments.Comments.Add(JsonConvert.DeserializeObject<ReviewComments>(marker));
+        UpdateAllComments();
+        HideMenu();
+    }
+
+    void UpdateAllComments()
+    {
+        AllComments.UnionWith(synchronizer.CurrentAssoziation.Comments.Comments);
+        //All comments are updated automatically, due the reference is not changed.
+        synchronizer.InvokeEvent();
+    }
+
+    async void ReloadEditor()
+    {
+        await runtime.InvokeVoidAsync("changeContent", synchronizer.CurrentAssoziation.SourceFile.Name, synchronizer.CurrentAssoziation.SourceFile.Content);
+    }
+
+}

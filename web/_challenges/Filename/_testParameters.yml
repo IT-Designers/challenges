@@ -1,0 +1,27 @@
+parameters: []
+input:
+  content: "c:\\Program Files (x86)\\Microsoft Office\\Office15\\Word.exe\n"
+expectedOutput:
+  content: "Verzeichnis: c:\\Program Files (x86)\\Microsoft Office\\Office15\nDateiname: Word\nErweiterung: exe\n"
+  settings:
+    whitespaces: Reduce
+    compareMode: ContainsWord
+---
+parameters: []
+input:
+  content: "A:\\abc\\autorun.bat\n"
+expectedOutput:
+  content: "Verzeichnis: A:\\abc\nDateiname: autorun\nErweiterung: bat\n"
+  settings:
+    whitespaces: Reduce
+    compareMode: ContainsWord
+---
+hint: "X: ist auch ein gültiges Laufwerk. Es gibt auch Erweiterungen mit mehr als drei Zeichen."
+parameters: []
+input:
+  content: "x:\\data\\stuff.textdatei\n"
+expectedOutput:
+  content: "Verzeichnis: x:\\data\nDateiname:   stuff\nErweiterung: textdatei\n"
+  settings:
+    whitespaces: Reduce
+    compareMode: ContainsWord

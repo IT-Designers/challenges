@@ -1,0 +1,21 @@
+﻿<ul class="nav nav-tabs col-12" style="display: flex">
+    @if (Model != null)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(Model.CurrentMenu == ProfileMenuType.Overview ? "active" : "")" href="Account/View">Übersicht</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.CurrentMenu == ProfileMenuType.Activity ? "active" : "")" href="Account/Activities">Aktivitäten</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.CurrentMenu == ProfileMenuType.Submissions ? "active" : "")" href="Account/Submissions">Einreichungen</a>
+        </li>
+    }
+</ul>
+
+@code {
+
+    [Parameter]
+    public ProfileHeaderModel Model { get; set; }
+
+}
