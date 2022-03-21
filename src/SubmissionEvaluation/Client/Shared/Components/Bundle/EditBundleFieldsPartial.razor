@@ -1,6 +1,7 @@
 @using SubmissionEvaluation.Client.Services
-@using SubmissionEvaluation.Shared.Classes 
-@inject HelperService helper
+@using SubmissionEvaluation.Shared.Classes
+@inject HelperService Helper
+
 <div class="row">
     <ValidationSummary/>
     <div id="settingsCol" class="col-4">
@@ -64,7 +65,7 @@
     </div>
     <div id="descriptionPanel" class="input-field-padding col-8">
         <h4 class="col-form-label">Beschreibung*</h4>
-        <TextEditor @ref="DescriptionEditor" EditorContent="@(MarkdownToHtml.Convert(Model.Description ?? string.Empty, null, false))"></TextEditor>
+        <TextEditor @ref="descriptionEditor" EditorContent="@(MarkdownToHtml.Convert(Model.Description ?? string.Empty, null, false))"></TextEditor>
     </div>
 </div>
 
@@ -75,34 +76,35 @@
 
     [Parameter]
     public CustomizationSettingsClient Settings { get; set; }
-    TextEditor DescriptionEditor;
+
+    TextEditor descriptionEditor;
 
     private void MoveChallengeUp()
     {
-        helper.MoveChallengeUp(Model.Challenges, Model.SelectedChallenge);
+        Helper.MoveChallengeUp(Model.Challenges, Model.SelectedChallenge);
         StateHasChanged();
     }
+
     public async Task SaveEditor()
     {
-        Model.Description = await DescriptionEditor.GetHTML();
+        Model.Description = await descriptionEditor.GetHtml();
     }
+
     private void MoveChallengeDown()
     {
-        helper.MoveChallengeDown(Model.Challenges, Model.SelectedChallenge);
+        Helper.MoveChallengeDown(Model.Challenges, Model.SelectedChallenge);
         StateHasChanged();
     }
 
     private void RemoveChallenge()
     {
-        if (!string.IsNullOrWhiteSpace(Model.SelectedChallenge))
-            Model.Challenges.Remove(Model.SelectedChallenge);
+        if (!string.IsNullOrWhiteSpace(Model.SelectedChallenge)) Model.Challenges.Remove(Model.SelectedChallenge);
         StateHasChanged();
     }
 
     private void AddChallenge()
     {
-        if (!string.IsNullOrWhiteSpace(Model.SelectedAddChallenge))
-            Model.Challenges.Add(Model.SelectedAddChallenge);
+        if (!string.IsNullOrWhiteSpace(Model.SelectedAddChallenge)) Model.Challenges.Add(Model.SelectedAddChallenge);
         StateHasChanged();
     }
 

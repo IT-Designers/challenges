@@ -13,10 +13,10 @@ using SubmissionEvaluation.Server.Classes.JekyllHandling;
 using SubmissionEvaluation.Shared.Classes.Messages;
 using SubmissionEvaluation.Shared.Models;
 using SubmissionEvaluation.Shared.Models.Challenge;
+using SubmissionEvaluation.Shared.Models.Permissions;
 using SubmissionEvaluation.Shared.Models.Test;
 using File = SubmissionEvaluation.Shared.Models.Shared.File;
 using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
-using SubmissionEvaluation.Shared.Models.Permissions;
 
 namespace SubmissionEvaluation.Server.Controllers
 {
@@ -26,11 +26,11 @@ namespace SubmissionEvaluation.Server.Controllers
     [Authorize(Roles = "admin,creator")]
     public class TestController : ControllerBase
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
 
         public TestController(ILogger<TestController> logger)
         {
-            _logger = logger;
+            this.logger = logger;
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -38,27 +38,26 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult GetTestGeneratorModel([FromRoute] string challengeid)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.CREATE, "Test", member, Restriction.CHALLENGES, challengeid)) {
+            if (JekyllHandler.CheckPermissions(Actions.Create, "Test", member, Restriction.Challenges, challengeid))
+            {
                 var challenge = JekyllHandler.Domain.Query.GetChallenge(member, challengeid, true);
                 var submissions = JekyllHandler.Domain.Query.GetAllSubmissionsFor(challenge);
                 var submissionsWithMember = submissions.Select(x => new SubmissionModel<ISubmission, IMember>
-                    {Member = JekyllHandler.MemberProvider.GetMemberById(x.MemberId), Submission = x}).ToList();
+                {
+                    Member = JekyllHandler.MemberProvider.GetMemberById(x.MemberId), Submission = x
+                }).ToList();
                 var model = new TestGeneratorModel<ISubmission, IMember>
                 {
                     AvailableSubmissions = submissionsWithMember,
                     ChallengeId = challengeid,
                     ChallengeName = challenge.Id,
-                    Test = new ChallengeTest
-                    {
-                        Parameters = new List<string>()
-                    },
+                    Test = new ChallengeTest {Parameters = new List<string>()},
                     Referer = $"/Challenge/Edit/{challengeid}"
                 };
                 return Ok(model);
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -66,16 +65,16 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult CreateTestWithTestGenerator(TestGeneratorModel<Result, Member> model)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.CREATE, "Test", member, Restriction.CHALLENGES, model.ChallengeId)) {
-                var output = JekyllHandler.Domain.Interactions.RunTestGenerator(model.ChallengeId, model.SubmissionId,
-                    model.Test.Input, model.Test.Parameters.ToArray());
+            if (JekyllHandler.CheckPermissions(Actions.Create, "Test", member, Restriction.Challenges, model.ChallengeId))
+            {
+                var output = JekyllHandler.Domain.Interactions.RunTestGenerator(model.ChallengeId, model.SubmissionId, model.Test.Input,
+                    model.Test.Parameters.ToArray());
                 model.Test.Output = new Output {Content = output};
                 model.Referer = $"/Test/CreateTestWithTestGenerator/{model.ChallengeId}?={model.SubmissionId}";
                 return Ok(model);
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -83,7 +82,8 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult CreateTest(ChallengeTestCreateModel model, [FromRoute] string command)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.CREATE, "Test", member)) {
+            if (JekyllHandler.CheckPermissions(Actions.Create, "Test", member))
+            {
                 var challengeProps = JekyllHandler.Domain.Query.GetChallenge(member, model.ChallengeId, true);
                 model.IsUserAdmin = HttpContext.User.IsInRole("admin");
                 model.InputFileEntries = challengeProps.AdditionalFiles;
@@ -106,10 +106,9 @@ namespace SubmissionEvaluation.Server.Controllers
                 model.Message = "Test created successfully";
                 model.Referer = $"/Challenges/Edit/{model.ChallengeId}";
                 return Ok(model);
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -123,7 +122,8 @@ namespace SubmissionEvaluation.Server.Controllers
             }
 
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Test", member, Restriction.CHALLENGES, id)) {
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Test", member, Restriction.Challenges, id))
+            {
                 IChallenge challenge;
                 try
                 {
@@ -137,7 +137,7 @@ namespace SubmissionEvaluation.Server.Controllers
                     return Ok(model);
                 }
 
-                if (challenge.AuthorID != User.Claims.First(x => x.Type == ClaimTypes.Sid).Value && !User.IsInRole("admin"))
+                if (challenge.AuthorId != User.Claims.First(x => x.Type == ClaimTypes.Sid).Value && !User.IsInRole("admin"))
                 {
                     model.HasSuccess = false;
                     model.HasError = true;
@@ -147,7 +147,7 @@ namespace SubmissionEvaluation.Server.Controllers
 
                 try
                 {
-                    var test = TestChallengeHelper.GetTests(challenge, _logger).ElementAt(testId);
+                    var test = TestChallengeHelper.GetTests(challenge, logger).ElementAt(testId);
                     var isUserAdmin = HttpContext.User.IsInRole("admin");
                     model = new ChallengeTestUpdateModel
                     {
@@ -168,10 +168,9 @@ namespace SubmissionEvaluation.Server.Controllers
                     model.Message = ErrorMessages.IdError;
                     return Ok(model);
                 }
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -179,21 +178,25 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult EditTest([FromBody] ChallengeTestUpdateModel model, [FromRoute] string command)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Test", member, Restriction.CHALLENGES, model.ChallengeId)) {
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Test", member, Restriction.Challenges, model.ChallengeId))
+            {
                 var challengeProps = JekyllHandler.Domain.Query.GetChallenge(member, model.ChallengeId, true);
                 model.InputFileEntries = challengeProps.AdditionalFiles;
                 model.IsUserAdmin = HttpContext.User.IsInRole("admin");
 
-                if (!ModelState.IsValid) return Ok(model);
+                if (!ModelState.IsValid)
+                {
+                    return Ok(model);
+                }
+
                 var tests = JekyllHandler.Domain.Query.GetTests(challengeProps);
                 var editTest = tests.ElementAt(model.TestId);
                 MapValues(editTest as TestParameters, model);
                 JekyllHandler.Domain.Interactions.UpdateTests(challengeProps, tests);
                 return Ok(model);
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -224,7 +227,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(resultmodel);
             }
 
-            if (challenge.AuthorID != User.Claims.First(x => x.Type == ClaimTypes.Sid).Value && !User.IsInRole("admin"))
+            if (challenge.AuthorId != User.Claims.First(x => x.Type == ClaimTypes.Sid).Value && !User.IsInRole("admin"))
             {
                 resultmodel.Message = ErrorMessages.NoPermission;
                 resultmodel.HasError = true;

@@ -1,12 +1,22 @@
-﻿@page "/Submission/View/{ChallengeName}/{SelectedSubmission}"
+@page "/Submission/View/{ChallengeName}/{SelectedSubmission}"
+
 @using System.Net.Http.Json
-﻿@using SubmissionEvaluation.Shared.Models.Submission
-@inject HttpClient httpClient
-@inject IJSRuntime runtime
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Models.Submission
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Client.Shared.Components.Review
+@using SubmissionEvaluation.Contracts.Data.Review
+@using SubmissionEvaluation.Shared.Models.Review
+@using BlazorMonaco
+@using SubmissionEvaluation.Client.Shared.Components
+@inject HttpClient HttpClient
+@inject IJSRuntime Runtime
+@inject NavigationManager Navi
+
+
 <scripts>
     <link rel="stylesheet" href="css/review.css"/>
 </scripts>
+
 @if (Model != null)
 {
     <div class="post-area">
@@ -18,13 +28,13 @@
                 <div class="col-sm-3 col-12 side-menu">
                     @foreach (var item in Model?.SubmissionFilePaths)
                     {
-                        <button type="submit" id="btnSource_@GetFileName(item)" class="btn-block" name="filePath" value="@item" @onclick="() => SetCurrentFile(item)"> @GetFileName(item)</button>
+                        <button type="submit" id="btnSource_@GetFileName(item)" class="btn btn-outline-dark btn-block btn-margin" name="filePath" value="@item" @onclick="() => SetCurrentFile(item)"> @GetFileName(item)</button>
                     }
                 </div>
                 <div class="col-sm-9 col-12 editor-wrapper">
                     <input hidden readonly value="@Model.CurrentFile.FileName" id="FileName"/>
                     <b style="display: block">Ansicht für @Model.CurrentFile.FileName</b>
-                    <div id="editor">@Model.CurrentFile.FileContent string</div>
+                    <MonacoEditor @ref="_editor" Id="editor" CssClass="editor" OnDidInit="EditorOnDidInit" ConstructionOptions="EditorConstructionOptions" />
                 </div>
             </div>
         </div>
@@ -32,6 +42,8 @@
 }
 
 @code {
+
+    private MonacoEditor _editor { get; set; }
 
     [Parameter]
     public string ChallengeName { get; set; }
@@ -43,23 +55,45 @@
 
     protected override async void OnInitialized()
     {
-        Model = await httpClient.GetFromJsonAsync<SubmissionViewModel>($"api/Submission/ViewSubmission/{ChallengeName}/{SelectedSubmission}");
+        Model = await HttpClient.GetFromJsonAsync<SubmissionViewModel>($"api/Submission/ViewSubmission/{ChallengeName}/{SelectedSubmission}");
         CheckForErrors();
         StateHasChanged();
-        await runtime.InvokeVoidAsync("reloadEditor", Model.CurrentFile.FileName, Model.CurrentFile.FileContent);
+    }
+
+    private StandaloneEditorConstructionOptions EditorConstructionOptions(MonacoEditor editor)
+{
+	return new StandaloneEditorConstructionOptions
+	{
+		AutomaticLayout = false,
+		Language = "",
+		Value = "Bitte in der Liste links eine Datei wählen!",
+        ReadOnly = true
+	};
+}
+
+    private async Task EditorOnDidInit(MonacoEditorBase editor)
+    {
+        TextModel original_model = await MonacoEditorBase.GetModel("code-editor");
+        var original_value =  Model.CurrentFile.FileContent;
+        if (original_model == null)
+            original_model = await MonacoEditorBase.CreateModel(original_value, Model.Language, "code-editor");
+        else
+            await original_model.SetValue(original_value);
+        Console.WriteLine("Did Init!");
+        await _editor.SetModel(original_model);
     }
 
     private async void SetCurrentFile(string item)
     {
-    //The below is a get, but you need to give the file as model, cause otherwise it blocks.
-        var responseMessage = await httpClient.PostAsJsonAsync<string>($"api/Submission/GetCurrentFile/{ChallengeName}/{SelectedSubmission}", item);
+        var responseMessage = await HttpClient.PostAsJsonAsync($"api/Submission/GetCurrentFile/{ChallengeName}/{SelectedSubmission}", item);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<SubmissionViewModel>();
         }
         CheckForErrors();
+        await _editor.SetValue(Model.CurrentFile.FileContent);
         StateHasChanged();
-        await runtime.InvokeVoidAsync("reloadEditor", Model.CurrentFile.FileName, Model.CurrentFile.FileContent);
+        //await Runtime.InvokeVoidAsync("reloadEditor", Model.CurrentFile.FileName, Model.CurrentFile.FileContent);
     }
 
     private string GetFileName(string input)
@@ -72,9 +106,8 @@
     {
         if (Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
     }
 
-    //TODO: Optional: Remove js by blazor.
 }

@@ -5,7 +5,7 @@ namespace SubmissionEvaluation.Shared.Models.Shared
     public class Folder : DetailedInputFile
     {
         //This is the seperator, cause no one will ever use it.
-        public static readonly string pathSeperator = "§";
+        public static readonly string PathSeperator = "§";
 
         public Folder()
         {

@@ -1,12 +1,12 @@
 @page "/Account/Register"
-@using SubmissionEvaluation.Shared.Classes.Messages
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Classes.Messages
 
 @* ReSharper disable once RedundantUsingDirective *@
 @using SubmissionEvaluation.Client.Shared.Components.Account
 
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
 
 @if (!Features.EnableLdap)
 {
@@ -23,24 +23,21 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
         StateHasChanged();
     }
 
     async void SendRegistration()
     {
-        var res = await httpClient.PostAsJsonAsync("api/Account/Register", Model);
+        var res = await HttpClient.PostAsJsonAsync("api/Account/Register", Model);
         if (res.IsSuccessStatusCode)
         {
             Model = await res.Content.ReadFromJsonAsync<RegisterModel>();
         }
-        if (Model.HasError && Model.Message.Equals(ErrorMessages.ActivationNeeded))
+
+        if (Model.HasError && Model.Message.Equals(ErrorMessages.ActivationNeeded) || Model.HasSuccess)
         {
-            navi.NavigateTo("Account/Login");
-        }
-        else if (Model.HasSuccess)
-        {
-            navi.NavigateTo("Account/View");
+            NavigationManager.NavigateTo("Account/Login", true);
         }
         else
         {

@@ -1,8 +1,10 @@
 @page "/Challenges"
 @page "/Challenges/{task}"
+
 @using System.Net.Http.Json
-@using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
 
 @inject NavigationManager Navi
 @inject HttpClient HttpClient
@@ -22,7 +24,7 @@
                 </h1>
             </div>
             <MessageHeader Model="Model"/>
-            <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="searchInput" placeholder="Suche nach einer Challenge (via Titel)"/>
+            <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="SearchInput" placeholder="Suche nach einer Challenge (via Titel)"/>
             <table id="challenges-table" class="table display dataTable no-footer" role="grid" aria-describedby="challenges-table_info">
                 <thead>
                 <tr style="font-size: x-small">
@@ -58,7 +60,7 @@
                 <tbody>
                 @if (Model != null && Model.Challenges != null)
                 {
-                    @foreach (var cp in Model.Challenges.Where(x => x.Title.ToLower().Contains(searchInput.ToLower())))
+                    @foreach (var cp in Model.Challenges.Where(x => x.Title.ToLower().Contains(SearchInput.ToLower())))
                     {
                         <tr>
                             <td class="@(cp.HasChallengeError ? "error-challenge" : null) smalltd">
@@ -74,7 +76,7 @@
                                 <NavLink class="no-link-coloring" href=@GetUrl(cp.Id) title="@cp.Title">@(cp.Title.Length > 20 ? cp.Title.Substring(0, 18) + ".." : cp.Title)</NavLink>
                             </td>
                             <td class="smalltd" style="font-size: small">
-                                <NavLink href=@("Members/Member/" + cp.AuthorID) title="@cp.Author">@cp.Author.Split(' ').Last()</NavLink>
+                                <NavLink href=@("Members/Member/" + cp.AuthorId) title="@cp.Author">@cp.Author.Split(' ').Last()</NavLink>
                             </td>
                             <td class="smalltd" style="font-size: small">@Model.Categories[cp.Category]</td>
                             <td class="smalltd" style="font-size: xx-small">@string.Join(", ", cp.Groups.Select(x => x.Id))</td>
@@ -103,7 +105,7 @@
                                 <a href="Challenge/ConfirmAction/@cp.Id/Delete" title="Löschen" class="btn btn-sm" style="padding: 2px">
                                     <span class="oi-trash oi"></span>
                                 </a>
-                                @if (Permissions.isAdmin)
+                                @if (Permissions.IsAdmin)
                                 {
                                     <button @onclick="@(async () => await RateDown(cp))" title="Schwierigkeitslevel reduzieren" class="btn btn-sm iconed challenge-btn">
                                         <span class="oi oi-chevron-bottom"></span>
@@ -117,11 +119,14 @@
                                     <button @onclick="@(async () => await RateUp10(cp))" title="Schwierigkeitslevel erhöhen * 10" class="btn btn-sm iconed challenge-btn">
                                         <span class="oi oi-caret-top"></span>
                                     </button>
-                                    <DownloadComponent Class="btn btn-sm iconed challenge-btn" title="Challenge herunterladen" content='<span class="oi oi - data - transfer - download"></span>' Id="@cp.Id" URL="api/Challenge/Download" FileName=@($"{cp.Id}.zip")/>
+                                    <DownloadComponent Class="btn btn-sm iconed challenge-btn" Title="Challenge herunterladen" Content='<span class="oi oi - data - transfer - download"></span>' Id="@cp.Id" Url="api/Challenge/Download" FileName=@($"{cp.Id}.zip")/>
                                 }
                             </td>
                         </tr>
                     }
+                }
+                else {
+                    <Wave />
                 }
                 </tbody>
             </table>
@@ -137,52 +142,52 @@
     Permissions Permissions { get; set; } = new Permissions();
 
     [Parameter]
-    public string task { get; set; }
+    public string Task { get; set; }
 
-    string searchInput { get; set; } = string.Empty;
+    string SearchInput { get; set; } = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.VIEW, "Challenges", Permissions))
+        if (!PermissionHelper.CheckPermissions(Actions.View, "Challenges", Permissions))
         {
-            Navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        if (task == null)
+        if (Task == null)
         {
             Model = await HttpClient.GetFromJsonAsync<ChallengeOverviewModel>("api/Challenge/GetAllChallengesForMember");
         }
         else
         {
-            Model = await HttpClient.GetFromJsonAsync<ChallengeOverviewModel>($"api/Challenge/GetAllChallengesForMember/{task}");
+            Model = await HttpClient.GetFromJsonAsync<ChallengeOverviewModel>($"api/Challenge/GetAllChallengesForMember/{Task}");
         }
     }
 
     public async Task RateUp(ChallengeModel model)
     {
         var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateUp/{model.Id}");
-        updateChallenge(updated);
+        UpdateChallenge(updated);
     }
 
     public async Task RateUp10(ChallengeModel model)
     {
         var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateUp10/{model.Id}");
-        updateChallenge(updated);
+        UpdateChallenge(updated);
     }
 
     public async Task RateDown(ChallengeModel model)
     {
         var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateDown/{model.Id}");
-        updateChallenge(updated);
+        UpdateChallenge(updated);
     }
 
     public async Task RateDown10(ChallengeModel model)
     {
         var updated = await HttpClient.GetFromJsonAsync<ChallengeModel>($"api/Challenge/RateDown10/{model.Id}");
-        updateChallenge(updated);
+        UpdateChallenge(updated);
     }
 
-    public void updateChallenge(ChallengeModel updated)
+    public void UpdateChallenge(ChallengeModel updated)
     {
         var list = new List<ChallengeModel>();
         foreach (var model in Model.Challenges)
@@ -209,9 +214,9 @@
         return challenge.SourceUrl;
     }
 
-    private string GetUrl(string ID)
+    private string GetUrl(string id)
     {
-        return "Challenge/View/" + ID;
+        return "Challenge/View/" + id;
     }
 
     void Sort(string type)

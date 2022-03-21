@@ -4,38 +4,38 @@ using System.Linq;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
 
-namespace SubmissionEvaluation.Domain.Achievements
+namespace SubmissionEvaluation.Domain.Achivements
 {
     public class SubmitterAchievementRater : IAchievementRater
     {
-        private const string firstSubmission = "beginner";
-        private const string twentyFiveWorkingSubmissions = "working";
-        private const string fiftyWorkingSubmissions = "heavyWorking";
-        private const string fiveWorkingSubmissionsInRow = "fiveInARow";
-        private const string twentySubmissionsInRow = "chainmaster";
-        private const string gettingOld = "gettingOld";
-        private const string firstSolvedChallenge = "mountainClimber";
-        private const string firstSolvedLanguage = "hillClimber";
-        private const string solvedWithinDayOne = "dayOne";
-        private const string numberOne = "numberOne";
-        private const string allLanguagesSolved = "polyglot";
-        private const string semesterBest = "topPupil";
+        private const string FirstSubmission = "beginner";
+        private const string TwentyFiveWorkingSubmissions = "working";
+        private const string FiftyWorkingSubmissions = "heavyWorking";
+        private const string FiveWorkingSubmissionsInRow = "fiveInARow";
+        private const string TwentySubmissionsInRow = "chainmaster";
+        private const string GettingOld = "gettingOld";
+        private const string FirstSolvedChallenge = "mountainClimber";
+        private const string FirstSolvedLanguage = "hillClimber";
+        private const string SolvedWithinDayOne = "dayOne";
+        private const string NumberOne = "numberOne";
+        private const string AllLanguagesSolved = "polyglot";
+        private const string SemesterBest = "topPupil";
 
         public List<Achievement> ListOfAchievements =>
             new List<Achievement>
             {
-                new Achievement {Id = firstSubmission, Quality = QualityType.Bronze},
-                new Achievement {Id = fiftyWorkingSubmissions, Quality = QualityType.Gold},
-                new Achievement {Id = twentyFiveWorkingSubmissions, Quality = QualityType.Silver},
-                new Achievement {Id = fiveWorkingSubmissionsInRow, Quality = QualityType.Silver},
-                new Achievement {Id = gettingOld, Quality = QualityType.Bronze},
-                new Achievement {Id = twentySubmissionsInRow, Quality = QualityType.Platin},
-                new Achievement {Id = firstSolvedChallenge, Quality = QualityType.Gold},
-                new Achievement {Id = firstSolvedLanguage, Quality = QualityType.Silver},
-                new Achievement {Id = solvedWithinDayOne, Quality = QualityType.Gold},
-                new Achievement {Id = numberOne, Quality = QualityType.Platin},
-                new Achievement {Id = allLanguagesSolved, Quality = QualityType.Silver},
-                new Achievement {Id = semesterBest, Quality = QualityType.Gold}
+                new Achievement {Id = FirstSubmission, Quality = QualityType.Bronze},
+                new Achievement {Id = FiftyWorkingSubmissions, Quality = QualityType.Gold},
+                new Achievement {Id = TwentyFiveWorkingSubmissions, Quality = QualityType.Silver},
+                new Achievement {Id = FiveWorkingSubmissionsInRow, Quality = QualityType.Silver},
+                new Achievement {Id = GettingOld, Quality = QualityType.Bronze},
+                new Achievement {Id = TwentySubmissionsInRow, Quality = QualityType.Platin},
+                new Achievement {Id = FirstSolvedChallenge, Quality = QualityType.Gold},
+                new Achievement {Id = FirstSolvedLanguage, Quality = QualityType.Silver},
+                new Achievement {Id = SolvedWithinDayOne, Quality = QualityType.Gold},
+                new Achievement {Id = NumberOne, Quality = QualityType.Platin},
+                new Achievement {Id = AllLanguagesSolved, Quality = QualityType.Silver},
+                new Achievement {Id = SemesterBest, Quality = QualityType.Gold}
             };
 
         public void AddAwards(Awards awards, AchievementConditions conditions)
@@ -44,7 +44,7 @@ namespace SubmissionEvaluation.Domain.Achievements
             AwardXInRow(awards, conditions.Histories);
             AwardXWorkingSubmissions(awards, conditions.Rankings);
             AwardGettingOld(awards, conditions.Members);
-            AwardFirstSolvedOnLevel(awards, conditions.Challenges, conditions.ChallengeRanklists);
+            AwardFirstSolvedOnLevel(awards, conditions.ChallengeRanklists);
             AwardSolvedWithinDayOne(awards, conditions.Challenges, conditions.ChallengeRanklists);
             AwardNumberOne(awards, conditions.GlobalRanklist);
             AwardSemesterBest(awards, conditions.SemesterRanklists);
@@ -57,7 +57,7 @@ namespace SubmissionEvaluation.Domain.Achievements
             {
                 if (best.SolvedCount > 10)
                 {
-                    awards.AwardWith(best.Id, numberOne);
+                    awards.AwardWith(best.Id, NumberOne);
                 }
             }
         }
@@ -68,10 +68,10 @@ namespace SubmissionEvaluation.Domain.Achievements
             {
                 if (semesterRanklist.CurrentSemester.LastDay <= DateTime.Now) //Means semester is already over
                 {
-                    var best = semesterRanklist.Submitters.Where(x => x.Rank == 1).Where(p => p.SolvedCount > 10).FirstOrDefault();
+                    var best = semesterRanklist.Submitters.Where(x => x.Rank == 1).FirstOrDefault(p => p.SolvedCount > 10);
                     if (best != null)
                     {
-                        awards.AwardWith(best.Id, semesterBest);
+                        awards.AwardWith(best.Id, SemesterBest);
                     }
                 }
             }
@@ -88,30 +88,32 @@ namespace SubmissionEvaluation.Domain.Achievements
                     var fastSubmitters = ranklist.Submitters.Where(x => x.Date <= date && x.Points > 0);
                     foreach (var fast in fastSubmitters)
                     {
-                        awards.AwardWith(fast.Id, solvedWithinDayOne);
+                        awards.AwardWith(fast.Id, SolvedWithinDayOne);
                     }
                 }
             }
         }
 
-        private void AwardFirstSolvedOnLevel(Awards awards, IEnumerable<Challenge> challenges, IEnumerable<ChallengeRanklist> challengeRanklists)
+        private void AwardFirstSolvedOnLevel(Awards awards, IEnumerable<ChallengeRanklist> challengeRanklists)
         {
             foreach (var ranklist in challengeRanklists)
             {
                 var entries = ranklist.Submitters.Where(x => x.Points > 0).ToList();
-                if (entries.Count > 0)
+                if (entries.Count <= 0)
                 {
-                    var firstSubmitter = entries.OrderBy(x => x.Date).First();
-                    awards.AwardWith(firstSubmitter.Id, firstSolvedChallenge);
+                    continue;
+                }
 
-                    var languages = entries.GroupBy(x => x.Language);
-                    foreach (var language in languages)
+                var firstSubmitter = entries.OrderBy(x => x.Date).First();
+                awards.AwardWith(firstSubmitter.Id, FirstSolvedChallenge);
+
+                var languages = entries.GroupBy(x => x.Language);
+                foreach (var language in languages)
+                {
+                    var firstSubmitterPerLang = language.OrderBy(x => x.Date).First();
+                    if (firstSubmitterPerLang.Id != firstSubmitter.Id)
                     {
-                        var firstSubmitterPerLang = language.OrderBy(x => x.Date).First();
-                        if (firstSubmitterPerLang.Id != firstSubmitter.Id)
-                        {
-                            awards.AwardWith(firstSubmitterPerLang.Id, firstSolvedLanguage);
-                        }
+                        awards.AwardWith(firstSubmitterPerLang.Id, FirstSolvedLanguage);
                     }
                 }
             }
@@ -125,12 +127,12 @@ namespace SubmissionEvaluation.Domain.Achievements
                 var count = submitter.Submissions.Where(x => x.Rank > 0).Select(x => x.Challenge).Distinct().Count();
                 if (count >= 50)
                 {
-                    awards.AwardWith(submitter.Name, fiftyWorkingSubmissions);
+                    awards.AwardWith(submitter.Name, FiftyWorkingSubmissions);
                 }
 
                 if (count >= 25)
                 {
-                    awards.AwardWith(submitter.Name, twentyFiveWorkingSubmissions);
+                    awards.AwardWith(submitter.Name, TwentyFiveWorkingSubmissions);
                 }
             }
         }
@@ -155,12 +157,12 @@ namespace SubmissionEvaluation.Domain.Achievements
                     usedChallenges.Add(entry.Challenge);
                     if (challenges.Count >= 5)
                     {
-                        awards.AwardWith(history.Id, fiveWorkingSubmissionsInRow);
+                        awards.AwardWith(history.Id, FiveWorkingSubmissionsInRow);
                     }
 
                     if (challenges.Count >= 20)
                     {
-                        awards.AwardWith(history.Id, twentySubmissionsInRow);
+                        awards.AwardWith(history.Id, TwentySubmissionsInRow);
                         break;
                     }
                 }
@@ -171,7 +173,7 @@ namespace SubmissionEvaluation.Domain.Achievements
         {
             foreach (var submitter in globals.Submitters.Where(x => x.SubmissionCount > 0))
             {
-                awards.AwardWith(submitter.Id, firstSubmission);
+                awards.AwardWith(submitter.Id, FirstSubmission);
             }
         }
 
@@ -180,7 +182,7 @@ namespace SubmissionEvaluation.Domain.Achievements
             var sorted = members.OrderBy(x => x.DateOfEntry).ToList();
             for (var i = 0; i < sorted.Count - 4; i++)
             {
-                awards.AwardWith(sorted[i].Id, gettingOld);
+                awards.AwardWith(sorted[i].Id, GettingOld);
             }
         }
 
@@ -198,7 +200,7 @@ namespace SubmissionEvaluation.Domain.Achievements
 
                     if (availableLanguages.All(p => languages.Contains(p)))
                     {
-                        awards.AwardWith(submitter.Id, allLanguagesSolved);
+                        awards.AwardWith(submitter.Id, AllLanguagesSolved);
                     }
                 }
             }

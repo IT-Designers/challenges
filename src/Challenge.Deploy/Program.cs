@@ -17,11 +17,11 @@ namespace Challenge.Deploy
 {
     internal static class Program
     {
-        private static string key;
+        private static string _key;
 
         private static int Main(string[] args)
         {
-            key = args[0];
+            _key = args[0];
             var force = args.Length > 1 && args[1] == "--force";
             ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
 
@@ -197,7 +197,7 @@ namespace Challenge.Deploy
                 JsonConvert.SerializeObject(currentSettings, new JsonSerializerSettings {Formatting = Formatting.Indented}));
 
             using var client = new HttpClient();
-            var shutdownTask = client.PostAsync($"http://localhost:{instance.Port}/api/maintenance/shutdown/" + key, new StringContent(""));
+            var shutdownTask = client.PostAsync($"http://localhost:{instance.Port}/api/maintenance/shutdown/" + _key, new StringContent(""));
             shutdownTask.Wait(60000);
             if (!shutdownTask.Result.IsSuccessStatusCode)
             {
@@ -241,22 +241,22 @@ namespace Challenge.Deploy
                 throw new Exception("Wrong instance name, aborting!");
             }
 
-            if (newState.Port != instance.Port)
+            if (newState?.Port != instance.Port)
             {
                 throw new Exception("Wrong instance port, aborting!");
             }
 
-            if (newState.ChallengesCount != expectedState.ChallengesCount)
+            if (newState?.ChallengesCount != expectedState.ChallengesCount)
             {
                 throw new Exception($"Wrong challenges count {expectedState.ChallengesCount} != {newState.ChallengesCount}");
             }
 
-            if (newState.MembersCount != expectedState.MembersCount)
+            if (newState?.MembersCount != expectedState.MembersCount)
             {
                 throw new Exception($"Wrong members count {expectedState.MembersCount} != {newState.MembersCount}");
             }
 
-            if (newState.SubmissionsCount != expectedState.SubmissionsCount)
+            if (newState?.SubmissionsCount != expectedState.SubmissionsCount)
             {
                 throw new Exception($"Wrong submissions count {expectedState.SubmissionsCount} != {newState.SubmissionsCount}");
             }
@@ -296,7 +296,6 @@ namespace Challenge.Deploy
             settings["Application"]["InstancePort"] = newInstance.Port;
             settings["Application"]["PathToChallengeDir"] = Path.Combine(newDir, "RawWebsite");
             settings["Application"]["PathToServerWwwRoot"] = Path.Combine(newDir, "WebHost", "wwwroot");
-            settings["Application"]["PathToLogger"] = $"C:\\challenges\\Log_{newInstance.Name}.txt";
             settings["Application"]["Inactive"] = false;
             File.WriteAllText(Path.Combine(newDir, "WebHost", "settings.json"),
                 JsonConvert.SerializeObject(settings, new JsonSerializerSettings {Formatting = Formatting.Indented}));
@@ -398,7 +397,7 @@ namespace Challenge.Deploy
             {
                 try
                 {
-                    var requestUri = $"http://localhost:{instance.Port}/api/maintenance/mode/{key}";
+                    var requestUri = $"http://localhost:{instance.Port}/api/maintenance/mode/{_key}";
                     var maintenanceTask = client.PutAsync(requestUri, new StringContent(enable.ToString().ToLower(), Encoding.UTF8, "application/json"));
                     if (maintenanceTask.Result.IsSuccessStatusCode)
                     {
@@ -421,7 +420,7 @@ namespace Challenge.Deploy
         private static State GetInstanceState(string host = "https://localhost")
         {
             using var client = new HttpClient();
-            var stateTask = client.GetStringAsync($"{host}/api/maintenance/state/{key}");
+            var stateTask = client.GetStringAsync($"{host}/api/maintenance/state/{_key}");
             var state = JsonConvert.DeserializeObject<State>(stateTask.Result);
             return state;
         }

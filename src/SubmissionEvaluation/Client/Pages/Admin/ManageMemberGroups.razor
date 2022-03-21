@@ -1,10 +1,11 @@
 @page "/Admin/ManageMemberGroups/{memberId}"
-@using SubmissionEvaluation.Shared.Models.Admin
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Admin
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Classes.Messages
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
 
 <div class="row">
     <div class="col-12">
@@ -21,13 +22,13 @@
                             var index = i;
                             <li>
                                 <label><InputCheckbox @bind-Value="Model.Groups[index].Selected" onchange="base.StateHasChanged"></InputCheckbox>@Model.Groups[i].Title &nbsp;</label>
-                                @if(Model.Groups[index].IsSuperGroup)
+                                @if (Model.Groups[index].IsSuperGroup)
                                 {
                                     <ul>
-                                        @foreach(var group in Model.Groups[index].SubGroups)
+                                        @foreach (var group in Model.Groups[index].SubGroups)
                                         {
                                             <li>
-                                              <label>@group.Title &nbsp;</label>  
+                                                <label>@group.Title &nbsp;</label>
                                             </li>
                                         }
                                     </ul>
@@ -36,7 +37,7 @@
                         }
                     </ul>
                     <div class="input-field-padding">
-                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Änderungen übernehmen" />
+                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Änderungen übernehmen"/>
                     </div>
                 </EditForm>
             }
@@ -47,30 +48,30 @@
 @code {
 
     [Parameter]
-    public string memberId { get; set; }
+    public string MemberId { get; set; }
 
     ManageMemberGroupsModel Model { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Users", Permissions))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Edit, "Users", permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await httpClient.GetFromJsonAsync<ManageMemberGroupsModel>($"api/Admin/AllPossibleMemberGroups/{memberId}");
+        Model = await HttpClient.GetFromJsonAsync<ManageMemberGroupsModel>($"api/Admin/AllPossibleMemberGroups/{MemberId}");
     }
 
     async void SendChangesToServer()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<ManageMemberGroupsModel>("api/Admin/NewMemberGroups", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Admin/NewMemberGroups", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<ManageMemberGroupsModel>();
         }
         if (Model.HasSuccess)
         {
-            navi.NavigateTo("Admin/Users");
+            Navi.NavigateTo("Admin/Users");
         }
     }
 

@@ -1,7 +1,10 @@
-﻿@page "/Challenge/Category/{Name}"
-@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@page "/Challenge/Category/{Name}"
+
 @using System.Net.Http.Json
-@inject HttpClient httpClient
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+
+@inject HttpClient HttpClient
+
 <div class="home">
     <div class="col-sm-12">
         <div class="post-area">
@@ -14,7 +17,7 @@
                     <div class="all-posts" post-cate="All">
                         @foreach (var entry in Model.Entries)
                         {
-                            <ChallengeTile entry="entry" Member="Model.Member" bundles="bundles"/>
+                            <ChallengeTile Entry="entry" Member="Model.Member" Bundles="Bundles"/>
                         }
                     </div>
                     <div style="clear: both"></div>
@@ -30,13 +33,13 @@
     public string Name { get; set; }
 
     CategoryListModel<Member> Model { get; set; }
-    List<BundleModel> bundles { get; set; }
+    List<BundleModel> Bundles { get; set; }
 
     protected override async void OnInitialized()
     {
-        Model = await httpClient.GetFromJsonAsync<CategoryListModel<Member>>($"api/Challenge/Category/{Name}");
-        bundles = await httpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
-        bundles = bundles.Where(x => x.Category.Equals(Name)).ToList();
+        Model = await HttpClient.GetFromJsonAsync<CategoryListModel<Member>>($"api/Challenge/Category/{Name}");
+        Bundles = await HttpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
+        Bundles = Bundles.Where(x => x.Category.Equals(Name)).ToList();
         StateHasChanged();
     }
 

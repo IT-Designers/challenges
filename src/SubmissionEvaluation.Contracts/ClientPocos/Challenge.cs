@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using SubmissionEvaluation.Contracts.Data;
 
@@ -9,7 +9,7 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
         public Challenge(IChallenge c)
         {
             AdditionalFiles = c.AdditionalFiles;
-            AuthorID = c.AuthorID;
+            AuthorId = c.AuthorId;
             Category = c.Category;
             Date = c.Date;
             DependsOn = c.DependsOn;
@@ -21,11 +21,11 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
             IsReviewable = c.IsReviewable;
             Languages = c.Languages;
             LastEdit = c.LastEdit;
-            LastEditorID = c.LastEditorID;
+            LastEditorId = c.LastEditorId;
             RatingMethod = c.RatingMethod;
             Source = c.Source;
             State = c.State;
-            StickAsBeginner = c.StickAsBeginner;
+            FreezeDifficultyRating = c.FreezeDifficultyRating;
             Title = c.Title;
             LearningFocus = c.LearningFocus;
         }
@@ -34,9 +34,9 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
         {
         }
 
-        public string AuthorID { get; set; }
+        public string AuthorId { get; set; }
 
-        public string LastEditorID { get; set; }
+        public string LastEditorId { get; set; }
 
         public string Id { get; set; }
 
@@ -64,7 +64,7 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
 
         public ChallengeState State { get; set; }
 
-        public bool StickAsBeginner { get; set; }
+        public bool FreezeDifficultyRating { get; set; }
 
         public DateTime LastEdit { get; set; }
 

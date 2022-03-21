@@ -1,11 +1,13 @@
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Models.Shared
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-@using System.Net.Http.Json
-@inject FileExplorerDomain domain
-@inject NavigationManager navi
-@inject HttpClient httpClient
-<div hidden="@hidden">
+
+@inject FileExplorerDomain Domain
+@inject NavigationManager Navi
+@inject HttpClient HttpClient
+
+<div hidden="@Hidden">
     <div class="post-header">
         Generierter Test zu "@Model.ChallengeName" bearbeiten und hinzufügen:
     </div>
@@ -16,8 +18,8 @@
             <div class="panel-body challenge-creation-panel">
                 <MessageHeader Model="Model"/>
                 <EditTestFieldsPartial Model="Model.Test" ChallengeId="@Model.ChallengeId" Input="Input"/>
-                <button id="btnSave" name="command" type="submit" @onclick="@CreateTest" value="Save" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-data-transfer-upload"></span> Test speichern</button>
-                <button id="btnRetry" name="command" type="submit" @onclick="@Retry" value="Retry" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-reload"></span> Test verwerfen und nochmal Starten</button>
+                <button id="btnSave" name="command" type="submit" @onclick="@CreateTest" value="Save" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-data-transfer-upload"></span> Test speichern</button>
+                <button id="btnRetry" name="command" type="submit" @onclick="@Retry" value="Retry" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-reload"></span> Test verwerfen und nochmal Starten</button>
 
             </div>
         </EditForm>
@@ -30,10 +32,10 @@
     public TestGeneratorModel<Result, Member> Model { get; set; }
 
     [Parameter]
-    public bool hidden { get; set; } = true;
+    public bool Hidden { get; set; } = true;
 
     [Parameter]
-    public EventCallback<bool> hiddenChanged { get; set; }
+    public EventCallback<bool> HiddenChanged { get; set; }
 
     [Parameter]
     public Folder Input { get; set; } = new Folder();
@@ -43,27 +45,27 @@
 
     public void Retry()
     {
-        hidden = true;
-        hiddenChanged.InvokeAsync(hidden);
+        Hidden = true;
+        HiddenChanged.InvokeAsync(Hidden);
         StateHasChanged();
     }
 
     public async void CreateTest()
     {
-        ChallengeModel.NewFiles = domain.ExtractFoldersToServerFiles(ChallengeModel.NewFiles);
-        domain.MapFilesToTest(ChallengeModel.NewFiles, Model.Test.InputFiles, Model.Test.Id.ToString());
-        var responseMessage = await httpClient.PostAsJsonAsync<ChallengeTestCreateModel>("api/Test/createtest/Create", Model);
+        ChallengeModel.NewFiles = Domain.ExtractFoldersToServerFiles(ChallengeModel.NewFiles);
+        Domain.MapFilesToTest(ChallengeModel.NewFiles, Model.Test.InputFiles, Model.Test.Id.ToString());
+        var responseMessage = await HttpClient.PostAsJsonAsync<ChallengeTestCreateModel>("api/Test/createtest/Create", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<GenericModel>();
             if (result.HasSuccess)
             {
-                responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>("api/Challenge/Edit/Save", ChallengeModel);
+                responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/Edit/Save", ChallengeModel);
                 if (responseMessage.IsSuccessStatusCode)
                 {
                     ChallengeModel = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
                     Console.WriteLine("I reached this.");
-                    navi.NavigateTo($"/Challenges/Edit/{Model.ChallengeId}");
+                    Navi.NavigateTo($"/Challenges/Edit/{Model.ChallengeId}");
                 }
             }
         }

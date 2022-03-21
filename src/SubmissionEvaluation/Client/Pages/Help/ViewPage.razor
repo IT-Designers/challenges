@@ -1,10 +1,13 @@
-﻿@page "/Help/ViewPage"
+@page "/Help/ViewPage"
 @page "/Help/ViewPage/{pathOne}/{pathTwo}"
 @page "/Help/ViewPage/{pathOne}"
+
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Help
 @using SubmissionEvaluation.Shared.Classes
-@using System.Net.Http.Json
-@inject HttpClient httpClient
+
+@inject HttpClient HttpClient
+
 <style>
     button {
         -webkit-appearance: none;
@@ -14,6 +17,7 @@
         text-decoration: none;
     }
 </style>
+
 <div class="row">
     @if (Model != null)
     {
@@ -70,38 +74,38 @@
     SettingsModel UserSettings { get; set; }
 
     [Parameter]
-    public string pathOne { get; set; }
+    public string PathOne { get; set; }
 
     [Parameter]
-    public string pathTwo { get; set; }
+    public string PathTwo { get; set; }
 
-    string path { get; set; }
+    string Path { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        path = pathTwo == null ? pathOne : pathOne + "\\" + pathTwo;
+        Path = PathTwo == null ? PathOne : PathOne + "\\" + PathTwo;
         await FetchFromServer();
     }
 
     async void UpdateViewPage(string newPath)
     {
-        path = newPath;
+        Path = newPath;
         await FetchFromServer();
     }
 
     async Task FetchFromServer()
     {
-        if (path == null)
+        if (Path == null)
         {
-            path = " ";
+            Path = " ";
         }
-    //Sincerely a get-request, but the path-string could contain slashes itself, so it needs to be transferred as a model.
-        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Help/getViewPage", path);
+        //Sincerely a get-request, but the path-string could contain slashes itself, so it needs to be transferred as a model.
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Help/getViewPage", Path);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<HelpModel>();
         }
-        UserSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        UserSettings = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
         StateHasChanged();
     }
 

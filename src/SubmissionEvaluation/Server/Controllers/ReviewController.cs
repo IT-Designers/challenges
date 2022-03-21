@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using SubmissionEvaluation.Shared.Models.Permissions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SubmissionEvaluation.Contracts.Data;
@@ -11,6 +10,7 @@ using SubmissionEvaluation.Server.Classes.JekyllHandling;
 using SubmissionEvaluation.Server.Classes.Messages;
 using SubmissionEvaluation.Shared.Classes;
 using SubmissionEvaluation.Shared.Models;
+using SubmissionEvaluation.Shared.Models.Permissions;
 using SubmissionEvaluation.Shared.Models.Review;
 
 namespace SubmissionEvaluation.Server.Controllers
@@ -31,7 +31,7 @@ namespace SubmissionEvaluation.Server.Controllers
 
             var userId = User.Claims.First(x => x.Type == ClaimTypes.Sid).Value;
             var member = JekyllHandler.GetMemberForUser(User);
-            if (submission.MemberId != userId && !JekyllHandler.CheckPermissions(Actions.VIEW, "Member", member, Restriction.MEMBERS, submission.MemberId))
+            if (submission.MemberId != userId && !JekyllHandler.CheckPermissions(Actions.View, "Member", member, Restriction.Members, submission.MemberId))
             {
                 return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
             }
@@ -43,13 +43,13 @@ namespace SubmissionEvaluation.Server.Controllers
                 rating.Description = MarkdownToHtml.Convert(rating.Description);
             }
 
-            var pathToFiles = JekyllHandler.Domain.Query.GetSubmissionRelativeFilesPath(submission).ToList();
+            var pathToFiles = JekyllHandler.Domain.Query.GetSubmissionRelativeFilesPathInZip(submission).ToList();
             var pathAndContent = pathToFiles.Select(p => new ReviewFile
             {
-                Name = p, Content = JekyllHandler.Domain.Query.GetSubmissionSourceCode(submission, p)
+                Name = p, Content = JekyllHandler.Domain.Query.GetSubmissionSourceCodeInZip(submission, p)
             });
             var fileModel = ConvertToFileModel(pathToFiles);
-            var sourceFiles = pathAndContent;
+            var sourceFiles = FilterFiles(pathAndContent.ToList());
             var comments = ConvertComments(data);
             var template = JekyllHandler.Domain.Query.GetReviewTemplate(challenge);
             var model = new ReviewViewModel
@@ -61,6 +61,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 Stars = submission.ReviewRating,
                 FileModel = fileModel,
                 SourceFiles = sourceFiles,
+                Language = submission.Language,
                 Comments = comments,
                 Categories = template.Categories.Select(p => (p.Id, p.Title)).ToList()
             };
@@ -87,57 +88,61 @@ namespace SubmissionEvaluation.Server.Controllers
             return convertedComments;
         }
 
-        [Authorize(Roles ="admin,groupAdmin,reviewer")]
+        [Authorize(Roles = "admin,groupAdmin,reviewer")]
         [HttpGet("GetReviewToolModel/{challenge}/{id}")]
         public IActionResult Tool(string challenge, string id)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Review", member, Restriction.CHALLENGES, challenge)) {
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Review", member, Restriction.Challenges, challenge))
+            {
                 try
                 {
-                    if (challenge == null) return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
-                    if (id == null) return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    if (challenge == null)
+                    {
+                        return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    }
+
+                    if (id == null)
+                    {
+                        return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    }
 
                     var submission = JekyllHandler.Domain.Query.GetSubmission(challenge, id);
-                    if (JekyllHandler.CheckPermissions(Actions.EDIT, "Review", member, Restriction.MEMBERS, submission.MemberId))
+                    if (JekyllHandler.CheckPermissions(Actions.Edit, "Review", member, Restriction.Members, submission.MemberId))
                     {
                         JekyllHandler.Domain.Query.StartReview(submission, member);
-                        var model = new ReviewToolModel
-                        {
-                            Challenge = challenge,
-                            SubmissionId = id,
-                            IsAdmin = member.IsAdmin
-                        };
+                        var model = new ReviewToolModel {Challenge = challenge, Langugage=submission.Language.ToLower(), SubmissionId = id, IsAdmin = member.IsAdmin};
                         model = BuildReviewToolModel(model);
                         return Ok(model);
-                    } else
-                    {
-                        return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
                     }
+
+                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
                 }
                 catch (Exception e)
                 {
-                    JekyllHandler.Log.Error(e,
-                        $"Fehler beim Starten eines Reviews. ChallengeId:{challenge}; SubmissionId:{id}");
+                    JekyllHandler.Log.Error(e, $"Fehler beim Starten eines Reviews. ChallengeId:{challenge}; SubmissionId:{id}");
                     return Ok(new GenericModel {HasError = true, Message = ErrorMessages.GenericError});
                 }
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
+
         [Authorize(Roles = "admin,groupAdmin,reviewer")]
         [HttpPost("SubmitReview")]
         public IActionResult SubmitReview([FromBody] ReviewData model)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Review", member, Restriction.CHALLENGES, model.Challenge)) {
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Review", member, Restriction.Challenges, model.Challenge))
+            {
                 try
                 {
                     var submission = JekyllHandler.Domain.Query.GetSubmission(model.Challenge, model.Id);
-                    if(JekyllHandler.CheckPermissions(Actions.EDIT, "Review", member, Restriction.MEMBERS, submission.MemberId)) {
-                    JekyllHandler.Domain.Interactions.AddReview(model);
-                    return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.SubmitReview});
+                    if (JekyllHandler.CheckPermissions(Actions.Edit, "Review", member, Restriction.Members, submission.MemberId))
+                    {
+                        JekyllHandler.Domain.Interactions.AddReview(model);
+                        JekyllHandler.MemberProvider.LogLastActivity(member);
+                        return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.SubmitReview});
                     }
                 }
                 catch (Exception)
@@ -145,22 +150,37 @@ namespace SubmissionEvaluation.Server.Controllers
                     return Ok(new GenericModel {HasSuccess = false, HasError = true, Message = ErrorMessages.GenericError});
                 }
             }
-            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+        }
+
+        private List<ReviewFile> FilterFiles(List<ReviewFile> files)
+        {
+            var res = new List<ReviewFile>();
+
+            foreach (var item in files)
+            {
+                if (!JekyllHandler.GetIgnoreFileList().Contains(item.Name))
+                {
+                    res.Add(item);
+                }
+            }
+            return res;
         }
 
         private ReviewToolModel BuildReviewToolModel(ReviewToolModel model)
         {
             var submission = JekyllHandler.Domain.Query.GetSubmission(model.Challenge, model.SubmissionId);
 
-            var pathToFiles = JekyllHandler.Domain.Query.GetSubmissionRelativeFilesPath(submission).ToList();
+            var pathToFiles = JekyllHandler.Domain.Query.GetSubmissionRelativeFilesPathInZip(submission).ToList();
             var pathAndContent = pathToFiles.Select(p => new ReviewFile
             {
-                Name = p, Content = JekyllHandler.Domain.Query.GetSubmissionSourceCode(submission, p)
+                Name = p, Content = JekyllHandler.Domain.Query.GetSubmissionSourceCodeInZip(submission, p)
             });
             var template = JekyllHandler.Domain.Query.GetReviewTemplate(model.Challenge);
             model.GuidedQuestions = template.GuidedQuestions;
             model.FileModel = ConvertToFileModel(pathToFiles);
-            model.SourceFiles = pathAndContent.ToList();
+            model.SourceFiles = FilterFiles(pathAndContent.ToList());
             model.Categories = template.Categories.Select(p => (p.Id, p.Title)).ToList();
             return model;
         }
@@ -198,15 +218,17 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult Cancel(ReviewToolModel model)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT,"Review", member, Restriction.CHALLENGES, model.Challenge)) {
-            var submission = JekyllHandler.Domain.Query.GetSubmission(model.Challenge, model.SubmissionId);
-                if(JekyllHandler.CheckPermissions(Actions.EDIT, "Review", member, Restriction.MEMBERS, submission.MemberId))
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Review", member, Restriction.Challenges, model.Challenge))
+            {
+                var submission = JekyllHandler.Domain.Query.GetSubmission(model.Challenge, model.SubmissionId);
+                if (JekyllHandler.CheckPermissions(Actions.Edit, "Review", member, Restriction.Members, submission.MemberId))
                 {
                     JekyllHandler.Domain.Interactions.CancelReview(submission);
                     return Ok(new GenericModel());
                 }
             }
-            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin,reviewer,groupAdmin")]
@@ -214,48 +236,61 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult Overview(bool? isSuccess, string message)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.VIEW, "Review", member)) { 
-            var model = new ReviewOverviewModel {ReviewableSubmissions = JekyllHandler.Domain.Query.GetAllReviewableSubmissions(member)};
-            if (isSuccess.HasValue)
+            if (JekyllHandler.CheckPermissions(Actions.View, "Review", member))
             {
-                if (isSuccess.Value)
+                var model = new ReviewOverviewModel {ReviewableSubmissions = JekyllHandler.Domain.Query.GetAllReviewableSubmissions(member)};
+                if (isSuccess.HasValue)
                 {
-                    model.HasSuccess = true;
+                    if (isSuccess.Value)
+                    {
+                        model.HasSuccess = true;
+                    }
+                    else
+                    {
+                        model.HasError = true;
+                    }
+                }
+
+                if (message != null)
+                {
+                    model.Message = message;
+                }
+
+                if (User.IsInRole("admin"))
+                {
+                    model.RunningReviews = JekyllHandler.Domain.Query.GetRunningReviews().Select(ConvertToRunningReviewModel);
                 }
                 else
                 {
-                    model.HasError = true;
+                    model.RunningReviews = JekyllHandler.Domain.Query.GetRunningReviews().Select(ConvertToRunningReviewModel)
+                        .Where(x => x.ReviewerName == member.Name);
                 }
+
+                return Ok(model);
             }
 
-            if (message != null)
-            {
-                model.Message = message;
-            }
-
-            if (User.IsInRole("admin"))
-            {
-                model.RunningReviews = JekyllHandler.Domain.Query.GetRunningReviews().Select(ConvertToRunningReviewModel);
-            }else
-            {
-                    model.RunningReviews = JekyllHandler.Domain.Query.GetRunningReviews().Select(ConvertToRunningReviewModel).Where(x => x.ReviewerName == member.Name);
-            }
-
-            return Ok(model);
-            }else
-            {
-                return Ok(new GenericModel() { HasError = true, Message = ErrorMessages.NoPermission });
-            }
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         private RunningReviewModel ConvertToRunningReviewModel(Result submission)
         {
             var runTill = submission.ReviewDate.HasValue ? "Läuft ab am:" + submission.ReviewDate.Value.ToShortDateString() : "-";
 
+            string reviewerName = "";
+
+            if (JekyllHandler.MemberProvider.GetMemberById(submission.Reviewer) == null)
+            {
+                reviewerName = "Unknown";
+            }
+            else
+            {
+                reviewerName = JekyllHandler.MemberProvider.GetMemberById(submission.Reviewer).Name;
+            }
+
             return new RunningReviewModel
             {
                 Challenge = submission.Challenge,
-                ReviewerName = JekyllHandler.MemberProvider.GetMemberById(submission.Reviewer).Name,
+                ReviewerName = reviewerName,
                 Language = submission.Language,
                 Status = runTill,
                 Submission = submission.SubmissionId

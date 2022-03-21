@@ -17,7 +17,7 @@ namespace SubmissionEvaluation.Domain.Operations
             var challenges = ProviderStore.FileProvider.LoadChallenges();
             foreach (var challenge in challenges)
             {
-                var author = MemberProvider.GetMemberById(challenge.AuthorID);
+                var author = MemberProvider.GetMemberById(challenge.AuthorId);
                 if (author != null && challenge.IsAvailable && author.Id == member.Id)
                 {
                     throw new Exception("Member is author of challenge " + challenge.Id);
@@ -25,16 +25,40 @@ namespace SubmissionEvaluation.Domain.Operations
             }
         }
 
-        public void MarkInactiveUsers()
+        public void Cleanup()
         {
             var members = MemberProvider.GetMembers();
-            foreach (var member in members.Where(x => x.State == MemberState.Active))
+            foreach (var member in members)
+            {
+                try
+                {
+                    if (DateTime.Now - member.LastActivity > TimeSpan.FromDays(365))
+                    {
+                        MemberProvider.DeleteAllSubmissionsByMember(member);
+                        MemberProvider.DeleteMember(member);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "{User} auf inaktiv setzen fehlgeschlagen.", member.Name);
+                }
+            }
+        }
+
+        public void MarkActivityStatusForUsers()
+        {
+            var members = MemberProvider.GetMembers();
+            foreach (var member in members)
             {
                 try
                 {
                     if (DateTime.Now - member.LastActivity > TimeSpan.FromDays(180))
                     {
                         MemberProvider.SetInactive(member, true);
+                    }
+                    else
+                    {
+                        MemberProvider.SetInactive(member, false);
                     }
                 }
                 catch (Exception e)
@@ -50,8 +74,8 @@ namespace SubmissionEvaluation.Domain.Operations
             {
                 using var writeLock = ProviderStore.FileProvider.GetLock();
                 var updated = ProviderStore.FileProvider.LoadChallenge(props, writeLock);
-                updated.AuthorID = newId;
-                updated.LastEditorID = null;
+                updated.AuthorId = newId;
+                updated.LastEditorId = null;
                 updated.IsDraft = true;
                 ProviderStore.FileProvider.SaveChallenge(updated, writeLock);
             }

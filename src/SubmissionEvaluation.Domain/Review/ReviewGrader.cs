@@ -46,12 +46,9 @@ namespace SubmissionEvaluation.Domain.Review
                         categoryText += issue.Enough += Environment.NewLine;
                     }
                 }
-                else if (grade == 6)
+                else if (grade == 6 && !string.IsNullOrWhiteSpace(issue.Bad))
                 {
-                    if (!string.IsNullOrWhiteSpace(issue.Bad))
-                    {
-                        categoryText += issue.Bad += Environment.NewLine;
-                    }
+                    categoryText += issue.Bad += Environment.NewLine;
                 }
             }
 
@@ -116,7 +113,7 @@ namespace SubmissionEvaluation.Domain.Review
         {
             var rating = data.GuidedQuestionResult.Single(p => p.Issues.Any(q => q.Id == issue.Id)).Rating;
             var issueCount = data.GuidedQuestionResult.SelectMany(p => p.Issues).Single(p => p.Id == issue.Id).IssueCount;
-            return (rating: rating ?? GuidedQuestion.noEvaluation, issueCount);
+            return (rating: rating ?? GuidedQuestion.NoEvaluation, issueCount);
         }
 
         private IEnumerable<Issue> GetIssueToCategory(string categoryId)

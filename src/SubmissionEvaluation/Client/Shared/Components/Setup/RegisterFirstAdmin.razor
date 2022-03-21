@@ -1,8 +1,9 @@
-﻿@using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject IToastService toaster
-@inject NavigationManager navi
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Shared.Components.Account
+
+@inject HttpClient HttpClient
+@inject IToastService Toaster
+@inject NavigationManager Navi
 
 <div hidden="@(Step != 2)">
     <RegisterComponent Model="Model" Features="Features" SendRegistration="SendRegistration"/>
@@ -14,30 +15,30 @@
     public int Step { get; set; }
 
     [Parameter]
-    public string securityToken { get; set; }
+    public string SecurityToken { get; set; }
 
     RegisterModel Model { get; set; } = new RegisterModel();
     FeatureSettings Features { get; set; } = new FeatureSettings();
 
     protected override async void OnInitialized()
     {
-        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
         StateHasChanged();
     }
 
     async void SendRegistration()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<RegisterAdminTupel>("api/Setup/RegisterFirstAdmin", new RegisterAdminTupel(Model, securityToken));
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Setup/RegisterFirstAdmin", new RegisterAdminTupel(Model, SecurityToken));
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<GenericModel>();
             if (!result.HasSuccess)
             {
-                toaster.ShowError(result.MessageTranslation);
+                Toaster.ShowError(result.MessageTranslation);
             }
             else
             {
-                navi.NavigateTo("Account/Login");
+                Navi.NavigateTo("Account/Login");
             }
         }
     }

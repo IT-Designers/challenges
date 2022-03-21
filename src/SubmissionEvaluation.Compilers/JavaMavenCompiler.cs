@@ -148,7 +148,7 @@ public final class Console {
                 pom = Pom.GetDefaultPom(main);
             }
 
-            File.WriteAllText(Path.Combine(paths.Host.SourcePath, "pom.xml"), pom.GetXMLString());
+            File.WriteAllText(Path.Combine(paths.Host.SourcePath, "pom.xml"), pom.GetXmlString());
         }
 
         protected void Compile(CompilerPaths paths, IProcessProvider processProvider)
@@ -188,6 +188,8 @@ public final class Console {
 
         protected string GetPomPath(CompilerPaths paths)
         {
+            //Because of the Log4J security issue deactivae pom support for now.
+            /*
             var result = Directory.GetFiles(paths.Host.SourcePath, "pom.xml", SearchOption.TopDirectoryOnly);
             if (result.Length == 1)
             {
@@ -195,7 +197,7 @@ public final class Console {
                 return result[0];
             }
 
-            log.Information($"{result.Length} Poms founds");
+            log.Information($"{result.Length} Poms founds");*/
             return null;
         }
 

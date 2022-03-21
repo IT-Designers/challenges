@@ -2,9 +2,9 @@
 
 namespace SubmissionEvaluation.Shared.Models.Challenge
 {
-    public class SubmissionModel<T, S> where T : ISubmission where S : IMember
+    public class SubmissionModel<T, TS> where T : ISubmission where TS : IMember
     {
         public T Submission { get; set; }
-        public S Member { get; set; }
+        public TS Member { get; set; }
     }
 }

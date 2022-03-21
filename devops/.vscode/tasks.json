@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "docker: build server image",
+            "command": "docker",
+            "type": "shell",
+            "args": ["build", "-t", "challenge-platform-server", "--build-arg", "target=Release", "-f", "devops/server/Dockerfile", "."],
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/.."
+            }
+        },
+        {
+            "label": "docker: build testrunner image",
+            "command": "docker",
+            "type": "shell",
+            "args": ["build", "-t", "test", "-f", "devops/testrunner/Dockerfile", "devops/testrunner"],
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/.."
+            }
+        }
+    ]
+}

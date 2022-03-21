@@ -11,23 +11,12 @@ namespace SubmissionEvaluation.Providers.CryptographyProvider
         private const string Name = "libsodium";
         private const int CryptoPwhashArgon2IdAlgArgon2Id13 = 2;
         private const long CryptoPwhashArgon2IdOpslimitSensitive = 4;
-        private const int CryptoPwhashArgon2IdMemlimitSensitive = 1073741824;
+        private const int CryptoPwhashArgon2IdMemlimitSensitive = 33554432;
 
         static CryptographyProvider()
         {
             sodium_init();
         }
-
-#pragma warning disable IDE1006 // suppress naming convention for DLL import
-        [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void sodium_init();
-
-        [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void randombytes_buf(byte[] buffer, int size);
-
-        [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int crypto_pwhash(byte[] buffer, long bufferLen, byte[] password, long passwordLen, byte[] salt, long opsLimit, int memLimit, int alg);
-#pragma warning restore IDE1006
 
         public static string CreateArgon2Password(string password)
         {
@@ -85,5 +74,17 @@ namespace SubmissionEvaluation.Providers.CryptographyProvider
             var newHash = HashPassword(password, salt);
             return hash.SequenceEqual(newHash);
         }
+
+#pragma warning disable IDE1006 // suppress naming convention for DLL import
+        [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
+        private static extern void sodium_init();
+
+        [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void randombytes_buf(byte[] buffer, int size);
+
+        [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int crypto_pwhash(byte[] buffer, long bufferLen, byte[] password, long passwordLen, byte[] salt, long opsLimit, int memLimit,
+            int alg);
+#pragma warning restore IDE1006
     }
 }

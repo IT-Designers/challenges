@@ -10,17 +10,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Providers.CryptographyProvider;
-using SubmissionEvaluation.Contracts.Interfaces;
 using SubmissionEvaluation.Server.Classes;
 using SubmissionEvaluation.Server.Classes.Authentication;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
+using SubmissionEvaluation.Server.Contracts.Interfaces;
 using SubmissionEvaluation.Shared.Classes.Config;
 using SubmissionEvaluation.Shared.Classes.Messages;
 using SubmissionEvaluation.Shared.Models;
 using SubmissionEvaluation.Shared.Models.Account;
 using SubmissionEvaluation.Shared.Models.Members;
 using SubmissionEvaluation.Shared.Models.Submission;
-using Group = SubmissionEvaluation.Contracts.ClientPocos.Group;
 
 namespace SubmissionEvaluation.Server.Controllers
 {
@@ -29,11 +28,11 @@ namespace SubmissionEvaluation.Server.Controllers
     [Authorize(Policy = "IsChallengePlattformUser")]
     public class AccountController : ControllerBase
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
 
         public AccountController(ILogger<AccountController> logger)
         {
-            _logger = logger;
+            this.logger = logger;
         }
 
         [HttpGet("Activities")]
@@ -58,14 +57,14 @@ namespace SubmissionEvaluation.Server.Controllers
             var member = JekyllHandler.MemberProvider.GetMemberById(userId);
             var solvedList = JekyllHandler.Domain.Query.GetSubmitterSolvedList(member);
             var compilers = JekyllHandler.Domain.Query.GetCompilerNames();
-            var Challenges = JekyllHandler.Domain.Query.GetAllChallenges(member).ToList();
+            var challenges = JekyllHandler.Domain.Query.GetAllChallenges(member).ToList();
 
             var model = new MemberSolvedModel<IChallenge>
             {
                 Id = userId,
                 Solved = solvedList.Solved,
                 Compilers = compilers,
-                Challenges = Challenges,
+                Challenges = challenges,
                 Referer = "/Account/Challenges"
             };
             FillProfileMenuModel(model, member, ProfileMenuType.Submissions);
@@ -161,7 +160,7 @@ namespace SubmissionEvaluation.Server.Controllers
             IUserAuthentication authentication;
             if (Settings.Features.EnableLdap && member?.Type != MemberType.Local)
             {
-                authentication = new LdapAuthentication(_logger);
+                authentication = new LdapAuthentication(logger);
             }
             else
             {
@@ -174,7 +173,7 @@ namespace SubmissionEvaluation.Server.Controllers
             {
                 try
                 {
-                    _logger.LogDebug("User {username} successfully authenticated via Directory Service", model.Username);
+                    logger.LogDebug("User {username} successfully authenticated via Directory Service", model.Username);
                     await new IdentityAuthenticator().WriteIdentityCookie(model.Username, attributeTable, HttpContext);
 
                     if (Url.IsLocalUrl(returnUrl))
@@ -182,7 +181,7 @@ namespace SubmissionEvaluation.Server.Controllers
                         return Redirect(returnUrl);
                     }
 
-                    _logger.LogDebug("User Cookie set");
+                    logger.LogDebug("User Cookie set");
                     return Ok(new LoginModel {HasSuccess = true, Message = "Logged in", Username = model.Username});
                 }
                 catch (Exception)
@@ -203,19 +202,15 @@ namespace SubmissionEvaluation.Server.Controllers
 
         [AllowAnonymous]
         [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] RegisterModel model)
+        public IActionResult Register([FromBody] RegisterModel model)
         {
             if (!ModelState.IsValid)
             {
                 return Ok(model);
             }
-            var result = RegistrationHelper.registrationHelper.RegisterMember(model, HttpContext, _logger);
-            if (!Settings.Features.EnableSendMail)
-            {
-                await Login(new LoginModel() { Password = model.Password, Username = model.Username }, "Account/View");
-            }
-            return Ok(result);
 
+            var result = RegistrationHelper.RegistrationHelperInstance.RegisterMember(model, HttpContext, logger);
+            return Ok(result);
         }
 
         [AllowAnonymous]
@@ -245,10 +240,9 @@ namespace SubmissionEvaluation.Server.Controllers
                 model.Name = member.Name;
                 model.Uid = member.Uid;
                 model.Mail = member.Mail;
-                model.ReviewCounter = member.ReviewCounter;
-                model.ReviewLanguages = member.ReviewLanguages.ToList();
+                model.ReviewLanguages = member.ReviewLanguages;
                 model.Roles = User.Claims.Where(x => x.Type == ClaimTypes.Role).Select(x => x.Value).ToList();
-                model.Groups = member.Groups.Select(x => new Group(groups.FirstOrDefault(g => g.Id == x))).ToList();
+                model.Groups = member.Groups.Select(x => new SubmissionEvaluation.Contracts.ClientPocos.Group(groups.FirstOrDefault(g => g.Id == x))).ToList();
                 model.CanChooseGroup = true;
                 FillProfileMenuModel(model, member, ProfileMenuType.Overview);
 
@@ -269,6 +263,8 @@ namespace SubmissionEvaluation.Server.Controllers
             model.Stars = globalSubmitter.Stars;
             model.DateOfEntry = member.DateOfEntry;
             model.CurrentMenu = currentMenu;
+            model.LastActivity = member.LastActivity;
+            model.Inactive = member.State == MemberState.Active;
         }
 
         [AllowAnonymous]
@@ -278,55 +274,53 @@ namespace SubmissionEvaluation.Server.Controllers
             var settingsmodel = BuildSettingsModel();
             return Ok(settingsmodel);
         }
-        [HttpGet("Groups")]
-        public IActionResult Groups()
-        {
-            var member = JekyllHandler.GetMemberForUser(User);
-            var groups = JekyllHandler.Domain.Query.GetAllGroups();
-            var subgroups = groups.SelectMany(x => x.SubGroups);
-            var model = new SelectGroupModel
-            {
-                Groups = GetGroups(groups.Where(x=> !subgroups.Contains(x.Id)).ToList(), member)
-            };
-            model.HasError = model.Groups.All(x => !x.Selected);
-            if (model.HasError)
-            {
-                model.Message = ErrorMessages.MustJoinGroup;
-            }
 
-            FillProfileMenuModel(model, member, ProfileMenuType.Overview);
-            return Ok(model);
-        }
-        public static GroupInfo[] GetGroups(List<Contracts.Data.Group> groups, IMember member)
+
+        public static GroupInfo[] GetGroups(IEnumerable<Group> groups, IMember member)
         {
             var groupInfos = new List<GroupInfo>();
-            foreach(var group in groups)
+            foreach (var group in groups)
             {
-                if(group.IsSuperGroup)
+                if (group.IsSuperGroup)
                 {
-                    var subgroups = GetGroups(JekyllHandler.Domain.Query.GetAllGroups().Where(x => group.SubGroups.Contains(x.Id)).ToList(), member);
-                    groupInfos.Add(new GroupInfo { Title = group.Title, Id = group.Id, Selected = member.Groups.Any(y=> y==group.Id), IsSuperGroup = group.IsSuperGroup, SubGroups = subgroups});
-                } else
+                    var subgroups = GetGroups(JekyllHandler.Domain.Query.GetAllGroups().Where(x => group.SubGroups.Contains(x.Id)), member);
+                    groupInfos.Add(new GroupInfo
+                    {
+                        Title = group.Title,
+                        Id = group.Id,
+                        Selected = member.Groups.Any(y => y == group.Id),
+                        IsSuperGroup = group.IsSuperGroup,
+                        SubGroups = subgroups
+                    });
+                }
+                else
                 {
-                    groupInfos.Add(new GroupInfo { Title = group.Title, Id = group.Id, Selected = member.Groups.Any(y => y == group.Id), IsSuperGroup = group.IsSuperGroup });
+                    groupInfos.Add(new GroupInfo
+                    {
+                        Title = group.Title, Id = group.Id, Selected = member.Groups.Any(y => y == group.Id), IsSuperGroup = group.IsSuperGroup
+                    });
                 }
             }
+
             return groupInfos.ToArray();
         }
+
         public static string[] UpdateGroupsSelected(IEnumerable<GroupInfo> selectedGroups)
         {
             var result = new List<string>();
-            foreach(var group in selectedGroups)
+            foreach (var group in selectedGroups)
             {
-                if(group.IsSuperGroup)
+                if (group.IsSuperGroup)
                 {
                     result.AddRange(UpdateGroupsSelected(group.SubGroups));
                     result.Add(group.Id);
-                } else
+                }
+                else
                 {
                     result.Add(group.Id);
                 }
             }
+
             return result.ToArray();
         }
 
@@ -337,6 +331,32 @@ namespace SubmissionEvaluation.Server.Controllers
             var groupsSelected = UpdateGroupsSelected(model.Groups.Where(x => x.Selected));
             JekyllHandler.MemberProvider.UpdateGroups(member, groupsSelected);
             model.HasSuccess = true;
+            return Ok(model);
+        }
+
+        [HttpGet("Groups")]
+        public IActionResult Groups()
+        {
+            var member = JekyllHandler.GetMemberForUser(User);
+
+            var groups = JekyllHandler.Domain.Query.GetAllGroups().ToList();
+            var subgroups = groups.SelectMany(x => x.SubGroups);
+            groups = groups.Where(x => !subgroups.Contains(x.Id)).ToList();
+
+            var groupOfMember = groups.Where(x => member.Groups.Contains(x.Id)).ToList();
+            var groupsWithEnabledSubscription = groups.Where(x => x.StartDate < DateTime.UtcNow && x.EndDate > DateTime.UtcNow).ToList();
+            groups = new List<Group>();
+            groups.AddRange(groupOfMember);
+            groups.AddRange(groupsWithEnabledSubscription);
+
+            var model = new SelectGroupModel {Groups = GetGroups(groups.Distinct(), member)};
+            model.HasError = model.Groups.All(x => !x.Selected);
+            if (model.HasError)
+            {
+                model.Message = ErrorMessages.MustJoinGroup;
+            }
+
+            FillProfileMenuModel(model, member, ProfileMenuType.Overview);
             return Ok(model);
         }
 
@@ -367,12 +387,14 @@ namespace SubmissionEvaluation.Server.Controllers
         {
             return Ok(Settings.Features);
         }
+
         [AllowAnonymous]
         [HttpGet("getMailAddress")]
         public IActionResult GetMailAddress()
         {
             return Ok(Settings.Mail.HelpMailAddress);
         }
+
         private List<Notification> GetAllNotificationsForUser(SubmitterHistory userHistory, DateTime? memberLastNotificationCheck)
         {
             var notifications = new List<Notification>();
@@ -429,7 +451,7 @@ namespace SubmissionEvaluation.Server.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                logger.LogError(ex, ex.Message);
             }
 
             return notifications;
@@ -442,13 +464,14 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(User);
         }
 
+        [AllowAnonymous]
         [HttpGet("GetCustomSettings")]
-        public ActionResult<ClaimsPrincipal> GetCustomizationSettings()
+        public ActionResult<CustomizationSettingsClient> GetCustomizationSettings()
         {
             var converted = new CustomizationSettingsClient
             {
                 Results = Settings.Customization.Results,
-                RatingMethods = WASMHelper.helper.RatingMethodsConverted,
+                RatingMethods = WasmHelper.Helper.RatingMethodsConverted,
                 Achievements = Settings.Customization.Achievements.ToDictionary(entry => entry.Key, entry => entry.Value),
                 Categories = Settings.Customization.Categories
             };
@@ -473,10 +496,8 @@ namespace SubmissionEvaluation.Server.Controllers
                     .Where(x => x.Challenge != "ChallengeCreators" && x.Challenge != "Achievements" && x.Challenge != "Reviews").ToList();
                 return Ok(points);
             }
-            else
-            {
-                return NotFound(0);
-            }
+
+            return NotFound(0);
         }
 
         [AllowAnonymous]

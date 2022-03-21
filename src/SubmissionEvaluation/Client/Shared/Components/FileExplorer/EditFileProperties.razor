@@ -1,13 +1,15 @@
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Models.Shared
-@using System.Net.Http.Json
-@inject FileExplorerDomain domain
+
+@inject FileExplorerDomain Domain
 @inject IToastService ToastService
-@inject HttpClient httpClient
-@inject IJSRuntime jsRuntime
-@inject NavigationManager navi
-<div hidden="@hidden">
+@inject HttpClient HttpClient
+@inject IJSRuntime JsRuntime
+@inject NavigationManager Navi
+
+<div hidden="@Hidden">
     <div style="display: flex;">
         <div class="file-view-left explorer file-view">
             <img src="images/file.png"/>
@@ -20,12 +22,12 @@
                 <InputCheckbox @bind-Value="FileIsDelete"></InputCheckbox>delete
             </div>
             <!-- Is null, if it is no test and therefore you cannot modify the date.-->
-            @if (domain.FlatFiles != null)
+            @if (Domain.FlatFiles != null)
             {
                 <label>Last Modified dd.MM.yyyy hh:mm:ss</label>
                 <InputText @bind-Value="LastModifiedHolder"/>
             }
-            @if (!(file is DetailedInputFile))
+            @if (!(File is DetailedInputFile))
             {
                 <button @onclick="DownloadFile" title="Download" class="btn btn-outline-dark btn-margin btn-block"><span class="oi oi-data-transfer-download"></span>Download</button>
             }
@@ -34,8 +36,8 @@
                 <button @onclick="ShowDownloadDisabledPrompt" title="Download" class="btn btn-outline-dark btn-margin btn-block disabled"><span class="oi oi-data-transfer-download"></span>Download</button>
             }
             <div>
-                <button type="button" @onclick="SaveChanges" class="btn btn-primary newFolderButtonFlexed">Speichern</button>
-                <button type="button" @onclick="Abort" class="btn btn-primary newFolderButtonFlexed">Abbrechen</button>
+                <button type="button" @onclick="SaveChanges" class="btn btn-outline-dark newFolderButtonFlexed">Speichern</button>
+                <button type="button" @onclick="Abort" class="btn btn-outline-dark newFolderButtonFlexed">Abbrechen</button>
             </div>
         </div>
     </div>
@@ -44,10 +46,10 @@
 @code {
 
     [Parameter]
-    public File file { get; set; } = new File();
+    public File File { get; set; } = new File();
 
     [Parameter]
-    public bool hidden { get; set; }
+    public bool Hidden { get; set; }
 
     [Parameter]
     public string DownloadUrl { get; set; }
@@ -59,23 +61,23 @@
 
     protected override void OnParametersSet()
     {
-        Name = file.Name;
-        if (file.Path != null)
+        Name = File.Name;
+        if (File.Path != null)
         {
-            FileIsHidden = file.Path.StartsWith("_") ? true : false;
+            FileIsHidden = File.Path.StartsWith("_") ? true : false;
         }
-        FileIsDelete = file.IsDelete;
-        if (file.LastModified == null)
+        FileIsDelete = File.IsDelete;
+        if (File.LastModified == null)
         {
-            file.LastModified = domain.FlatFiles?.Where(x => x.OriginalName.Equals(file.Path + file.OriginalName)).FirstOrDefault()?.LastModified;
+            File.LastModified = Domain.FlatFiles?.Where(x => x.OriginalName.Equals(File.Path + File.OriginalName)).FirstOrDefault()?.LastModified;
         }
-        LastModifiedHolder = file.LastModified;
+        LastModifiedHolder = File.LastModified;
         base.OnParametersSet();
     }
 
     private void SaveChanges()
     {
-        if (InputButtonHelper.CheckValidity(domain.Files, domain.NewFiles, Name, file))
+        if (InputButtonHelper.CheckValidity(Domain.Files, Domain.NewFiles, Name, File))
         {
             if (LastModifiedHolder != string.Empty && LastModifiedHolder != null)
             {
@@ -85,16 +87,16 @@
                     ToastService.ShowError("Bitte gib ein gültiges Format ein!", "Error");
                     return;
                 }
-                file.LastModified = LastModifiedHolder;
+                File.LastModified = LastModifiedHolder;
             }
-            file.Name = Name;
-            if (FileIsHidden & !file.Path.StartsWith("_"))
+            File.Name = Name;
+            if (FileIsHidden & !File.Path.StartsWith("_"))
             {
-                file.Path = "_" + file.Path;
+                File.Path = "_" + File.Path;
             }
-            file.IsDelete = FileIsDelete;
-            domain.InFileEdit = false;
-            domain.InvokeEvent();
+            File.IsDelete = FileIsDelete;
+            Domain.InFileEdit = false;
+            Domain.InvokeEvent();
         }
         else
         {
@@ -104,8 +106,8 @@
 
     private void Abort()
     {
-        domain.InFileEdit = false;
-        domain.InvokeEvent();
+        Domain.InFileEdit = false;
+        Domain.InvokeEvent();
     }
 
     private void ShowDownloadDisabledPrompt()
@@ -115,17 +117,17 @@
 
     private async void DownloadFile()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<string>(DownloadUrl, file.Path + file.OriginalName);
+        var responseMessage = await HttpClient.PostAsJsonAsync(DownloadUrl, File.Path + File.OriginalName);
         if (responseMessage.IsSuccessStatusCode)
         {
             var info = await responseMessage.Content.ReadFromJsonAsync<DownloadInfo>();
             if (info.Data != null)
             {
-                await jsRuntime.InvokeAsync<object>("saveAsFile", file.Path + file.OriginalName, Convert.ToBase64String(info.Data));
+                await JsRuntime.InvokeAsync<object>("saveAsFile", File.Path + File.OriginalName, Convert.ToBase64String(info.Data));
             }
             else
             {
-                navi.NavigateTo($"Home/Error/{info.ErrorMessage}");
+                Navi.NavigateTo($"Home/Error/{info.ErrorMessage}");
             }
         }
     }

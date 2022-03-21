@@ -1,13 +1,13 @@
-﻿using Hangfire.Dashboard;
+using Hangfire.Dashboard;
 
-namespace SubmissionEvaluation
+namespace SubmissionEvaluation.Server
 {
     public class MyAuthorizationFilter : IDashboardAuthorizationFilter
     {
         public bool Authorize(DashboardContext context)
         {
             var httpContext = context.GetHttpContext();
-            return httpContext.User.IsInRole("admin");
+            return httpContext.User.Identity.IsAuthenticated && httpContext.User.IsInRole("admin");
         }
     }
 }

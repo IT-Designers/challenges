@@ -8,6 +8,7 @@ namespace SubmissionEvaluation.Shared.Models
         Challenges,
         Bundles,
         Review,
-        Admin
+        Admin,
+        Progess
     }
 }

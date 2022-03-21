@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Text;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
 using SubmissionEvaluation.Contracts.Data.Review;
@@ -165,6 +167,7 @@ namespace SubmissionEvaluation.Domain
             domain.Log.Information("Query: Abfragen aller verfügbarer Aufgaben");
             return ChallengeOperations.GetAllChallengesForMember(domain.ProviderStore.FileProvider, containUnavailable);
         }
+
         public ISubmission GetSubmission(string challenge, string id)
         {
             domain.Log.Information("Query: Abfragen der Einreichung {id}", id);
@@ -207,9 +210,43 @@ namespace SubmissionEvaluation.Domain
             return cleanedFiles;
         }
 
+        public IEnumerable<string> GetSubmissionRelativeFilesPathInZip(ISubmission submission)
+        {
+            domain.Log.Information("Query: Abfragen des Quellcodepfade von {id}", submission.SubmissionId);
+            var zipFile = domain.ProviderStore.FileProvider.GetSourceZipPathForSubmission(submission);
+            List<string> files = new List<string>();
+            using(var file = File.OpenRead(zipFile))
+            using(var zip = new ZipArchive(file, ZipArchiveMode.Read))
+            {
+                foreach(var entry in zip.Entries)
+                {
+                    files.Add(entry.FullName);
+                }
+            }
+            var compiler = domain.CompilerOperations.GetCompilerForContent(files);
+            var cleanedFiles = compiler.GetSourceFiles(files);
+            return cleanedFiles;
+        }
+
         public string GetSubmissionSourceCode(ISubmission submission, string relativeFilePath)
         {
             return domain.ProviderStore.FileProvider.GetSubmissionFileContent(submission, relativeFilePath);
+        }
+
+        public string GetSubmissionSourceCodeInZip(ISubmission submission, string relativeFilePath)
+        {
+            var zipFile = domain.ProviderStore.FileProvider.GetSourceZipPathForSubmission(submission);
+            using(var file = File.OpenRead(zipFile))
+            using(var zip = new ZipArchive(file, ZipArchiveMode.Read))
+            {
+                var found = zip.Entries.SingleOrDefault(x=>x.FullName == relativeFilePath);
+                var bytes = new byte[found.Length];
+                using(var stream = found.Open())
+                {
+                    stream.Read(bytes,0, bytes.Length);
+                }
+                return Encoding.UTF8.GetString(bytes);
+            }
         }
 
         public (string name, byte[] data, string type, DateTime lastMod) GetChallengeAdditionalFile(string challengeName, string fileName)
@@ -325,7 +362,7 @@ namespace SubmissionEvaluation.Domain
         {
             domain.Log.Information("Query: Abfragen der Rangliste für {member}", member.Name);
             var ranklists = domain.StatisticsOperations.GenerateAllChallengeRanklists();
-            var result = domain.StatisticsOperations.BuildSubmitterRanklist(ranklists).FirstOrDefault(p => p.Name == member.Id);
+            var result = domain.StatisticsOperations.BuildSubmitterRanklist(ranklists).Find(p => p.Name == member.Id);
             return result ?? new SubmitterRankings {Name = member.Id, Submissions = new List<SubmitterRankingEntry>()};
         }
 
@@ -349,8 +386,8 @@ namespace SubmissionEvaluation.Domain
 
             var challengeElements = challenges.Select(x => (IElement) new ChallengeElement(x));
             var bundleElements = bundles.Select(x => new BundleElement(x));
-            var elements = challengeElements.Concat(bundleElements).OrderByDescending(x => x.Activity);
-            return elements.GroupBy(x => x.Category).ToDictionary(x => x.Key, x => x.Take(8).ToList());
+            var elements = challengeElements.Concat(bundleElements);
+            return elements.GroupBy(x => x.Category).ToDictionary(x => x.Key, x => x.ToList());
         }
 
         public void StartReview(ISubmission submission, IMember member)
@@ -364,6 +401,7 @@ namespace SubmissionEvaluation.Domain
             if (path.StartsWith("Compiler/"))
             {
                 var compilerName = path.Split('/').Last();
+                compilerName = WebUtility.UrlDecode(compilerName);
                 var compiler = domain.Compilers.FirstOrDefault(x => x.Name == compilerName);
                 if (compiler == null)
                 {

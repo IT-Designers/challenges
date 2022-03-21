@@ -1,0 +1,62 @@
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Contracts.Data.Review
+@using Newtonsoft.Json
+@using BlazorMonaco
+@using System.Collections.Generic;
+
+@inject IToastService ToastService
+@inject IJSRuntime Runtime
+@inject ReviewSynchronizer Synchronizer
+
+        <MonacoEditor @ref="_editor" Id="editor" CssClass="editor" ConstructionOptions="EditorConstructionOptions" />
+
+@code {
+
+    private MonacoEditor _editor { get; set; }
+
+    bool IsContextMenuActive { get; set; } = false;
+    string ContextMenuStyle { get; set; } = "top: 0px; left: 0px;";
+    ElementReference MyElementReference { get; set; }
+
+    [Parameter]
+    public bool IsReadOnly { get; set; }
+
+    private bool First { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        Synchronizer.SomeDataChanged += StateHasChanged;
+        Synchronizer.FileHasChanged += ReloadEditor;
+    }
+
+
+private StandaloneEditorConstructionOptions EditorConstructionOptions(MonacoEditor editor)
+{
+	return new StandaloneEditorConstructionOptions
+	{
+		AutomaticLayout = false,
+		Language = "",
+		Value = "Bitte in der Liste links eine Datei wählen!",
+        ReadOnly = true
+	};
+}
+
+    async void ReloadEditor()
+    {
+         if (Synchronizer.CurrentAssociation.SourceFile.Name.EndsWith(".c"))
+         {
+            var model = await _editor.GetModel();
+            await MonacoEditorBase.SetModelLanguage(model, "c");
+
+         }
+         else if (Synchronizer.CurrentAssociation.SourceFile.Name.EndsWith(".cpp") || Synchronizer.CurrentAssociation.SourceFile.Name.EndsWith(".cxx"))
+         {
+            var model = await _editor.GetModel();
+            await MonacoEditorBase.SetModelLanguage(model, "c++");
+
+         }
+
+        await _editor.SetValue(Synchronizer.CurrentAssociation.SourceFile.Content);
+    }
+
+}

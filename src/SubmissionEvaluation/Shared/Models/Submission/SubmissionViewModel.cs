@@ -5,5 +5,6 @@
         public string ChallengeId { get; set; }
         public string[] SubmissionFilePaths { get; set; }
         public SourceCodeFile CurrentFile { get; set; }
+        public string Language { get; set; }
     }
 }

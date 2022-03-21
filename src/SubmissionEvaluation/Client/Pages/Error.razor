@@ -1,5 +1,6 @@
-﻿@page "/Home/Error/{error}"
+@page "/Home/Error/{ErrorMessage}"
 @page "/Home/Error"
+
 <div class="post-area">
     <div class="post-header">Fehler beim Aufrufen der Seite.</div>
     <div class="card-body challenge-creation-panel">
@@ -18,21 +19,13 @@
 @code {
 
     [Parameter]
-    public string error { get; set; }
+    public string ErrorMessage { get; set; }
 
     GenericModel Model { get; set; }
 
     protected override void OnInitialized()
     {
-        if (string.IsNullOrEmpty(error))
-        {
-            Model = new GenericModel();
-            Model.HasError = true;
-        }
-        else
-        {
-            Model = new GenericModel {HasError = true, Message = error};
-        }
+        Model = string.IsNullOrEmpty(ErrorMessage) ? new GenericModel {HasError = true} : new GenericModel {HasError = true, Message = ErrorMessage};
     }
 
 }

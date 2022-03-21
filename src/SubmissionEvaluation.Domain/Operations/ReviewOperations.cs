@@ -12,7 +12,7 @@ namespace SubmissionEvaluation.Domain.Operations
 {
     internal class ReviewOperations
     {
-        private const int OLD_REVIEW_THRESHOLD_DAYS = 30;
+        private const int OldReviewThresholdDays = 30;
 
         public ReviewOperations(bool isReviewEnabled, bool enableReviewerPromotion)
         {
@@ -57,7 +57,7 @@ namespace SubmissionEvaluation.Domain.Operations
             var reviewer = MemberProvider.GetMemberById(result.Reviewer);
             SetReviewStateAsReviewd(result, stars);
             MemberProvider.IncreaseReviewFrequency(reviewer);
-            MemberProvider.IncreaseReviewCounter(reviewer);
+            MemberProvider.IncreaseReviewCounter(reviewer, result.Language);
             return stateCorrect;
         }
 
@@ -100,7 +100,7 @@ namespace SubmissionEvaluation.Domain.Operations
             var passed = reviewableChallenges.SelectMany(x => ProviderStore.FileProvider.LoadAllSubmissionsFor(x))
                 .Where(x => x.EvaluationState == EvaluationState.Evaluated && x.IsPassed);
             var orderedSubmissions = passed.OrderByDescending(x => x.SubmissionDate).ToList();
-            var bundles = ProviderStore.FileProvider.LoadAllBundles().SelectMany(x => x.Challenges.Select(y => new { Key = y, Value = x.Id }))
+            var bundles = ProviderStore.FileProvider.LoadAllBundles().SelectMany(x => x.Challenges.Select(y => new {Key = y, Value = x.Id}))
                 .ToDictionary(x => x.Key, x => x.Value);
             RemoveOlderDuplicatedSubmissions(orderedSubmissions, bundles);
             var reviewableSubmissions = orderedSubmissions.Where(x => x.ReviewState != ReviewStateType.Reviewed && x.ReviewState != ReviewStateType.Skipped);
@@ -123,10 +123,7 @@ namespace SubmissionEvaluation.Domain.Operations
                 var ratingValue = ratingsDescending.FirstOrDefault(x => x.CategoryId == category.Id);
                 var childRating = new ReviewRating
                 {
-                    Id = category.Id,
-                    Title = category.Title,
-                    Description = category.Description,
-                    Quantifier = category.Quantifier
+                    Id = category.Id, Title = category.Title, Description = category.Description, Quantifier = category.Quantifier
                 };
                 if (ratingValue != null)
                 {
@@ -227,13 +224,13 @@ namespace SubmissionEvaluation.Domain.Operations
 
         public void UpdateReviewerLanguages(GlobalRanklist ranklist)
         {
-            foreach (var member in MemberProvider.GetMembers().Where(x => x.ReviewLevel != ReviewLevel.Deactivated && x.ReviewLevel != ReviewLevel.Inactive))
+            foreach (var member in MemberProvider.GetMembers())
             {
                 var submittor = ranklist.Submitters.FirstOrDefault(x => x.Id == member.Id);
                 var languages = submittor?.Languages?.Split(',').Select(x => x.Trim());
                 if (languages != null)
                 {
-                    foreach (var language in languages.Where(x => !string.IsNullOrWhiteSpace(x) && member.ReviewLanguages?.Contains(x) != true))
+                    foreach (var language in languages.Where(x => !string.IsNullOrWhiteSpace(x) && member.ReviewLanguages?.ContainsKey(x) != true))
                     {
                         MemberProvider.AddReviewLanguage(member, language);
                     }
@@ -248,43 +245,47 @@ namespace SubmissionEvaluation.Domain.Operations
                 return;
             }
 
-            foreach (var member in MemberProvider.GetMembers().Where(x => x.ReviewLevel != ReviewLevel.Deactivated && x.ReviewLevel != ReviewLevel.Inactive))
+            foreach (var member in MemberProvider.GetMembers())
             {
-                switch (member.ReviewLevel)
+                foreach (KeyValuePair<string, ReviewLevelAndCounter> item in member.ReviewLanguages)
                 {
-                    case ReviewLevel.Beginner:
-                        if (member.ReviewCounter >= 3)
+
+                switch (item.Value.ReviewLevel)
+                {
+                    case ReviewLevelType.Beginner:
+                        if (item.Value.ReviewCounter >= 3)
                         {
-                            MemberProvider.UpdateReviewLevel(member, ReviewLevel.Intermediate);
+                            MemberProvider.UpdateReviewLevel(member, item.Key, ReviewLevelType.Intermediate);
                         }
 
                         break;
-                    case ReviewLevel.Intermediate:
-                        if (member.ReviewCounter >= 10)
+                    case ReviewLevelType.Intermediate:
+                        if (item.Value.ReviewCounter >= 10)
                         {
-                            MemberProvider.UpdateReviewLevel(member, ReviewLevel.Advanced);
+                            MemberProvider.UpdateReviewLevel(member, item.Key, ReviewLevelType.Advanced);
                         }
 
                         break;
-                    case ReviewLevel.Advanced:
-                        if (member.ReviewCounter >= 30)
+                    case ReviewLevelType.Advanced:
+                        if (item.Value.ReviewCounter >= 30)
                         {
-                            MemberProvider.UpdateReviewLevel(member, ReviewLevel.Expert);
+                            MemberProvider.UpdateReviewLevel(member, item.Key, ReviewLevelType.Expert);
                         }
 
                         break;
-                    case ReviewLevel.Expert:
-                        if (member.ReviewCounter >= 100)
+                    case ReviewLevelType.Expert:
+                        if (item.Value.ReviewCounter >= 100)
                         {
-                            MemberProvider.UpdateReviewLevel(member, ReviewLevel.Master);
+                            MemberProvider.UpdateReviewLevel(member, item.Key, ReviewLevelType.Master);
                         }
 
                         break;
                 }
+                }
             }
         }
-
-        public void ActivateNewReviewers()
+        /*
+        public void ActivateNewReviewers(string language)
         {
             if (!IsReviewerPromotionEnabled)
             {
@@ -296,7 +297,7 @@ namespace SubmissionEvaluation.Domain.Operations
             {
                 MemberProvider.UpdateReviewLevel(member, ReviewLevel.Beginner);
             }
-        }
+        }*/
 
         private Tuple<bool, string> CanReviewMoreReviewsAtCurrentTime(Result result, IMember reviewer, bool isBundle, int difficulty, int minDifficulty,
             int maxDifficulty)
@@ -307,10 +308,11 @@ namespace SubmissionEvaluation.Domain.Operations
             {
                 return new Tuple<bool, string>(false, "Autor == Reviewer");
             }
-
-            switch (reviewer.ReviewLevel)
+            if (reviewer.ReviewLanguages == null || !reviewer.ReviewLanguages.ContainsKey(result.Language))
+                return new Tuple<bool, string>(false, "Sprache " + result.Language + " nicht erlaubt");
+            switch (reviewer.ReviewLanguages[result.Language].ReviewLevel)
             {
-                case ReviewLevel.Beginner:
+                case ReviewLevelType.Beginner:
                     if (isBundle)
                     {
                         return new Tuple<bool, string>(false, "Es handelt sich um ein Bundle");
@@ -322,27 +324,25 @@ namespace SubmissionEvaluation.Domain.Operations
                     }
 
                     break;
-                case ReviewLevel.Intermediate:
+                case ReviewLevelType.Intermediate:
                     if (difficulty > minDifficulty + difficultyStep)
                     {
                         return new Tuple<bool, string>(false, "Aufgabe zu komplex");
                     }
 
                     break;
-                case ReviewLevel.Advanced:
+                case ReviewLevelType.Advanced:
                     if (difficulty > minDifficulty + 2 * difficultyStep)
                     {
                         return new Tuple<bool, string>(false, "Aufgabe zu komplex");
                     }
 
                     break;
-                case ReviewLevel.Expert:
-                    break;
-                case ReviewLevel.Master:
-                    return new Tuple<bool, string>(true, "");
+                case ReviewLevelType.Expert: break;
+                case ReviewLevelType.Master: return new Tuple<bool, string>(true, "");
             }
 
-            var canReviewLanguage = reviewer.ReviewLanguages?.Contains(result.Language);
+            var canReviewLanguage = reviewer.ReviewLanguages?.ContainsKey(result.Language);
             if (canReviewLanguage.HasValue && canReviewLanguage.Value)
             {
                 return new Tuple<bool, string>(true, "");
@@ -418,7 +418,7 @@ namespace SubmissionEvaluation.Domain.Operations
         public void FindAndSkipOldReviews()
         {
             foreach (var oldReview in ProviderStore.FileProvider.LoadAllSubmissions().Where(x =>
-                x.ReviewState == ReviewStateType.NotReviewed && x.LastSubmissionDate < DateTime.Today.AddDays(-OLD_REVIEW_THRESHOLD_DAYS)))
+                x.ReviewState == ReviewStateType.NotReviewed && x.LastSubmissionDate < DateTime.Today.AddDays(-OldReviewThresholdDays)))
             {
                 SetReviewStateAsSkipped(oldReview);
             }
@@ -474,12 +474,9 @@ namespace SubmissionEvaluation.Domain.Operations
                 throw new ReviewException("Review is skipped for submission");
             }
 
-            if (submission.ReviewState == ReviewStateType.InProgress)
+            if (submission.ReviewState == ReviewStateType.InProgress && submission.Reviewer != reviewer)
             {
-                if (submission.Reviewer != reviewer)
-                {
-                    throw new ReviewException("Review is assigned someone else");
-                }
+                throw new ReviewException("Review is assigned someone else");
             }
 
             reviewDueDate ??= submission.ReviewDate;
@@ -527,12 +524,9 @@ namespace SubmissionEvaluation.Domain.Operations
                 return false;
             }
 
-            if (DateTime.Today > reviewDate)
+            if (DateTime.Today > reviewDate && pendingCount < 1)
             {
-                if (pendingCount < 1)
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;

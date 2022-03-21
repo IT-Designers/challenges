@@ -1,22 +1,22 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Security.Cryptography.X509Certificates;
+using System.Runtime.Caching;
 using System.Threading.Tasks;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
 using SubmissionEvaluation.Contracts.Data.Review;
 using SubmissionEvaluation.Contracts.Providers;
 using SubmissionEvaluation.Domain.Comparers;
-using static System.Int32;
 
 namespace SubmissionEvaluation.Domain.Operations
 {
     internal class StatisticsOperations
     {
+        private static MemoryCache _cache = new MemoryCache("cache");
+
         public ILog Log { set; private get; }
         public ProviderStore ProviderStore { private get; set; }
         public IList<ISubmissionRater> Raters { private get; set; }
@@ -29,7 +29,7 @@ namespace SubmissionEvaluation.Domain.Operations
         {
             var oldFeasibilityIndex = challenge.State.FeasibilityIndex;
 
-            var maxFeasibilityIndex = 500000;
+            const int maxFeasibilityIndex = 500000;
             var statePassedCount = challenge.State.PassedCount;
             if (challenge.State.FailedCount > 0 && statePassedCount >= 3)
             {
@@ -62,7 +62,7 @@ namespace SubmissionEvaluation.Domain.Operations
                 challenge.State.FeasibilityIndex += challenge.State.FeasibilityIndexMod;
             }
 
-            if (challenge.StickAsBeginner || challenge.State.FeasibilityIndex > maxFeasibilityIndex)
+            if (challenge.State.FeasibilityIndex > maxFeasibilityIndex)
             {
                 challenge.State.FeasibilityIndex = maxFeasibilityIndex;
             }
@@ -92,24 +92,30 @@ namespace SubmissionEvaluation.Domain.Operations
 
         public List<ChallengeRanklist> GenerateAllChallengeRanklists(bool includeSpecialRanklists = true)
         {
-            var allChallengeRanklists = GetBasicRanklists(includeSpecialRanklists);
-            if (includeSpecialRanklists)
-            {
-                var reviewRanklist = GenerateReviewRanklist(ProviderStore.MemberProvider);
-                allChallengeRanklists.Add(reviewRanklist);
+            if (_cache.Contains(nameof(GenerateAllChallengeRanklists))) {
+                return _cache.Get(nameof(GenerateAllChallengeRanklists)) as List<ChallengeRanklist>;
             }
 
-            return allChallengeRanklists.OrderBy(x => x.Challenge, new ChallengeForRankingComparer()).ToList();
+            var allChallengeRanklists = GetBasicRanklists(includeSpecialRanklists);
+            //if (includeSpecialRanklists)
+            //{
+            //    var reviewRanklist = GenerateReviewRanklist(ProviderStore.MemberProvider);
+            //    allChallengeRanklists.Add(reviewRanklist);
+            //}
+
+            var ranklist = allChallengeRanklists.OrderBy(x => x.Challenge, new ChallengeForRankingComparer()).ToList();
+            _cache.Set(nameof(GenerateAllChallengeRanklists), ranklist, DateTimeOffset.Now.AddSeconds(15));
+            return ranklist;
         }
 
         public List<ChallengeRanklist> GenerateAllChallengeRanklistsForSemester(bool includeSpecialRanklists = true)
         {
             var allChallengeRanklists = GetBasicRanklists(includeSpecialRanklists);
-            if (includeSpecialRanklists)
-            {
-                var reviewRanklist = GenerateSemesterReviewRanklist(ProviderStore.MemberProvider);
-                allChallengeRanklists.Add(reviewRanklist);
-            }
+            //if (includeSpecialRanklists)
+            //{
+            //    var reviewRanklist = GenerateSemesterReviewRanklist(ProviderStore.MemberProvider);
+            //    allChallengeRanklists.Add(reviewRanklist);
+            //}
 
             return allChallengeRanklists.OrderBy(x => x.Challenge, new ChallengeForRankingComparer()).ToList();
         }
@@ -152,7 +158,7 @@ namespace SubmissionEvaluation.Domain.Operations
                     {
                         yield return new HistoryEntry
                         {
-                            Challenge = result.Challenge, Type = HistoryType.SubmissionRated, Date = result.ReviewDate.Value, Stars = result.ReviewRating
+                            Challenge = result.Challenge, Type = HistoryType.SubmissionRated, Language = result.Language, Date = result.ReviewDate.Value, Stars = result.ReviewRating
                         };
                     }
 
@@ -171,7 +177,7 @@ namespace SubmissionEvaluation.Domain.Operations
 
                 if (result.ReviewState == ReviewStateType.InProgress && result.Reviewer == member.Id)
                 {
-                    yield return new HistoryEntry {Challenge = result.Challenge, Type = HistoryType.ReviewAvailable, Date = result.ReviewDate.Value};
+                    yield return new HistoryEntry {Challenge = result.Challenge, Language = result.Language, Type = HistoryType.ReviewAvailable, Date = result.ReviewDate.Value};
                 }
             }
 
@@ -182,25 +188,24 @@ namespace SubmissionEvaluation.Domain.Operations
 
             var entries = submissions.SelectMany(CreateEntries);
             entries = FilterUnnecessarySubmissionNowFailing(entries);
-            var submitterHistory = new SubmitterHistory {Id = member.Id, Entries = entries.OrderByDescending(x => x.Date).ToList()};
-            return submitterHistory;
+            return new SubmitterHistory {Id = member.Id, Entries = entries.OrderByDescending(x => x.Date).ToList()};
         }
 
         private IEnumerable<HistoryEntry> FilterUnnecessarySubmissionNowFailing(IEnumerable<HistoryEntry> entries)
         {
             var submissionNowFailing = entries.Where(p => p.Type == HistoryType.SubmissionNowFailing);
-            var removedDoubeFailings = submissionNowFailing.GroupBy(p => p.Challenge).Select(p => p.OrderByDescending(q => q.Date).First());
+            var removedDoubleFailings = submissionNowFailing.GroupBy(p => p.Challenge).Select(p => p.OrderByDescending(q => q.Date).First());
             var buffer = entries.Where(p => p.Type != HistoryType.SubmissionNowFailing).ToList();
-            var removeSolvedFailings = removedDoubeFailings.Where(p => !buffer.Any(q => q.Challenge == p.Challenge && q.IsPassed));
+            var removeSolvedFailings = removedDoubleFailings.Where(p => !buffer.Any(q => q.Challenge == p.Challenge && q.IsPassed));
             buffer.AddRange(removeSolvedFailings);
             return buffer;
         }
 
         public List<SubmitterRankings> BuildSubmitterRanklist(List<ChallengeRanklist> ranklists)
         {
-            var result = new Dictionary<string, SubmitterRankings>();
-            foreach (var ranklist in ranklists)
-            { 
+            var result = new ConcurrentDictionary<string, SubmitterRankings>();
+            Parallel.ForEach(ranklists, ranklist =>
+            {
                 foreach (var submitter in ranklist.Submitters)
                 {
                     if (!result.ContainsKey(submitter.Id))
@@ -217,10 +222,10 @@ namespace SubmissionEvaluation.Domain.Operations
                         DuplicateScore = submitter.DuplicateScore
                     });
                 }
-            }
-
+            });
             return result.Values.ToList();
         }
+
         public GlobalRanklist BuildGlobalRanklist(IEnumerable<ChallengeRanklist> ranklists, GlobalRanklist oldRanklist)
         {
             var submitters = ranklists.SelectMany(x => x.Submitters);
@@ -237,9 +242,8 @@ namespace SubmissionEvaluation.Domain.Operations
             var creatorsRanklist = ranklists.FirstOrDefault(x => x.Challenge == "ChallengeCreators") ?? new ChallengeRanklist();
             var authorsCount = creatorsRanklist.Submitters.Where(x => DateInCurrentSemester(x.Date)).GroupBy(x => x.Id)
                 .ToDictionary(x => x.Key, x => x.Count());
-            var oldRanklist =
-                oldRanklists.FirstOrDefault(p => p.CurrentSemester?.FirstDay <= DateTime.Now && p.CurrentSemester?.LastDay >= DateTime.Now) ??
-                new GlobalRanklist();
+            var oldRanklist = oldRanklists.FirstOrDefault(p => p.CurrentSemester?.FirstDay <= DateTime.Now && p.CurrentSemester?.LastDay >= DateTime.Now) ??
+                              new GlobalRanklist();
             return BuildRanklistFromSubmitters(submittersGrouped, authorsCount, oldRanklist, false);
         }
 
@@ -284,7 +288,7 @@ namespace SubmissionEvaluation.Domain.Operations
         private void DetermineMemberRankings(ref GlobalRanklist ranklist, GlobalRanklist oldRanklist)
         {
             // Number of days without ranking changes before LastPeriodRank gets reset
-            var daysWithoutRankingChangeThreshold = 3;
+            const int daysWithoutRankingChangeThreshold = 3;
 
             var sortedList = ranklist.Submitters.OrderByDescending(x => x.Points).ToList();
             var rank = 0;
@@ -373,7 +377,7 @@ namespace SubmissionEvaluation.Domain.Operations
             string year;
             if (date.Month >= 1 && date.Month < 3)
             {
-                period = SemesterPeriod.WS;
+                period = SemesterPeriod.Ws;
                 year = $"{date.AddYears(-1):yy}/{date: yy}";
                 firstDay = ParseDate($"01.08.{date.AddYears(-1):yyyy}");
                 var lastDayString = DateTime.IsLeapYear(date.Year) ? $"29.02.{date:yyyy}" : $"28.02.{date:yyyy}";
@@ -381,17 +385,17 @@ namespace SubmissionEvaluation.Domain.Operations
             }
             else if (date.Month >= 3 && date.Month < 9)
             {
-                period = SemesterPeriod.SS;
+                period = SemesterPeriod.Ss;
                 year = $"{date:yy}";
                 firstDay = ParseDate($"01.02.{date:yyyy}");
                 lastDay = ParseDate($"31.08.{date:yyyy}");
             }
             else if (date.Month >= 9 && date.Month <= 12)
             {
-                period = SemesterPeriod.WS;
+                period = SemesterPeriod.Ws;
                 year = $"{date:yy}/{date.AddYears(1):yy}";
                 firstDay = ParseDate($"01.08.{date:yyyy}");
-                var lastDayString = "";
+                string lastDayString;
                 if (DateTime.IsLeapYear(date.AddYears(1).Year))
                 {
                     lastDayString = $"29.02.{date.AddYears(1):yyyy}";
@@ -416,11 +420,11 @@ namespace SubmissionEvaluation.Domain.Operations
             var rater = Raters.First(x => x.Name == challengeProperties.RatingMethod);
             var ratingPoints = GetRatingPointsForChallenge(challengeProperties);
             var results = ProviderStore.FileProvider.LoadTestedResults(challengeProperties);
-            var authorId = MemberProvider.GetMemberById(challengeProperties.AuthorID)?.Id;
+            var authorId = MemberProvider.GetMemberById(challengeProperties.AuthorId)?.Id;
             var excludeAuthor = results.Where(x => x.MemberId != authorId).ToList();
             var onlyAuthor = results.Where(x => x.MemberId == authorId).ToList();
-            var ranklist = BuildRanklistFromSumbissions(challengeProperties, excludeAuthor, rater, ratingPoints);
-            var authorRanklist = BuildRanklistFromSumbissions(challengeProperties, onlyAuthor, rater, ratingPoints);
+            var ranklist = BuildRanklistFromSubmissions(challengeProperties, excludeAuthor, rater, ratingPoints);
+            var authorRanklist = BuildRanklistFromSubmissions(challengeProperties, onlyAuthor, rater, ratingPoints);
             AddAuthorsToRanklist(authorRanklist, ranklist);
             return ranklist;
         }
@@ -442,12 +446,7 @@ namespace SubmissionEvaluation.Domain.Operations
                 return new RatingPoints(1, 2, 3);
             }
 
-            if (challengeProperties.State.DifficultyRating < 90) // Expert
-            {
-                return new RatingPoints(3, 4, 5);
-            }
-
-            return new RatingPoints(6, 7, 8);
+            return new RatingPoints(3, 4, 5);
         }
 
         private static void AddAuthorsToRanklist(ChallengeRanklist authorRanklist, ChallengeRanklist ranklist)
@@ -459,7 +458,7 @@ namespace SubmissionEvaluation.Domain.Operations
             }
         }
 
-        public ChallengeRanklist BuildRanklistFromSumbissions(IChallenge challenge, IList<Result> results, ISubmissionRater rater, RatingPoints ratingPoints)
+        public ChallengeRanklist BuildRanklistFromSubmissions(IChallenge challenge, IList<Result> results, ISubmissionRater rater, RatingPoints ratingPoints)
         {
             var ranklist = new ChallengeRanklist {Challenge = challenge.Id};
             var submitters = results.Where(x => x.IsPassed).Select(x => new SubmissionEntry
@@ -477,12 +476,11 @@ namespace SubmissionEvaluation.Domain.Operations
             }).OrderByDescending(x => x, rater).ThenByDescending(x => x.Rating).ToList();
             var solvedCounter = new List<string>();
 
-            var grouped = submitters.GroupBy(x => x.Id);
-            foreach (var submitter in grouped)
+            foreach (var submitter in submitters.GroupBy(x => x.Id))
             {
                 var bestEntry = submitter.First();
-                var otherLanguages = results.Where(x => x.IsPassed && x.MemberId == bestEntry.Id).Where(x => x.Language != bestEntry.Language)
-                    .Select(x => x.Language).Distinct().ToList();
+                var otherLanguages = results.Where(x => x.IsPassed && x.MemberId == bestEntry.Id && x.Language != bestEntry.Language).Select(x => x.Language)
+                    .Distinct().ToList();
                 solvedCounter.Add(bestEntry.Language);
                 solvedCounter.AddRange(otherLanguages);
                 if (otherLanguages.Count > 0)
@@ -588,7 +586,7 @@ namespace SubmissionEvaluation.Domain.Operations
                 var updated = ProviderStore.FileProvider.LoadChallenge(challengeId, writeLock);
                 var results = ProviderStore.FileProvider.LoadAllSubmissionsFor(updated).ToList();
                 double? lastEst = null;
-                var bundle = bundles.FirstOrDefault(x => x.Challenges.Contains(updated.Id));
+                var bundle = bundles.Find(x => x.Challenges.Contains(updated.Id));
                 if (bundle != null)
                 {
                     lastEstimation.TryGetValue(bundle.Id, out lastEst);
@@ -617,7 +615,7 @@ namespace SubmissionEvaluation.Domain.Operations
         {
             try
             {
-                var lastEditor = MemberProvider.GetMemberById(challenge.LastEditorID);
+                var lastEditor = MemberProvider.GetMemberById(challenge.LastEditorId);
                 var lastEditorId = lastEditor?.Id ?? "";
                 if (challenge.IsAvailable)
                 {
@@ -629,11 +627,12 @@ namespace SubmissionEvaluation.Domain.Operations
                 Log.Error(ex, "Aktivitätslogging fehlgeschlagen");
             }
         }
+
         public void DeleteMemberFromGlobalRanking(IMember member)
         {
             using var writeLock = ProviderStore.FileProvider.GetLock();
             var oldRanklist = ProviderStore.FileProvider.LoadGlobalRanklist(writeLock);
-            var submitter = oldRanklist.Submitters.FirstOrDefault(x => x.Id == member.Id);
+            var submitter = oldRanklist.Submitters.Find(x => x.Id == member.Id);
             if (submitter != null)
             {
                 oldRanklist.Submitters.Remove(submitter);
@@ -644,10 +643,9 @@ namespace SubmissionEvaluation.Domain.Operations
         public void DeleteMemberFromSemesterRanking(IMember member)
         {
             using var writeLock = ProviderStore.FileProvider.GetLock();
-            var oldRanklists = ProviderStore.FileProvider.LoadAllSemesterRanklists();
-            foreach (var oldRanklist in oldRanklists)
+            foreach (var oldRanklist in ProviderStore.FileProvider.LoadAllSemesterRanklists())
             {
-                var submitter = oldRanklist.Submitters.FirstOrDefault(x => x.Id == member.Id);
+                var submitter = oldRanklist.Submitters.Find(x => x.Id == member.Id);
                 if (submitter != null)
                 {
                     oldRanklist.Submitters.Remove(submitter);
@@ -660,13 +658,12 @@ namespace SubmissionEvaluation.Domain.Operations
         {
             var ranklist = new ChallengeRanklist {Challenge = "ChallengeCreators"};
             var members = memberProvider.GetMembers().ToDictionary(x => x.Id);
-            var challenges = ProviderStore.FileProvider.LoadChallenges();
-            foreach (var challenge in challenges)
+            foreach (var challenge in ProviderStore.FileProvider.LoadChallenges())
             {
                 var succeedSubmitters = members.Values.Count(x => x.SolvedChallenges.Contains(challenge.Id));
                 try
                 {
-                    var author = members[challenge.AuthorID];
+                    var author = members[challenge.AuthorId];
                     if (author != null && challenge.IsAvailable)
                     {
                         var points = succeedSubmitters > 0 ? 1 : 0;
@@ -689,7 +686,7 @@ namespace SubmissionEvaluation.Domain.Operations
 
             return ranklist;
         }
-
+        /*
         private ChallengeRanklist GenerateReviewRanklist(IMemberProvider memberProvider)
         {
             var ranklist = new ChallengeRanklist {Challenge = "Reviews"};
@@ -711,9 +708,9 @@ namespace SubmissionEvaluation.Domain.Operations
             }
 
             return ranklist;
-        }
+        }*/
 
-        private ChallengeRanklist GenerateSemesterReviewRanklist(IMemberProvider memberProvider)
+        /*private ChallengeRanklist GenerateSemesterReviewRanklist(IMemberProvider memberProvider)
         {
             var ranklist = new ChallengeRanklist {Challenge = "Reviews"};
 
@@ -735,7 +732,7 @@ namespace SubmissionEvaluation.Domain.Operations
             }
 
             return ranklist;
-        }
+        }*/
 
         private IReadOnlyList<ISubmission> GetAllSubmissionsForUserAsReviewer(IMember member)
         {
@@ -845,8 +842,9 @@ namespace SubmissionEvaluation.Domain.Operations
             {
                 using var writeLock = ProviderStore.FileProvider.GetLock();
                 var updating = ProviderStore.FileProvider.LoadChallenge(props.Id, writeLock);
-                UpdateFeasibilityIndexForChallenge(updating);
-                if (updating.State.FeasibilityIndex == 0)
+                if (updating.FreezeDifficultyRating) { continue; }
+
+                if (!updating.FreezeDifficultyRating && updating.State.FeasibilityIndex == 0)
                 {
                     updating.State.DifficultyRating = null;
                 }
@@ -869,10 +867,13 @@ namespace SubmissionEvaluation.Domain.Operations
                 var ctr = 0;
                 foreach (var challenge in sortedByFeasibility)
                 {
-                    challenge.State.DifficultyRating = Math.Min(100, (ctr / groupCount + 1) * 100 / groups);
-                    if (challenge.RatingMethod != RatingMethod.Fixed)
+                    if (!challenge.FreezeDifficultyRating)
                     {
-                        challenge.State.DifficultyRating = Math.Min((int) (1.25 * challenge.State.DifficultyRating), 100);
+                        challenge.State.DifficultyRating = Math.Min(100, (ctr / groupCount + 1) * 100 / groups);
+                        if (challenge.RatingMethod != RatingMethod.Fixed)
+                        {
+                            challenge.State.DifficultyRating = Math.Min((int) (1.25 * challenge.State.DifficultyRating), 100);
+                        }
                     }
 
                     ProviderStore.FileProvider.SaveChallenge(challenge, writeLock);
@@ -884,10 +885,10 @@ namespace SubmissionEvaluation.Domain.Operations
         public static void FixNotSolvedChallengesForMember(IMember member, IFileProvider fileProvider, IMemberProvider memberProvider, ILog log)
         {
             var solved = fileProvider.LoadAllSubmissionsFor(member).Where(x => x.IsPassed).Select(x => x.Challenge).Distinct().ToList();
-            var allSovled = solved.Concat(member.SolvedChallenges).Distinct().ToArray();
-            if (member.SolvedChallenges.Length < allSovled.Length)
+            var allSolved = solved.Concat(member.SolvedChallenges).Distinct().ToArray();
+            if (member.SolvedChallenges.Length < allSolved.Length)
             {
-                memberProvider.UpdateSolvedChallenges(member, allSovled);
+                memberProvider.UpdateSolvedChallenges(member, allSolved);
                 log.Error($"Gelöste Aufgaben wurden für {member.Name} behoben.");
             }
         }

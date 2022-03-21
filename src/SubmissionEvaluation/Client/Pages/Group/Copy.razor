@@ -1,9 +1,13 @@
 @page "/Group/Copy/{groupId}"
-@inject HttpClient httpClient
-@inject NavigationManager navi
+
 @using System.Net.Http.Json
-@using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
 <div class="post-area">
     <div class="post-header">Gruppe kopieren</div>
     <div class="card-body group-creation-panel">
@@ -25,50 +29,48 @@
                         Gibt die neue Gruppen-ID an.
                     </p>
                 </div>
-                <button id="btnCopy" name="command" type="submit" value="copy" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-book"></span> Gruppe kopieren</button>
+                <button id="btnCopy" name="command" type="submit" value="copy" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-book"></span> Gruppe kopieren</button>
             </EditForm>
         }
-
+        else {
+            <Wave />
+        }
     </div>
 </div>
 
 @code {
 
     [Parameter]
-    public string groupId { get; set; }
+    public string GroupId { get; set; }
 
     CopyModel Model { get; set; }
 
     protected override async void OnInitialized()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Challenges", Permissions, Restriction.CHALLENGES, groupId))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Create, "Challenges", permissions, Restriction.Challenges, GroupId))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = new CopyModel
-        {
-            NameCopyFrom = groupId
-        };
+        Model = new CopyModel {NameCopyFrom = GroupId};
         StateHasChanged();
     }
 
     public async void CopyGroup()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<CopyModel>("api/Group/Copy", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Group/Copy", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<CopyModel>();
             if (!Model.HasError)
             {
-                navi.NavigateTo($"/Group/Edit/{Model.NameCopyTo}");
+                Navi.NavigateTo($"/Group/Edit/{Model.NameCopyTo}");
             }
             else
             {
-                navi.NavigateTo($"Home/Error/{Model.Message}");
+                Navi.NavigateTo($"Home/Error/{Model.Message}");
             }
         }
     }
 
 }
-

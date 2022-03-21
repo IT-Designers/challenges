@@ -4,7 +4,7 @@ using SubmissionEvaluation.Shared.Models.Shared;
 
 namespace SubmissionEvaluation.Shared.Models.Submission
 {
-    public class UploadModel<T, S> : SubmissionHistoryModel<S> where T : ISubmission where S : IMember
+    public class UploadModel<T, TS> : SubmissionHistoryModel<TS> where T : ISubmission where TS : IMember
     {
         public UploadModel()
         {

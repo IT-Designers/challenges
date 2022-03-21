@@ -1,7 +1,7 @@
 const path = require("path");
 const webpack = require("webpack");
 
-const ASSET_PATH = process.env.ASSET_PATH || "/dist/";
+const assetPath = process.env.ASSET_PATH || "/dist/";
 
 module.exports = {
     mode: "development",
@@ -13,7 +13,7 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, "wwwroot/dist"),
-        publicPath: ASSET_PATH,
+        publicPath: assetPath,
         filename: "[name].bundle.js",
         libraryTarget: "var",
         library: "Notification"
@@ -60,7 +60,7 @@ module.exports = {
             jQuery: "jquery"
         }),
         new webpack.DefinePlugin({
-            "process.env.ASSET_PATH": JSON.stringify(ASSET_PATH)
+            "process.env.ASSET_PATH": JSON.stringify(assetPath)
         })
     ]
 };

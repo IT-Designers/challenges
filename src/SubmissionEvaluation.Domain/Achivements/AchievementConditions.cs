@@ -2,7 +2,7 @@
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
 
-namespace SubmissionEvaluation.Domain.Achievements
+namespace SubmissionEvaluation.Domain.Achivements
 {
     public class AchievementConditions
     {

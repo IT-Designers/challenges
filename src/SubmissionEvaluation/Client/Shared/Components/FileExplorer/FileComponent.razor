@@ -1,12 +1,12 @@
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Models.Shared
-@inject FileExplorerDomain domain
+@inject FileExplorerDomain Domain
 <div id=@($"file_{File.Name}") class="file file_component col-2">
-    <div id=@($"fileheader_{File.Name}") class="col-12 filepart fileheader" hidden="@(!hidden)" style="white-space: nowrap" @onclick="() => ShowOrHide(File.Name)">
+    <div id=@($"fileheader_{File.Name}") class="col-12 filepart fileheader" hidden="@(!Hidden)" style="white-space: nowrap" @onclick="() => ShowOrHide(File.Name)">
         @File.Name
     </div>
-    <input hidden="@hidden" @bind-value="NewName" style="@fontColor" class="folder_input fileheader" @onkeypress:preventDefault="@preventDefault" @onkeypress:stopPropagation="@preventDefault" @onkeypress="e => OnKeyPressed(e)"/>
-    <button type="button" class="btn btn-primary" @onclick="() => Rename(File)" hidden="@hidden">Submit</button>
+    <input hidden="@Hidden" @bind-value="NewName" style="@FontColor" class="folder_input fileheader" @onkeypress:preventDefault="@PreventDefault" @onkeypress:stopPropagation="@PreventDefault" @onkeypress="e => OnKeyPressed(e)"/>
+    <button type="button" class="btn btn-outline-dark" @onclick="() => Rename(File)" hidden="@Hidden">Submit</button>
     <div id=@($"fileepic_{File.Name}") class="col-12 filepart filepic">
         @if (File.Type.Equals("folder"))
         {
@@ -37,35 +37,35 @@
     public File File { get; set; } = new File();
 
     private string NewName { get; set; }
-    private bool hidden { get; set; } = true;
-    private string fontColor { get; set; } = "font:black;";
-    private bool preventDefault { get; set; } = false;
+    private bool Hidden { get; set; } = true;
+    private string FontColor { get; set; } = "font:black;";
+    private bool PreventDefault { get; set; } = false;
 
     private void CatchEventAndOpenFolderZone(MouseEventArgs e, Folder file)
     {
-        domain.OpenFolderZone(file);
+        Domain.OpenFolderZone(file);
     }
 
     private void Rename(File file)
     {
-        if (InputButtonHelper.CheckValidity(domain.Files, domain.NewFiles, NewName, file))
+        if (InputButtonHelper.CheckValidity(Domain.Files, Domain.NewFiles, NewName, file))
         {
             if (file.LastModified == null)
             {
-                file.LastModified = domain.FlatFiles?.Where(x => x.OriginalName.Equals(file.Path + file.OriginalName)).FirstOrDefault()?.LastModified;
+                file.LastModified = Domain.FlatFiles?.Where(x => x.OriginalName.Equals(file.Path + file.OriginalName)).FirstOrDefault()?.LastModified;
             }
             file.Name = NewName;
             ShowOrHide(NewName);
         }
         else
         {
-            fontColor = "color:red;";
+            FontColor = "color:red;";
         }
     }
 
     private void ShowOrHide(string name)
     {
-        hidden = !hidden;
+        Hidden = !Hidden;
         NewName = name;
     }
 
@@ -73,17 +73,17 @@
     {
         if (e.Key.Equals("Enter"))
         {
-            preventDefault = true;
+            PreventDefault = true;
         }
-        fontColor = InputButtonHelper.GetNormalColor();
+        FontColor = InputButtonHelper.GetNormalColor;
         StateHasChanged();
     }
 
     private void OpenFilePropsEdit(File file)
     {
-        domain.SelectedFile = file;
-        domain.InFileEdit = true;
-        domain.InvokeEvent();
+        Domain.SelectedFile = file;
+        Domain.InFileEdit = true;
+        Domain.InvokeEvent();
     }
 
     private string GetImageUrl(File file)

@@ -9,14 +9,15 @@
     <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
     <link href="css/site.css" rel="stylesheet" />
     <link rel="stylesheet" href="/lib/openiconic/font/css/open-iconic-bootstrap.min.css" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/2.0.0-dev.3/quill.snow.min.css" rel="stylesheet">
+    <link href="//cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link href="//cdn.quilljs.com/1.3.6/quill.bubble.css" rel="stylesheet">
+    <link href="_content/BlazorPro.Spinkit/spinkit.min.css" rel="stylesheet" />
     <link href="_content/Blazor.ContextMenu/blazorContextMenu.min.css" rel="stylesheet" />
-    <script src="dist/review.bundle.js" asp-append-version="true"></script>
-    <script src="dist/submissionView.bundle.js" asp-append-version="true"></script>
+    <link href="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.css" rel="stylesheet" />
+    <script src="source/ReviewEditorFunctions.js"></script>
+    <script src="source/submission-view.js" asp-append-version="true"></script>
     <script src="source/inputfile.js"></script>
     <script src="source/download.js"></script>
-    <script src="dist/mdeditor.bundle.js" asp-append-version="true"></script>
     <script src="_content/Blazor.ContextMenu/blazorContextMenu.min.js"></script>
     <link href="_content/Blazored.Toast/blazored-toast.css" rel="stylesheet" />
     <link href="_content/Blazor.ContextMenu/blazorContextMenu.min.css" rel="stylesheet" />
@@ -36,8 +37,14 @@
     </script>
 </head>
 <body>
-    <div id="app">Loading...</div>
-
+    <div id="app" style="display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh">Loading . . .</div>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="_content/Blazored.TextEditor/quill-blot-formatter.min.js"></script>
+    <script src="_content/Blazored.TextEditor/Blazored-BlazorQuill.js"></script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
+    <script>require.config({ paths: { 'vs': '_content/BlazorMonaco/lib/monaco-editor/min/vs' } });</script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
+    <script src="_content/BlazorMonaco/jsInterop.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

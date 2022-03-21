@@ -17,11 +17,11 @@ namespace SubmissionEvaluation.Server.Controllers
     [Route("api/[controller]")]
     public class SetupController : Controller
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
 
         public SetupController(ILogger<SetupController> logger)
         {
-            _logger = logger;
+            this.logger = logger;
         }
 
         [AllowAnonymous]
@@ -52,7 +52,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 if (CheckTokenValidity(input.Token))
                 {
                     /*Calling register method from registration helper. */
-                    RegistrationHelper.registrationHelper.RegisterMember(input.Model, HttpContext, _logger);
+                    RegistrationHelper.RegistrationHelperInstance.RegisterMember(input.Model, HttpContext, logger);
                     var members = JekyllHandler.MemberProvider.GetMembers();
                     //Checks, if it really is the first member, registration was successful and not some student used a loophole.
                     if (members.Count() == 1)

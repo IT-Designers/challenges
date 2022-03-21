@@ -2,9 +2,9 @@
 {
     public class LoginService
     {
-        public delegate void loginChanged();
+        public delegate void LoginChanged();
 
-        public event loginChanged OnLoginChange;
+        public event LoginChanged OnLoginChange;
 
         public void InvokeEvent()
         {

@@ -1,21 +1,24 @@
 @page "/Tasks"
 @using System.Net.Http.Json
+@* ReSharper disable once RedundantUsingDirective *@
 @using SubmissionEvaluation.Client.Shared.Components.Activities
-@inject HttpClient httpClient
-@if (Model != null)
+
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+
+@if (model != null)
 {
     <div class="row">
-        <div class="col-lg-6">
-            <div class="post-area" style="min-height: 140pt">
-
+        <div class="col-sm-12">
+            <div class="post-area" style="min-height: 3cm">
                 <div class="post-header">
                     <a href="Activities" style="color: #000">Aktivitäten</a>
                 </div>
                 <div class="post-list-body">
                     <table class="activity_smalltable">
-                        @if (Model.Activities.Count > 0)
+                        @if (model.Activities.Count > 0)
                         {
-                            foreach (var activity in Model?.Activities?.Where(x => x.Type != ActivityType.NewReviewResult && x.Type != ActivityType.NewUser).Take(5))
+                            foreach (var activity in model?.Activities?.Where(x => x.Type != ActivityType.NewReviewResult && x.Type != ActivityType.NewUser).Take(5))
                             {
                                 <ActivitiesTableRow Activity="activity" RowStyle="background: none;" EntryClass="activity_smallcolumn"/>
                             }
@@ -27,49 +30,55 @@
     </div>
     <div class="row">
         <div class="col-sm-12">
-            @if (Model.CategoryStats.Count > 0)
+            @foreach (var category in model.CategoryStats)
             {
-                foreach (var category in Model.CategoryStats)
-                {
-                    <div class="post-area">
-                        <div class="post-header">
-                            <a href="Challenge/Category/@category.Key" style="color: #000">@category.Key</a>
-                        </div>
-                        <div class="post-list-body">
-                            <div class="all-posts" post-cate="All">
-                                @{
-                                    @foreach (var entry in category.Value.Take(7))
+                <div class="post-area">
+                    <div class="post-header">
+                        <a href="Challenge/Category/@category.Key" style="color: #000">@category.Key</a>
+                    </div>
+                    <div class="post-list-body">
+                        <div class="all-posts" post-cate="All">
+                            @{
+                                @foreach (var entry in category.Value.Take(7))
+                                {
+                                    if (entry.Id != null)
                                     {
-                                        if (entry.Id != null)
-                                        {
-                                            <ChallengeTile entry="entry" Member="Model.Member" bundles="bundles.Where(x => x.Category.Equals(category.Key)).ToList()"/>
-                                        }
-                                    }
-                                    if (category.Value.Count > 7)
-                                    {
-                                        <a class="post-list-item" href="Challenge/Category/@category.Key" style="height: 110px">
-                                            <h2 style="margin: 0; padding-top: 15%; text-align: center;"> Mehr...</h2>
-                                        </a>
+                                        <ChallengeTile Entry="entry" Member="model.Member" Bundles="Bundles.Where(x => x.Category.Equals(category.Key)).ToList()"/>
                                     }
                                 }
-                            </div>
-                            <div style="clear: both"></div>
+                                if (category.Value.Count > 7)
+                                {
+                                    <a class="post-list-item" href="Challenge/Category/@category.Key" style="height: 110px">
+                                        <h2 style="margin: 0; padding-top: 15%; text-align: center;"> Mehr...</h2>
+                                    </a>
+                                }
+                            }
                         </div>
+                        <div style="clear: both"></div>
                     </div>
-                }
+                </div>
             }
         </div>
     </div>
 }
+else
+{
+    <Wave />
+}
 
 @code {
-    IndexHomeModel Model;
-    List<BundleModel> bundles { get; set; }
+    IndexHomeModel model;
+    List<BundleModel> Bundles { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Model = await httpClient.GetFromJsonAsync<IndexHomeModel>("api/Home/IndexModel");
-        bundles = await httpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
+        model = await HttpClient.GetFromJsonAsync<IndexHomeModel>("api/Home/IndexModel");
+        if (model.CategoryStats.Count == 0)
+        {
+            NavigationManager.NavigateTo("Account/Groups");
+        }
+
+        Bundles = await HttpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
         StateHasChanged();
     }
 

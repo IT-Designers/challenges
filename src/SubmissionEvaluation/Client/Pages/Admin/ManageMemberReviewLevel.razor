@@ -1,0 +1,81 @@
+@page "/Admin/ManageMemberReviewLevel/{memberId}"
+@using System.Net.Http.Json
+@using SubmissionEvaluation.Contracts.Data.Review
+@using SubmissionEvaluation.Shared.Models.Admin
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Shared.Models.Members
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+@inject IToastService Toaster
+
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+                <div>
+                    @if (MemberName != null) {
+                        <h3>Review Programmiersprachen und Level für @MemberName</h3>
+                    }
+                </div>
+                @if (RevModel != null)
+                {
+                <EditForm Model="RevModel" OnValidSubmit="SendChangesToServer">
+                    <ul class="no-styling">
+                        @foreach (var item in RevModel.ReviewLanguages)
+                        {
+                            <li>
+                                <label><InputCheckbox  @bind-Value="item.Value.Selected" onchange="base.StateHasChanged"></InputCheckbox>@item.Key &nbsp;</label>
+                                <InputSelect @bind-Value="item.Value.ReviewLevel" size="1">
+                                @foreach (var value in Enum.GetValues(typeof(ReviewLevelType)))
+                                {
+                                    <option>@value</option>
+                                }
+                                </InputSelect>
+                            </li>
+                        }
+                    </ul>
+                    <div class="input-field-padding">
+                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Änderungen übernehmen"/>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string MemberId { get; set; }
+
+    ReviewerModel RevModel { get; set; }
+
+    string MemberName { get; set; } = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await HttpClient.GetFromJsonAsync<GenericModel>($"api/Members/GetMemberNameById/{MemberId}");
+        if (result.HasSuccess)
+        {
+            MemberName = result.Message;
+        }
+        RevModel = await HttpClient.GetFromJsonAsync<ReviewerModel>($"api/Admin/GetAllReviewLevelForMember/"+MemberId);
+        StateHasChanged();
+    }
+
+    async void SendChangesToServer()
+    {
+        var responseMessage = await HttpClient.PostAsJsonAsync($"api/Admin/SetAllReviewLevelForMember/"+MemberId, RevModel);
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            RevModel = await responseMessage.Content.ReadFromJsonAsync<ReviewerModel>();
+        }
+        if (RevModel.HasSuccess)
+        {
+            Toaster.ShowSuccess("ReviewLevels erfolgreich gesetzt.");
+            Navi.NavigateTo("Admin/Users");
+        }
+    }
+
+}

@@ -5,8 +5,8 @@ namespace SubmissionEvaluation.Contracts.Data
 {
     public interface IGame
     {
-        string AuthorID { get; }
-        string LastEditorID { get; }
+        string AuthorId { get; }
+        string LastEditorId { get; }
         string Name { get; }
         string Title { get; }
         bool IsDraft { get; }

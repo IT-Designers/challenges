@@ -1,8 +1,9 @@
 @page "/Admin/AddUser"
-@using SubmissionEvaluation.Shared.Models.Admin
 @using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Models.Admin
+@using SubmissionEvaluation.Shared.Classes.Messages
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
 
 <div class="input-field-padding add-user-form" style="margin-top: 20px;">
     <h3>Neuen Nutzer erstellen</h3>
@@ -39,22 +40,22 @@
 
     protected override async void OnInitialized()
     {
-        var userSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
-        if(!userSettings.Roles.Contains("admin"))
+        var userSettings = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        if (!userSettings.Roles.Contains("admin"))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            NavigationManager.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
     }
+
     async void CreateUser()
     {
-        var res = await httpClient.PostAsJsonAsync<AddTempUserModel>("api/Admin/AddUser", Model);
-        if (res.IsSuccessStatusCode)
+        var res = await HttpClient.PostAsJsonAsync("api/Admin/AddUser", Model);
+        if (!res.IsSuccessStatusCode) return;
+
+        var result = await res.Content.ReadFromJsonAsync<GenericModel>();
+        if (result.HasSuccess)
         {
-            var result = await res.Content.ReadFromJsonAsync<GenericModel>();
-            if (result.HasSuccess)
-            {
-                navi.NavigateTo("Admin/Users");
-            }
+            NavigationManager.NavigateTo("Admin/Users");
         }
     }
 

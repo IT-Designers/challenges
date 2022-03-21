@@ -1,26 +1,29 @@
 @page "/Review/Tool/{challengeId}/{submissionId}"
+
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Client.Shared.Components.Review
 @using SubmissionEvaluation.Client.Shared.Models
 @using SubmissionEvaluation.Contracts.Data.Review
 @using SubmissionEvaluation.Shared.Models.Review
 @using Newtonsoft.Json
-@using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject NavigationManager navi
-@inject IJSRuntime runtime
-@inject ReviewSynchronizer synchronizer
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+@inject IJSRuntime Runtime
+@inject ReviewSynchronizer Synchronizer
 @inject IToastService ToastService
-@inject FileExplorerDomain domain
+@inject FileExplorerDomain Domain
 @inject ILocalStorageService LocalStorage
+
 <link href="css/review.css" rel="stylesheet"/>
 <div class="post-area">
     @if (Model != null)
     {
         <div class="post-header">
-            <span id="challengeTilePostHeader">Review for Challenge:<a class="no-link-coloring" href=@($"Challenge/View/{challengeId}")>@Model.Challenge</a></span>
+            <span id="challengeTilePostHeader">Review for Challenge:<a class="no-link-coloring" href=@($"Challenge/View/{ChallengeId}")>@Model.Challenge</a></span>
             <button type="submit" @onclick="CancelReview" class="btn btn-outline-dark">Cancel</button>
-            <a id="saveButton" @onclick="SaveReview"style="float: right; margin-top: 7px" class="btn btn-primary oi oi-book" title="Review Lokal speichern">Speichern</a>
+            <a id="saveButton" @onclick="SaveReview"style="float: right; margin-top: 7px" class="btn btn-outline-dark oi oi-book" title="Review Lokal speichern">Speichern</a>
         </div>
         <div class="card-body challenge-creation-panel">
             <div id="reviewer">
@@ -34,9 +37,7 @@
                 <div class="row form-group">
                     <SideMenu SourceFiles="@Model.SourceFiles"/>
                     <div class="col-sm-10 col-12 editor-wrapper">
-                        <div id="editorContainer">
-                            <ReviewerFile Categories="Model.Categories" CurrentIssue="CurrentIssue" AllComments="AllComments"/>
-                        </div>
+                            <ReviewerFile CurrentIssue="CurrentIssue" AllComments="AllComments" Initial="Synchronizer.AllFilesWithComments[0].SourceFile" Language="@Model.Langugage"/>
                     </div>
                 </div>
                 @if (Model.GuidedQuestions != null)
@@ -51,10 +52,10 @@
 @code {
 
     [Parameter]
-    public string challengeId { get; set; }
+    public string ChallengeId { get; set; }
 
     [Parameter]
-    public string submissionId { get; set; }
+    public string SubmissionId { get; set; }
 
     DateTime ReviewStartTime { get; } = DateTime.Now;
     ReviewToolModel Model { get; set; }
@@ -64,17 +65,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var stringify = await httpClient.GetStringAsync($"api/Review/GetReviewToolModel/{challengeId}/{submissionId}");
+        var stringify = await HttpClient.GetStringAsync($"api/Review/GetReviewToolModel/{ChallengeId}/{SubmissionId}");
         Model = JsonConvert.DeserializeObject<ReviewToolModel>(stringify);
         if (Model != null && Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
-        var LoadCheck = await CheckLoadFiles();
-        if (LoadCheck != null)
+        var loadCheck = await CheckLoadFiles();
+        if (loadCheck != null)
         {
-            synchronizer.AllFilesWithComments = LoadCheck;
-            synchronizer.AllFilesWithComments.ForEach(x => AllComments.UnionWith(x.Comments.Comments));
+            Synchronizer.AllFilesWithComments = loadCheck;
+            Synchronizer.AllFilesWithComments.ForEach(x => AllComments.UnionWith(x.Comments.Comments));
             var guidedQuestions = await CheckLoadQuestions();
             if (guidedQuestions != null)
             {
@@ -83,31 +84,32 @@
         }
         else
         {
+            Synchronizer.clear();
             foreach (var file in Model.SourceFiles)
             {
-                synchronizer.AllFilesWithComments.Add(new FileReviewCommentsAssoziater(new ReviewCodeComments {FileName = file.Name, Comments = new List<ReviewComments>()}, file));
+                Synchronizer.AllFilesWithComments.Add(new FileReviewCommentsAssoziater(new ReviewCodeComments {FileName = file.Name, Comments = new List<ReviewComments>()}, file));
             }
         }
-        synchronizer.CurrentAssoziation = synchronizer.AllFilesWithComments[0];
+        Synchronizer.CurrentAssociation = Synchronizer.AllFilesWithComments[0];
         StateHasChanged();
     }
 
     void CancelReview()
     {
-        httpClient.PostAsJsonAsync<ReviewToolModel>("api/Review/CancelReview", Model);
-        navi.NavigateTo("Review/Overview/Canceled");
+        HttpClient.PostAsJsonAsync("api/Review/CancelReview", Model);
+        Navi.NavigateTo("Review/Overview/Canceled");
     }
 
     async void SubmitReview()
     {
-        var data = new ReviewData {Challenge = challengeId, Id = submissionId, Time = (DateTime.Now - ReviewStartTime).ToString(@"hh\:mm\:ss"), ResultComments = synchronizer.AllFilesWithComments.Select(x => x.Comments).ToArray(), GuidedQuestionResult = Model.GuidedQuestions.ToArray()};
-        var responseMessage = await httpClient.PostAsJsonAsync<ReviewData>("api/Review/SubmitReview", data);
+        var data = new ReviewData {Challenge = ChallengeId, Id = SubmissionId, Time = (DateTime.Now - ReviewStartTime).ToString(@"hh\:mm\:ss"), ResultComments = Synchronizer.AllFilesWithComments.Select(x => x.Comments).ToArray(), GuidedQuestionResult = Model.GuidedQuestions.ToArray()};
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Review/SubmitReview", data);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<GenericModel>();
             if (result.HasSuccess)
             {
-                navi.NavigateTo("Review/Overview/SubmitReview");
+                Navi.NavigateTo("Review/Overview/SubmitReview");
             }
             else
             {
@@ -118,12 +120,12 @@
 
     async Task<List<FileReviewCommentsAssoziater>> CheckLoadFiles()
     {
-        var item = await LocalStorage.GetItemAsync<string>($"{challengeId}/{submissionId}/Files");
+        var item = await LocalStorage.GetItemAsync<string>($"{ChallengeId}/{SubmissionId}/Files");
         if (item == null)
         {
             return null;
         }
-        var answer = await runtime.InvokeAsync<bool>("confirmUsingSavings");
+        var answer = await Runtime.InvokeAsync<bool>("confirmUsingSavings");
         if (answer)
         {
             try
@@ -142,7 +144,7 @@
 
     async Task<GuidedQuestion[]> CheckLoadQuestions()
     {
-        var item = await LocalStorage.GetItemAsync<string>($"{challengeId}/{submissionId}/Questions");
+        var item = await LocalStorage.GetItemAsync<string>($"{ChallengeId}/{SubmissionId}/Questions");
         if (item == null)
         {
             return null;
@@ -161,10 +163,10 @@
 
     async void SaveReview()
     {
-        var savingsFiles = JsonConvert.SerializeObject(synchronizer.AllFilesWithComments);
+        var savingsFiles = JsonConvert.SerializeObject(Synchronizer.AllFilesWithComments);
         var savingQuestions = JsonConvert.SerializeObject(Model.GuidedQuestions);
-        await LocalStorage.SetItemAsync($"{challengeId}/{submissionId}/Files", savingsFiles);
-        await LocalStorage.SetItemAsync($"{challengeId}/{submissionId}/Questions", savingQuestions);
+        await LocalStorage.SetItemAsync($"{ChallengeId}/{SubmissionId}/Files", savingsFiles);
+        await LocalStorage.SetItemAsync($"{ChallengeId}/{SubmissionId}/Questions", savingQuestions);
         ToastService.ShowSuccess("Review lokal gespeichert.", "Saved");
     }
 

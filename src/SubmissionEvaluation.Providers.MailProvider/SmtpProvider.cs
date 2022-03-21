@@ -14,8 +14,9 @@ namespace SubmissionEvaluation.Providers.MailProvider
         private readonly string password;
         private readonly string serverAddress;
         private readonly string username;
+        private readonly int port;
 
-        public SmtpProvider(ILog log, bool enableSendMail, string username, string password, string serverAddress, string mailAddress)
+        public SmtpProvider(ILog log, bool enableSendMail, string username, string password, string serverAddress, string mailAddress, int port)
         {
             this.log = log;
             this.enableSendMail = enableSendMail;
@@ -23,11 +24,13 @@ namespace SubmissionEvaluation.Providers.MailProvider
             this.password = password;
             this.serverAddress = serverAddress;
             this.mailAddress = mailAddress;
+            this.port = port;
 
             ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
         }
 
-        public void SendMail(string address, string subject, string content, AttachmentProperties[] attachmentProperties = null, string cc = null, bool htmlBody = false)
+        public void SendMail(string address, string subject, string content, AttachmentProperties[] attachmentProperties = null, string cc = null,
+            bool htmlBody = false)
         {
             log.Warning("Sende Mail an {to} mit {subject}", address, subject, content);
             if (!enableSendMail)
@@ -36,24 +39,46 @@ namespace SubmissionEvaluation.Providers.MailProvider
                 log.Information(content);
                 return;
             }
-
-            using var client = new SmtpClient(serverAddress, 25) {Credentials = new NetworkCredential(username, password), EnableSsl = true};
-            using var message = new MailMessage(mailAddress, address, subject, content) {IsBodyHtml = htmlBody};
-            if (cc != null)
+            if (username == "")
             {
-                message.CC.Add(cc);
-            }
-
-            if (attachmentProperties != null)
-            {
-                foreach (var attachment in attachmentProperties)
+                using var client = new SmtpClient(serverAddress, port) { UseDefaultCredentials = false, EnableSsl = true };
+                using var message = new MailMessage(mailAddress, address, subject, content) { IsBodyHtml = htmlBody };
+                if (cc != null)
                 {
-                    var ms = new MemoryStream(attachment.Data);
-                    message.Attachments.Add(new Attachment(ms, attachment.Name));
+                    message.CC.Add(cc);
                 }
-            }
 
-            client.Send(message);
+                if (attachmentProperties != null)
+                {
+                    foreach (var attachment in attachmentProperties)
+                    {
+                        var ms = new MemoryStream(attachment.Data);
+                        message.Attachments.Add(new Attachment(ms, attachment.Name));
+                    }
+                }
+
+                client.Send(message);
+            }
+            else
+            {
+                using var client = new SmtpClient(serverAddress, 25) { Credentials = new NetworkCredential(username, password), EnableSsl = true };
+                using var message = new MailMessage(mailAddress, address, subject, content) { IsBodyHtml = htmlBody };
+                if (cc != null)
+                {
+                    message.CC.Add(cc);
+                }
+
+                if (attachmentProperties != null)
+                {
+                    foreach (var attachment in attachmentProperties)
+                    {
+                        var ms = new MemoryStream(attachment.Data);
+                        message.Attachments.Add(new Attachment(ms, attachment.Name));
+                    }
+                }
+
+                client.Send(message);
+            }
         }
     }
 }

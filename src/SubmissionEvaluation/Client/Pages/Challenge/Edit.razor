@@ -1,12 +1,15 @@
 @page "/Challenge/Edit/{id}"
+
 @using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
 @using SubmissionEvaluation.Client.Shared.Components
-@using SubmissionEvaluation.Client.Shared.Components.Challenge 
-@inject HttpClient httpClient
-@inject NavigationManager navi
-<h3>Aufgabe Bearbeiten</h3>
+@using SubmissionEvaluation.Client.Shared.Components.Challenge
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
 <style>
     .consoleblock {
         background: #000 !important;
@@ -25,6 +28,8 @@
 
     #test-table td { word-wrap: break-word; }
 </style>
+
+<h3>Aufgabe Bearbeiten</h3>
 <div>
     <div class="post-area">
         @if (Model != null && Permissions != null)
@@ -44,18 +49,18 @@
                     }
                     <div id="project-group" class="form-group">
                         <h4 class="col-form-label">ID (Ändern nicht mehr möglich)</h4>
-                        @if (Permissions.isAdmin)
+                        @if (Permissions.IsAdmin)
                         {
                             <NavLink href=@($"Challenge/Rename/{Id}")>Umbenennen</NavLink>
                         }
                         <InputText @bind-Value="Model.Id" readonly="true" class="form-control"></InputText>
-                        <EditChallengePartial Model="Model" @ref="Partial"/>
+                        <EditChallengePartial Model="Model" @ref="partial"/>
                         <TestListPartial Model="@Model"/>
                     </div>
 
 
-                    <button id="btnSave" name="command" type="submit" value="Save" class="btn btn-primary btn-block text-center input-field-padding" @onclick='e => EditModelCallback(formContext, "Save")'><span class="oi oi-book"></span> Challenge speichern</button>
-                    <button id="btnSaveAndClose" name="command" type="submit" value="SaveAndClose" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditModelCallback(formContext, "SaveAndClose")'><span class="oi oi-book"></span> Challenge speichern und zurück</button>
+                    <button id="btnSave" name="command" type="submit" value="Save" class="btn btn-outline-dark btn-block text-center input-field-padding" @onclick='e => EditModelCallback(formContext, "Save")'><span class="oi oi-book"></span> Challenge speichern</button>
+                    <button id="btnSaveAndClose" name="command" type="submit" value="SaveAndClose" class="btn btn-outline-dark btn-block text-center input-field-padding" @onclick='() => EditModelCallback(formContext, "SaveAndClose")'><span class="oi oi-book"></span> Challenge speichern und zurück</button>
                     @if (Model.IsDraft && !Model.HasChallengeError)
                     {
                         <button id="btnPublish" name="command" type="submit" value="Publish" class="btn btn-success btn-block text-center input-field-padding" @onclick='e => EditModelCallback(formContext, "Publish")'><span class="oi oi-pin"></span> Challenge veröffentlichen</button>
@@ -73,35 +78,39 @@
 
     ExtendedChallengeModel Model { get; set; }
     Permissions Permissions { get; set; }
-    EditChallengePartial Partial;
+    EditChallengePartial partial;
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Challenges", Permissions, Restriction.CHALLENGES, Id))
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Edit, "Challenges", Permissions, Restriction.Challenges, Id))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        if (Id == null) return;
-        Model = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Id}");
+        if (Id == null)
+        {
+            return;
+        }
+
+        Model = await HttpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Id}");
         if (Model == null)
         {
-            navi.NavigateTo("Challenges");
+            Navi.NavigateTo("Challenges");
         }
         else if (Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
         StateHasChanged();
     }
 
     private async Task EditModelCallback(EditContext editContext, string command)
     {
-        await Partial.SaveEditor();
+        await partial.SaveEditor();
         var isValid = editContext.Validate();
         if (isValid)
         {
-            var responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>($"api/Challenge/Edit/{command}", Model);
+            var responseMessage = await HttpClient.PostAsJsonAsync($"api/Challenge/Edit/{command}", Model);
             if (responseMessage.IsSuccessStatusCode)
             {
                 switch (command)
@@ -111,10 +120,10 @@
                         StateHasChanged();
                         break;
                     case "SaveAndClose":
-                        navi.NavigateTo("/Challenges/EditSuccess");
+                        Navi.NavigateTo("/Challenges/EditSuccess");
                         break;
                     case "Publish":
-                        navi.NavigateTo("/Challenges/PublishSuccess");
+                        Navi.NavigateTo("/Challenges/PublishSuccess");
                         break;
                 }
             }

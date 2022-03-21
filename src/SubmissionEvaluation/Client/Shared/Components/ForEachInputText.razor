@@ -5,7 +5,7 @@
         var index = i;
         <div class="form-inline">
             <textarea @onchange="e => Parameters[index] = e.Value.ToString()" class="form-control" value="@Parameters[index]"></textarea>
-            <a class="btn btn-danger" @onclick="@(e => removeInputTextArea(index))">@NameOfParameter entfernen</a>
+            <a class="btn btn-danger" @onclick="@(e => RemoveInputTextArea(index))">@NameOfParameter entfernen</a>
         </div>
     }
 }
@@ -21,7 +21,7 @@
     [Parameter]
     public EventCallback<List<string>> ParametersChanged { get; set; }
 
-    public async Task removeInputTextArea(int pramindex)
+    public async Task RemoveInputTextArea(int pramindex)
     {
         Parameters[pramindex] = null;
         Parameters = Parameters.Where(x => x != null).ToList();

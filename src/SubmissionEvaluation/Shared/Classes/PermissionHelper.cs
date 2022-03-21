@@ -1,34 +1,55 @@
-﻿using SubmissionEvaluation.Shared.Models.Permissions;
-using System;
 using System.Collections.Generic;
-using System.Text;
+using SubmissionEvaluation.Shared.Models.Permissions;
 
 namespace SubmissionEvaluation.Shared.Classes
 {
-    public class PermissionHelper
+    public static class PermissionHelper
     {
-        static public bool CheckPermissions(Actions action, string area, Permissions permissions, Restriction accessibles = Restriction.NONE, string id = null)
+        public static bool CheckPermissions(Actions action, string area, Permissions permissions, Restriction accessibles = Restriction.None, string id = null)
         {
+            if (permissions == null) { return false; }
+
             List<string> checkingPermissions;
-            List<string> accessibleList = null;
             switch (action)
             {
-                case Actions.CREATE: checkingPermissions = permissions.CreatePermissions; break;
-                case Actions.VIEW: checkingPermissions = permissions.ViewPermissions; break;
-                case Actions.EDIT: checkingPermissions = permissions.EditPermissions; break;
-                default: checkingPermissions = new List<string>(); break;
+                case Actions.Create:
+                    checkingPermissions = permissions.CreatePermissions;
+                    break;
+                case Actions.View:
+                    checkingPermissions = permissions.ViewPermissions;
+                    break;
+                case Actions.Edit:
+                    checkingPermissions = permissions.EditPermissions;
+                    break;
+                default:
+                    checkingPermissions = new List<string>();
+                    break;
             }
-            if (accessibles != Restriction.NONE)
+
+            List<string> accessibleList;
+            switch (accessibles)
             {
-                switch (accessibles)
-                {
-                    case Restriction.CHALLENGES: accessibleList = permissions.ChallengesAccessible; break;
-                    case Restriction.GROUPS: accessibleList = permissions.GroupsAccessible; break;
-                    case Restriction.BUNDLES: accessibleList = permissions.BundlesAccessible; break;
-                    case Restriction.MEMBERS: accessibleList = permissions.MembersAccessible; break;
-                }
+                case Restriction.Challenges:
+                    accessibleList = permissions.ChallengesAccessible;
+                    break;
+                case Restriction.Groups:
+                    accessibleList = permissions.GroupsAccessible;
+                    break;
+                case Restriction.Bundles:
+                    accessibleList = permissions.BundlesAccessible;
+                    break;
+                case Restriction.Members:
+                    accessibleList = permissions.MembersAccessible;
+                    break;
+                case Restriction.None:
+                    accessibleList = new List<string>();
+                    break;
+                default:
+                    accessibleList = new List<string>();
+                    break;
             }
-            return permissions.isAdmin || (checkingPermissions.Contains(area) && (accessibleList == null || accessibleList.Contains(id)));
+
+            return permissions.IsAdmin || checkingPermissions.Contains(area) && (accessibleList.Count == 0 || accessibleList.Contains(id));
         }
     }
 }

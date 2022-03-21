@@ -27,15 +27,17 @@ ENV SONAR_SCANNER_OPTS="-Djava.net.useSystemProxies=true"
 
 # Install certificates
 # attention: COPY does not overwrite existing files!
-COPY ./src/docker/certs/ /tmp/certs
+COPY ./devops/server/certs/ /tmp/certs
 RUN cp -rf /tmp/certs/* /etc/ssl/certs/
 
 # Extend the base image by required tools
 RUN apt-get update && \
-    apt-get install --yes --no-install-recommends wget tar curl git nodejs npm && \
-    npm install -g npm
+    apt-get install --yes wget tar curl git
+RUN su -c "curl -sL https://deb.nodesource.com/setup_16.x | bash -" && \
+    apt-get update && \
+    apt-get install -y nodejs
 RUN mkdir -p /usr/share/man/man1 && \
-    apt-get install --yes --no-install-recommends default-jre
+    apt-get install --yes default-jre
 # WORKAROUND - install 3.1 sdk for dotnet test
 RUN wget https://packages.microsoft.com/config/debian/10/packages-microsoft-prod.deb -O packages-microsoft-prod.deb && \
     dpkg -i packages-microsoft-prod.deb && \
@@ -47,8 +49,6 @@ RUN dotnet tool install --global dotnet-sonarscanner --version 5.0.4 && \
     dotnet tool install --global coverlet.console --version 3.0.2 && \
     dotnet tool install --global CycloneDX --version 1.3.0 && \
     npm install -g @cyclonedx/bom@2.0.2
-RUN wget -q -O docker.tgz https://download.docker.com/linux/static/stable/x86_64/docker-20.10.4.tgz && \
-    tar xzvf docker.tgz -C /app
 
 # Copy the sources
 COPY . /app
@@ -58,11 +58,12 @@ RUN cd ./SubmissionEvaluation/Client && \
     npm config set proxy $build_proxy && \
     npm config set https-proxy $build_proxy && \
     npm install && \
-    npm audit fix && \
+    # ignore errors if npm audit cannot solve all issues
+    npm audit fix; \
     npm run wbp
 
 # Build, Publish and Test the dotnet project
-RUN /bin/bash -c "if [ -z \"${sonar_project_key}\" ] || [ -z \"${sonar_host_url}\" ] || [ -z \"${sonar_token}\" ]; then echo \"SonarQube not enabled due to missing sonarqube arguments.\"; else dotnet sonarscanner begin /k:\"${sonar_project_key}\" /v:\"${target_version}\" /d:sonar.host.url=\"${sonar_host_url}\" /d:sonar.login=\"${sonar_token}\" /d:sonar.cs.opencover.reportsPaths=/coverage.opencover.xml; fi" && \
+RUN /bin/bash -c "if [ -z \"${sonar_project_key}\" ] || [ -z \"${sonar_host_url}\" ] || [ -z \"${sonar_token}\" ]; then echo \"SonarQube not enabled due to missing sonarqube arguments.\"; else dotnet sonarscanner begin /k:\"${sonar_project_key}\" /v:\"${target_version}\" /d:sonar.host.url=\"${sonar_host_url}\" /d:sonar.login=\"${sonar_token}\" /d:sonar.cs.opencover.reportsPaths=/coverage.opencover.xml /d:sonar.coverage.exclusions=**/wwwroot/**; fi" && \
     dotnet build -c ${target} && \
     dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput="/coverage" && \
     dotnet publish ./SubmissionEvaluation/Server -c ${target} -o /app/out && \
@@ -79,7 +80,11 @@ RUN rm -rf bom.xml && \
     /bin/bash -c "echo \"{\\\"projectName\\\": \\\"${dependency_track_project_name}\\\", \\\"projectVersion\\\": \\\"${target_version}\\\", \\\"autoCreate\\\": true, \\\"bom\\\": \\\"\`cat bom.xml | base64\`\\\"}\" > payload.json" && \
     # Attention: The ca-certificates.crt is overwriten in the previous steps, due to are the system certificates "reinstalled" ...
     cp -rf /tmp/certs/* /etc/ssl/certs/ && \
-    /bin/bash -c "if [ -z \"${dependency_track_host_url}\" ] || [ -z \"${dependency_track_api_key}\" ]; then echo \"SBOM is not uploaded due to missing dependency track arguments.\"; else curl --cacert /etc/ssl/certs/ca-certificates.crt -X \"PUT\" \"${dependency_track_host_url}/api/v1/bom\" -H \"Content-Type: application/json\" -H \"X-API-Key: ${dependency_track_api_key}\" -d @payload.json; fi"
+    /bin/bash -c "if [ -z \"${dependency_track_host_url}\" ] || [ -z \"${dependency_track_api_key}\" ] || [ \"${target_version}\" != \"master\" ] && [ \"${target_version}\" != \"develop\" ]; then echo \"SBOM is not uploaded due to missing dependency track arguments.\"; else curl --cacert /etc/ssl/certs/ca-certificates.crt -X \"PUT\" \"${dependency_track_host_url}/api/v1/bom\" -H \"Content-Type: application/json\" -H \"X-API-Key: ${dependency_track_api_key}\" -d @payload.json; fi"
+
+# Download Docker
+RUN wget -q -O docker.tgz https://download.docker.com/linux/static/stable/x86_64/docker-20.10.4.tgz && \
+    tar xzvf docker.tgz -C /app
 
 # ######################################################
 # Build runtime image

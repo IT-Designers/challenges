@@ -10,6 +10,7 @@ namespace SubmissionEvaluation.Shared.Models.Review
         public dynamic[] FileModel { get; set; }
         public GuidedQuestion[] GuidedQuestions { get; set; }
         public bool IsAdmin { get; set; }
+        public string Langugage { get; set; }
         public List<(string Id, string Title)> Categories { get; set; }
         public List<ReviewFile> SourceFiles { get; set; }
     }

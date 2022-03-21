@@ -6,8 +6,8 @@ namespace SubmissionEvaluation.Contracts.Data
     public interface ITournament
     {
         string Name { get; }
-        string AuthorID { get; }
-        string LastEditorID { get; }
+        string AuthorId { get; }
+        string LastEditorId { get; }
         string Title { get; }
         bool HasError { get; }
         bool IsDraft { get; }

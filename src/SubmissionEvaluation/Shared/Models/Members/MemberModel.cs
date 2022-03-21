@@ -3,7 +3,7 @@ using SubmissionEvaluation.Contracts.Data;
 
 namespace SubmissionEvaluation.Shared.Models.Members
 {
-    public class MemberModel<T, S> : ProfileHeaderModel where T : ISubmission where S : IMember
+    public class MemberModel<T, TS> : ProfileHeaderModel where T : ISubmission where TS : IMember
     {
         public string Id { get; set; }
         public string Name { get; set; }
@@ -12,6 +12,6 @@ namespace SubmissionEvaluation.Shared.Models.Members
         public int TotalCount { get; set; }
         public Dictionary<string, Award> Achievements { get; set; }
         public List<HistoryEntry> History { get; set; }
-        public List<PointsHoldTupel<T, S>> Points { get; set; }
+        public List<PointsHoldTupel<T, TS>> Points { get; set; }
     }
 }

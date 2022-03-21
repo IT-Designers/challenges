@@ -1,7 +1,7 @@
 @page "/Account/Groups"
 @using System.Net.Http.Json
 @inject HttpClient HttpClient
-@inject NavigationManager navi
+@inject NavigationManager NavigationManager
 
 <div class="row">
     <MessageHeader Model="Model"/>
@@ -24,13 +24,13 @@
                             var index = i;
                             <li>
                                 <label><InputCheckbox @bind-Value="Model.Groups[index].Selected" onchange="base.StateHasChanged"></InputCheckbox>@Model.Groups[i].Title &nbsp;</label>
-                                @if(Model.Groups[index].IsSuperGroup)
+                                @if (Model.Groups[index].IsSuperGroup)
                                 {
                                     <ul>
-                                        @foreach(var group in Model.Groups[index].SubGroups)
+                                        @foreach (var group in Model.Groups[index].SubGroups)
                                         {
                                             <li>
-                                              <label>@group.Title &nbsp;</label>  
+                                                <label>@group.Title &nbsp;</label>
                                             </li>
                                         }
                                     </ul>
@@ -58,14 +58,14 @@
 
     async void UpdateGroups()
     {
-        var res = await HttpClient.PostAsJsonAsync<SelectGroupModel>("api/Account/Groups", Model);
-        if(res.IsSuccessStatusCode)
+        var res = await HttpClient.PostAsJsonAsync("api/Account/Groups", Model);
+        if (res.IsSuccessStatusCode)
         {
             Model = await res.Content.ReadFromJsonAsync<SelectGroupModel>();
         }
         if (Model.HasSuccess)
         {
-            navi.NavigateTo("Account/View");
+            NavigationManager.NavigateTo("Account/View");
         }
         else
         {

@@ -1,15 +1,20 @@
-@inject HttpClient httpClient
-@inject NavigationManager navi
-@inject IJSRuntime runtime
 @page "/Admin/Users"
+
+@using Submission = SubmissionEvaluation.Contracts.Data.Result
+@using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using SubmissionEvaluation.Shared.Models.Admin
-@using System.Net.Http.Json
-@using SubmissionEvaluation.Shared.Models.Permissions 
-@using SubmissionEvaluation.Shared.Classes 
-@using Group = SubmissionEvaluation.Contracts.ClientPocos.Group 
-@using Submission = SubmissionEvaluation.Contracts.Data.Result
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using Group = SubmissionEvaluation.Contracts.ClientPocos.Group
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Client.Pages.Members
 @using SubmissionEvaluation.Client.Shared.Components.Users
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+@inject IJSRuntime Runtime
+
 <style>
     a:hover { cursor: pointer; }
 </style>
@@ -20,7 +25,7 @@
 
                 <h1>
                     Benutzer verwalten
-                    @if (Permissions.isAdmin)
+                    @if (Permissions.IsAdmin)
                     {
                         <a href="Admin/AddUser" title="Neuen User anlegen" class="btn btn-sm">
                             <span class="oi oi-plus"></span>
@@ -31,7 +36,7 @@
             </div>
             @if (Model != null)
             {
-                if (Permissions.isAdmin)
+                if (Permissions.IsAdmin)
                 {
                     var memberships = Model.GroupMemberships.First();
                     <AdminView @bind-memberships="memberships"/>
@@ -40,9 +45,13 @@
                 {
                     @foreach (var memberships in Model.GroupMemberships.OrderByDescending(x => x.GroupName))
                     {
-                        <GroupAdminView memberships="memberships" Groups="Groups" PointsForRelevantMembers="PointsForRelevantMembers"/>
+                        <GroupAdminView Memberships="memberships" Groups="Groups" PointsForRelevantMembers="PointsForRelevantMembers"/>
                     }
                 }
+            }
+            else
+            {
+                <Wave />
             }
         </div>
     </div>
@@ -50,27 +59,34 @@
 
 @code {
     AdminUserModel<Member> Model { get; set; }
-    
+
     Permissions Permissions { get; set; } = new Permissions();
     AdminGroupsModel<Group> Groups { get; set; } = new AdminGroupsModel<Group>();
     Dictionary<string, List<PointsHoldTupel<Submission, Member>>> PointsForRelevantMembers { get; set; } = new Dictionary<string, List<PointsHoldTupel<Submission, Member>>>();
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.VIEW, "Users", Permissions))
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        if(Permissions.isAdmin) {
-            Model = await httpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Admin/Users");
-        } else
+        if (Permissions.IsAdmin)
         {
-            Model = await httpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Group/Users");
-            Groups = await httpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
-            foreach(var member in Model.GroupMemberships.SelectMany(x=> x.Members).Distinct())
+            Model = await HttpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Admin/Users");
+        }
+        else
+        {
+            Model = await HttpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Group/Users");
+            Groups = await HttpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
+            var res = await HttpClient.PostAsJsonAsync("api/Members/PointsList", Model.GroupMemberships.SelectMany(x => x.Members).Select(x => x.Id).Distinct());
+            if (res.IsSuccessStatusCode)
             {
-                PointsForRelevantMembers[member.Id] = await httpClient.GetFromJsonAsync<List<PointsHoldTupel<Submission, Member>>> ($"api/Members/PointsList/{member.Id}");
+                var pointLists = await res.Content.ReadFromJsonAsync<List<Tuple<string, List<PointsHoldTupel<Submission, Member>>>>>();
+                foreach (var (memberId, pointList) in pointLists)
+                {
+                    PointsForRelevantMembers[memberId] = pointList;
+                }
             }
         }
         StateHasChanged();

@@ -1,12 +1,16 @@
 @page "/Test/Edit/{challenge}/{index}"
-@using SubmissionEvaluation.Client.Services
-@using SubmissionEvaluation.Shared.Models.Shared
+
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
 @using SubmissionEvaluation.Shared.Models.Permissions
-@using SubmissionEvaluation.Shared.Classes 
-@inject HttpClient httpClient
-@inject FileExplorerDomain domain
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Models.Shared
+
+@inject HttpClient HttpClient
+@inject FileExplorerDomain Domain
+@inject NavigationManager Navi
+
 <div>
     <div class="post-area">
         <div class="post-header">
@@ -21,11 +25,11 @@
                     <MessageHeader Model="Model"/>
                     @if (Model.Test != null)
                     {
-                        <EditTestFieldsPartial Model="@Model.Test" Input='domain.FetchFolder("Input", TestFolder)' ChallengeId="@Challenge"/>
+                        <EditTestFieldsPartial Model="@Model.Test" Input='FileExplorerDomain.FetchFolder("Input", TestFolder)' ChallengeId="@Challenge"/>
                     }
-                    <button id="btnSave" name="command" type="button" value="Save" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "Save")'><span class="oi oi-data-transfer-upload"></span> Test speichern</button>
-                    <button id="btnSaveAndClose" name="command" type="button" value="SaveAndClose" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "SaveAndClose")'><span class="oi oi-data-transfer-upload"></span><span class="oi oi-media-skip-backward"></span> Test speichern und zurück</button>
-                    <button id="btnSaveAndNext" name="command" type="button" value="SaveAndNext" class="btn btn-primary btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "SaveAndNext")'><span class="oi oi-data-transfer-upload"></span><span class="oi oi-media-skip-forward"></span> Test speichern und nächster</button>
+                    <button id="btnSave" name="command" type="button" value="Save" class="btn btn-outline-dark btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "Save")'><span class="oi oi-data-transfer-upload"></span> Test speichern</button>
+                    <button id="btnSaveAndClose" name="command" type="button" value="SaveAndClose" class="btn btn-outline-dark btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "SaveAndClose")'><span class="oi oi-data-transfer-upload"></span><span class="oi oi-media-skip-backward"></span> Test speichern und zurück</button>
+                    <button id="btnSaveAndNext" name="command" type="button" value="SaveAndNext" class="btn btn-outline-dark btn-block text-center input-field-padding" @onclick='() => EditTest(formContext, "SaveAndNext")'><span class="oi oi-data-transfer-upload"></span><span class="oi oi-media-skip-forward"></span> Test speichern und nächster</button>
                 </div>
             </EditForm>
         </div>
@@ -54,41 +58,41 @@
     {
         if (editContext.Validate())
         {
-            ChallengeModel.NewFiles = domain.ExtractFoldersToServerFiles(ChallengeModel.NewFiles);
+            ChallengeModel.NewFiles = Domain.ExtractFoldersToServerFiles(ChallengeModel.NewFiles);
             foreach (var file in TestFolder.FilesInFolder)
             {
                 if (file is Folder)
                 {
-                    domain.ExtractFoldersToServerFiles(((Folder) file).NewFilesInFolder).ForEach(x => ChallengeModel.NewFiles.Add(x));
+                    Domain.ExtractFoldersToServerFiles(((Folder) file).NewFilesInFolder).ForEach(x => ChallengeModel.NewFiles.Add(x));
                 }
             }
-            ChallengeModel.Files = domain.UpdateAllChanges(TestFolder.FilesInFolder, ChallengeModel.Files);
-            //Here the mapping is quickly made before sending it to the server.
+            ChallengeModel.Files = FileExplorerDomain.UpdateAllChanges(TestFolder.FilesInFolder, ChallengeModel.Files).ToList();
+    //Here the mapping is quickly made before sending it to the server.
             Model.Test.InputFiles = new List<File>();
-            domain.MapFilesToTest(ChallengeModel.Files, Model.Test.InputFiles, Model.Test.Id.ToString());
-            domain.MapFilesToTest(ChallengeModel.NewFiles, Model.Test.InputFiles, Model.Test.Id.ToString());
-            var responseMessage = await httpClient.PostAsJsonAsync<ChallengeTestUpdateModel>("api/Test/EditTest/Save", Model);
+            Domain.MapFilesToTest(ChallengeModel.Files, Model.Test.InputFiles, Model.Test.Id.ToString());
+            Domain.MapFilesToTest(ChallengeModel.NewFiles, Model.Test.InputFiles, Model.Test.Id.ToString());
+            var responseMessage = await HttpClient.PostAsJsonAsync("api/Test/EditTest/Save", Model);
             if (responseMessage.IsSuccessStatusCode)
             {
                 Model = await responseMessage.Content.ReadFromJsonAsync<ChallengeTestUpdateModel>();
             }
-            responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>("api/Challenge/Edit/Save", ChallengeModel);
+            responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/Edit/Save", ChallengeModel);
             if (responseMessage.IsSuccessStatusCode)
             {
                 ChallengeModel = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
             }
-            TestFolder = domain.ReloadingFolderStructure(ChallengeModel, Model.Test);
+            TestFolder = Domain.ReloadingFolderStructure(ChallengeModel, Model.Test);
             switch (command)
             {
                 case "SaveAndNext":
                     if (ChallengeModel.Tests.Count > Model.TestId)
                     {
                         await LoadModels((Model.TestId + 1).ToString());
-                        navi.NavigateTo($"/Test/Edit/{Model.ChallengeId}/{(Model.TestId + 1).ToString()}");
+                        Navi.NavigateTo($"/Test/Edit/{Model.ChallengeId}/{(Model.TestId + 1).ToString()}");
                     }
                     break;
                 case "SaveAndClose":
-                    navi.NavigateTo($"/Challenge/Edit/{Model.ChallengeId}");
+                    Navi.NavigateTo($"/Challenge/Edit/{Model.ChallengeId}");
                     break;
             }
         }
@@ -98,23 +102,23 @@
     {
         if (Challenge == null)
         {
-            navi.NavigateTo("Challenges");
+            Navi.NavigateTo("Challenges");
         }
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>($"api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Test", Permissions, Restriction.CHALLENGES, Challenge))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Edit, "Test", permissions, Restriction.Challenges, Challenge))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await httpClient.GetFromJsonAsync<ChallengeTestUpdateModel>($"api/Test/GetTest/{Challenge}/{index}");
+        Model = await HttpClient.GetFromJsonAsync<ChallengeTestUpdateModel>($"api/Test/GetTest/{Challenge}/{index}");
         CheckForErrors(Model);
-        ChallengeModel = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Challenge}");
+        ChallengeModel = await HttpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Challenge}");
         if (ChallengeModel == null)
         {
-            navi.NavigateTo("Challenges");
+            Navi.NavigateTo("Challenges");
         }
         CheckForErrors(ChallengeModel);
-        TestFolder = domain.ReloadingFolderStructure(ChallengeModel, Model.Test);
-        domain.FlatFiles = Model.Test.InputFiles;
+        TestFolder = Domain.ReloadingFolderStructure(ChallengeModel, Model.Test);
+        Domain.FlatFiles = Model.Test.InputFiles;
         StateHasChanged();
     }
 
@@ -122,7 +126,7 @@
     {
         if (model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{model.Message}");
+            Navi.NavigateTo($"Home/Error/{model.Message}");
         }
     }
 

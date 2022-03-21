@@ -17,10 +17,10 @@ using SubmissionEvaluation.Server.Classes.JekyllHandling;
 using SubmissionEvaluation.Server.Models;
 using SubmissionEvaluation.Shared.Classes;
 using SubmissionEvaluation.Shared.Classes.Messages;
+using SubmissionEvaluation.Shared.Models.Permissions;
 using SubmissionEvaluation.Shared.Models.Shared;
 using SubmissionEvaluation.Shared.Models.Submission;
 using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
-using SubmissionEvaluation.Shared.Models.Permissions;
 
 namespace SubmissionEvaluation.Server.Controllers
 {
@@ -46,20 +46,20 @@ namespace SubmissionEvaluation.Server.Controllers
 
             var member = JekyllHandler.GetMemberForUser(User);
             try
-            { 
-                    var submission = JekyllHandler.Domain.Query.GetSubmission(challenge, id);
-                    var userId = User.Claims.First(x => x.Type == ClaimTypes.Sid).Value;
-                    if (submission.MemberId != userId)
+            {
+                var submission = JekyllHandler.Domain.Query.GetSubmission(challenge, id);
+                var userId = User.Claims.First(x => x.Type == ClaimTypes.Sid).Value;
+                if (submission.MemberId != userId)
+                {
+                    var props = JekyllHandler.Domain.Query.GetChallenge(member, challenge);
+                    if (props.AuthorId != userId && !(User.IsInRole("admin") || User.IsInRole("groupAdmin")))
                     {
-                        var props = JekyllHandler.Domain.Query.GetChallenge(member, challenge);
-                        if (props.AuthorID != userId && !User.IsInRole("admin"))
-                        {
-                            return Ok(new DownloadInfo(ErrorMessages.NoPermission));
-                        }
+                        return Ok(new DownloadInfo(ErrorMessages.NoPermission));
                     }
+                }
 
-                    var data = JekyllHandler.Domain.Query.GetSourceForSubmission(submission);
-                    return Ok(new DownloadInfo(data));
+                var data = JekyllHandler.Domain.Query.GetSourceForSubmission(submission);
+                return Ok(new DownloadInfo(data));
             }
             catch
             {
@@ -87,18 +87,21 @@ namespace SubmissionEvaluation.Server.Controllers
             try
             {
                 var props = JekyllHandler.Domain.Query.GetChallenge(member, id);
-                if(!JekyllHandler.CheckPermissions(Actions.VIEW, "Submissions", member, Restriction.CHALLENGES, id)) {
+                if (!JekyllHandler.CheckPermissions(Actions.View, "Submissions", member, Restriction.Challenges, id))
+                {
                     return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
                 }
+
                 var challengeSubmissions = JekyllHandler.Domain.Query.GetAllSubmissionsFor(props);
-                if(!member.IsCreator && !member.IsAdmin)
+                if (!member.IsCreator && !member.IsAdmin)
                 {
                     var permissions = JekyllHandler.GetPermissionsForMember(member);
                     challengeSubmissions = challengeSubmissions.Where(x => permissions.MembersAccessible.Contains(x.MemberId)).ToList();
                 }
+
                 FillSubmissionHistoryModel(props, challengeSubmissions, selectedSubmission, model);
 
-                if (selectedSubmission != null && challengeSubmissions.Any(x=> x.SubmissionId == selectedSubmission))
+                if (selectedSubmission != null && challengeSubmissions.Any(x => x.SubmissionId == selectedSubmission))
                 {
                     var submission = JekyllHandler.Domain.Query.GetSubmission(id, selectedSubmission);
                     if (submission != null)
@@ -162,7 +165,8 @@ namespace SubmissionEvaluation.Server.Controllers
             }
 
             var member = JekyllHandler.GetMemberForUser(User);
-            if (JekyllHandler.Domain.Query.TryGetBundleForChallenge(member, challenge.Id, out var bundle) && bundle.HasPreviousChallengesCheck && !JekyllHandler.Domain.Query.HasMemberSolvedAllPreviousChallengesInBundle(member, challenge))
+            if (JekyllHandler.Domain.Query.TryGetBundleForChallenge(member, challenge.Id, out var bundle) && bundle.HasPreviousChallengesCheck &&
+                !JekyllHandler.Domain.Query.HasMemberSolvedAllPreviousChallengesInBundle(member, challenge))
             {
                 return false;
             }
@@ -196,11 +200,11 @@ namespace SubmissionEvaluation.Server.Controllers
             var containsArchives = files.Any(x => archiveExtensions.Contains(Path.GetExtension(x.OriginalName).ToLower()));
             var member = JekyllHandler.MemberProvider.GetMemberById(jekyllId);
 
-            byte[] challengeArchive = null;
-            string filename = null;
+            byte[] challengeArchive;
+            string filename;
             if (containsArchives)
             {
-                var file = files.First(x => archiveExtensions.Contains(Path.GetExtension(x.OriginalName).ToLower()));
+                var file = files.First(x => archiveExtensions.Contains(Path.GetExtension(x.OriginalName)?.ToLower()));
                 filename = file.OriginalName;
                 using (var ms = new MemoryStream())
                 {
@@ -208,11 +212,11 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
 
                 challengeArchive = ArchiveHelper.ConvertToZip(challengeArchive, filename);
-                filename = Path.GetFileNameWithoutExtension(filename) + ".zip";
+                filename = $"{Path.GetFileNameWithoutExtension(filename)}.zip";
             }
             else
             {
-                filename = id + ".zip";
+                filename = $"{id}.zip";
                 challengeArchive = GenerateZipFile(files);
             }
 
@@ -264,14 +268,29 @@ namespace SubmissionEvaluation.Server.Controllers
         {
             var userId = User.Claims.First(x => x.Type == ClaimTypes.Sid).Value;
             var member = new Member(JekyllHandler.MemberProvider.GetMemberById(userId));
+
+            // admins shall view submissions from other members
+            if (!string.IsNullOrWhiteSpace(submissionId) && (member.IsAdmin || member.IsGroupAdmin))
+            {
+                var submission = JekyllHandler.Domain.Query.GetSubmission(id, submissionId);
+                if (!userId.Equals(submission.MemberId))
+                {
+                    var impersonatedMember = new Member(JekyllHandler.MemberProvider.GetMemberById(submission.MemberId));
+                    if (member.IsAdmin || impersonatedMember.Groups.Select(x => JekyllHandler.Domain.Query.GetGroup(x))
+                        .Any(x => x.AvailableChallenges.Contains(id) && x.GroupAdminIds.Contains(member.Id)))
+                    {
+                        member = impersonatedMember;
+                    }
+                }
+            }
+
             return BuildSubmissionModel(id, message, isSuccess, submissionId, member);
         }
 
-        private UploadModel<ISubmission, IMember> BuildSubmissionModel(string id, string message, bool isSuccess, string submissionId, IMember member)
+        private static UploadModel<ISubmission, IMember> BuildSubmissionModel(string id, string message, bool isSuccess, string submissionId, IMember member)
         {
             var challenge = JekyllHandler.Domain.Query.GetChallenge(member, id);
             var submissions = JekyllHandler.Domain.Query.GetSubmissionsForUser(member, challenge);
-
             var model = new UploadModel<ISubmission, IMember> {Id = id, ChallengeTitle = challenge.Title, SubmissionId = submissionId};
             FillSubmissionHistoryModel(challenge, submissions, submissionId, model);
 
@@ -305,6 +324,7 @@ namespace SubmissionEvaluation.Server.Controllers
             model.Referer = $"/Challenge/View/{id}";
             return model;
         }
+
         private static void FillSubmissionHistoryModel(IChallenge challenge, IReadOnlyList<ISubmission> submissions, string selectedSubmission,
             SubmissionHistoryModel<IMember> model)
         {
@@ -317,25 +337,21 @@ namespace SubmissionEvaluation.Server.Controllers
 
                 switch (x.EvaluationResult)
                 {
-                    case EvaluationResult.Undefined:
-                        return MapQueuedState(x);
+                    case EvaluationResult.Undefined: return MapQueuedState(x);
                     case EvaluationResult.CompilationError:
                     case EvaluationResult.NotAllowedLanguage:
                         return "Kompilerfehler";
-                    case EvaluationResult.Timeout:
-                        return "Timeout";
-                    case EvaluationResult.TestsFailed:
-                        return x.TestsFailed + "/" + (x.TestsFailed + x.TestsPassed + x.TestsSkipped) + " fehlgeschlagen";
+                    case EvaluationResult.Timeout: return "Timeout";
+                    case EvaluationResult.TestsFailed: return x.TestsFailed + "/" + (x.TestsFailed + x.TestsPassed + x.TestsSkipped) + " fehlgeschlagen";
                     case EvaluationResult.SucceededWithTimeout:
                     case EvaluationResult.Succeeded:
                         return "Bestanden";
-                    default:
-                        return "Unbekannter Fehler";
+                    default: return "Unbekannter Fehler";
                 }
             }
 
             model.Id = challenge.Id;
-            model.AreSubmissionsSelectable = challenge.RatingMethod == RatingMethod.Exec_Time;
+            model.AreSubmissionsSelectable = challenge.RatingMethod == RatingMethod.ExecTime;
             model.Submissions = submissions.OrderByDescending(x => x.LastSubmissionDate).Select(x => new SubmissionResult<IMember>
             {
                 Id = x.SubmissionId,
@@ -401,16 +417,17 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
             }
 
-            SubmissionViewModel model = null;
             var currentUser = JekyllHandler.GetMemberForUser(User);
             var submission = JekyllHandler.Domain.Query.GetSubmission(challenge, id);
             var memberId = User.Claims.First(x => x.Type == ClaimTypes.Sid).Value;
             if (submission.MemberId != memberId &&
-                (!JekyllHandler.CheckPermissions(Actions.VIEW, "Submissions", currentUser, Restriction.MEMBERS, memberId) &&! currentUser.IsCreator|| !JekyllHandler.CheckPermissions(Actions.VIEW, "Submissions", currentUser, Restriction.CHALLENGES, challenge)))
+                (!JekyllHandler.CheckPermissions(Actions.View, "Submissions", currentUser, Restriction.Members, memberId) && !currentUser.IsCreator ||
+                 !JekyllHandler.CheckPermissions(Actions.View, "Submissions", currentUser, Restriction.Challenges, challenge)))
             {
                 return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
             }
-            model = BuildSubmissionViewModel(submission, challenge);
+
+            var model = BuildSubmissionViewModel(submission, challenge);
 
             return Ok(model);
         }
@@ -428,7 +445,8 @@ namespace SubmissionEvaluation.Server.Controllers
             var submission = JekyllHandler.Domain.Query.GetSubmission(challenge, id);
             var currentUser = JekyllHandler.GetMemberForUser(User);
             if (submission.MemberId != User.Claims.First(x => x.Type == ClaimTypes.Sid).Value &&
-                (!JekyllHandler.CheckPermissions(Actions.VIEW, "Submissions", currentUser, Restriction.MEMBERS, submission.MemberId) && !currentUser.IsCreator || !JekyllHandler.CheckPermissions(Actions.VIEW, "Submissions", currentUser, Restriction.CHALLENGES, challenge)))
+                (!JekyllHandler.CheckPermissions(Actions.View, "Submissions", currentUser, Restriction.Members, submission.MemberId) &&
+                    !currentUser.IsCreator || !JekyllHandler.CheckPermissions(Actions.View, "Submissions", currentUser, Restriction.Challenges, challenge)))
             {
                 return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
             }
@@ -438,9 +456,24 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(model);
         }
 
+        private string[] FilterFiles(string[] files)
+        {
+            var res = new List<string>();
+
+            foreach (var item in files)
+            {
+                if (!JekyllHandler.GetIgnoreFileList().Contains(item))
+                {
+                    res.Add(item);
+                }
+            }
+            return res.ToArray();
+        }
+
         private SubmissionViewModel BuildSubmissionViewModel(ISubmission submission, string challenge, string fileToRead = null)
         {
-            var submissionFiles = JekyllHandler.Domain.Query.GetSubmissionRelativeFilesPath(submission).ToArray();
+            var submissionFiles = JekyllHandler.Domain.Query.GetSubmissionRelativeFilesPathInZip(submission).ToArray();
+            submissionFiles = FilterFiles(submissionFiles);
             if (fileToRead == null)
             {
                 fileToRead = submissionFiles.FirstOrDefault();
@@ -450,11 +483,13 @@ namespace SubmissionEvaluation.Server.Controllers
             {
                 ChallengeId = challenge,
                 SubmissionFilePaths = submissionFiles,
-                CurrentFile = fileToRead != null ? ReadSourceCodeForFile(submission, fileToRead) : null,
+                CurrentFile = fileToRead != null ? ReadSourceCodeForFileInZip(submission, fileToRead) : null,
+                Language = submission.Language.ToLower(),
                 Referer = $"/Submission/Add/{challenge}"
             };
             return model;
         }
+
         private SourceCodeFile ReadSourceCodeForFile(ISubmission submission, string relativeFilePath)
         {
             return new SourceCodeFile
@@ -465,12 +500,23 @@ namespace SubmissionEvaluation.Server.Controllers
             };
         }
 
+        private SourceCodeFile ReadSourceCodeForFileInZip(ISubmission submission, string relativeFilePath)
+        {
+            return new SourceCodeFile
+            {
+                FilePath = relativeFilePath,
+                FileName = Path.GetFileName(relativeFilePath),
+                FileContent = JekyllHandler.Domain.Query.GetSubmissionSourceCodeInZip(submission, relativeFilePath)
+            };
+        }
+
         [HttpPost("RerunAllSubmissions")]
         public IActionResult RerunAllSubmissions([FromBody] string id)
         {
             var member = JekyllHandler.GetMemberForUser(User);
             var props = JekyllHandler.Domain.Query.GetChallenge(member, id);
-            if (!JekyllHandler.CheckPermissions(Actions.EDIT, "Submissions", member, Restriction.CHALLENGES, id)) {
+            if (!JekyllHandler.CheckPermissions(Actions.Edit, "Submissions", member, Restriction.Challenges, id))
+            {
                 return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
             }
 
@@ -490,13 +536,21 @@ namespace SubmissionEvaluation.Server.Controllers
             var props = JekyllHandler.Domain.Query.GetChallenge(member, id);
             var submission = JekyllHandler.Domain.Query.GetSubmission(id, selectedsubmission);
             var userId = User.Claims.First(x => x.Type == ClaimTypes.Sid).Value;
-            if (submission.MemberId != userId && !JekyllHandler.CheckPermissions(Actions.EDIT, "Submissions", member, Restriction.CHALLENGES, props.Id)) {
+            if (submission.MemberId != userId && !JekyllHandler.CheckPermissions(Actions.Edit, "Submissions", member, Restriction.Challenges, props.Id))
+            {
                 return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
             }
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Submissions", member, Restriction.MEMBERS, submission.MemberId)) {
-            JekyllHandler.Domain.Interactions.RerunSubmission(id, selectedsubmission);
+
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Submissions", member, Restriction.Members, submission.MemberId))
+            {
+                JekyllHandler.Domain.Interactions.RerunSubmission(id, selectedsubmission);
             }
-            if (isTask) return Task(id, selectedsubmission, true, SuccessMessages.RerunSubmission);
+
+            if (isTask)
+            {
+                return Task(id, selectedsubmission, true, SuccessMessages.RerunSubmission);
+            }
+
             return Add(id, selectedsubmission, true, SuccessMessages.RerunSubmission);
         }
 
@@ -515,14 +569,14 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult RemoveDeadSubmissions([FromBody] string id)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Submissions", member, Restriction.CHALLENGES, id)) {
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Submissions", member, Restriction.Challenges, id))
+            {
                 var challenge = JekyllHandler.Domain.Query.GetChallenge(member, id);
                 JekyllHandler.Domain.Interactions.RemoveDeadSubmissions(member, challenge);
                 return Task(id, null, true, SuccessMessages.DeadSubmissionsDeleted);
-            }else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         //TODO?:Implement error checker on download in Submissions/Add

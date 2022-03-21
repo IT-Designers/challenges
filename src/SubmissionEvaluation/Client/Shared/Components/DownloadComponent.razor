@@ -1,10 +1,12 @@
-﻿@using SubmissionEvaluation.Shared.Classes.Messages
-@using SubmissionEvaluation.Shared.Classes
 @using System.Net.Http.Json
-@inject NavigationManager navi
-@inject HttpClient httpClient
-@inject IJSRuntime runtime
-<button @onclick="Download" class="@Class" title="@title">@((MarkupString) content)</button>
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Shared.Classes
+
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpClient
+@inject IJSRuntime Runtime
+
+<button @onclick="Download" class="@Class" title="@Title">@((MarkupString) Content)</button>
 
 @code {
 
@@ -12,10 +14,10 @@
     public string Class { get; set; }
 
     [Parameter]
-    public string title { get; set; }
+    public string Title { get; set; }
 
     [Parameter]
-    public string content { get; set; }
+    public string Content { get; set; }
 
     [Parameter]
     public string Id { get; set; }
@@ -27,7 +29,7 @@
     public bool TwoIds { get; set; }
 
     [Parameter]
-    public string URL { get; set; }
+    public string Url { get; set; }
 
     [Parameter]
     public string FileName { get; set; }
@@ -36,24 +38,24 @@
     {
         if (Id == null || TwoIds && SubId == null)
         {
-            navi.NavigateTo($"Home/Error/{ErrorMessages.IdError}");
+            NavigationManager.NavigateTo($"Home/Error/{ErrorMessages.IdError}");
         }
         DownloadInfo info;
         if (TwoIds)
         {
-            info = await httpClient.GetFromJsonAsync<DownloadInfo>($"{URL}/{Id}/{SubId}");
+            info = await HttpClient.GetFromJsonAsync<DownloadInfo>($"{Url}/{Id}/{SubId}");
         }
         else
         {
-            info = await httpClient.GetFromJsonAsync<DownloadInfo>($"{URL}/{Id}");
+            info = await HttpClient.GetFromJsonAsync<DownloadInfo>($"{Url}/{Id}");
         }
         if (info.Data != null)
         {
-            await runtime.InvokeAsync<object>("saveAsFile", FileName, Convert.ToBase64String(info.Data));
+            await Runtime.InvokeAsync<object>("saveAsFile", FileName, Convert.ToBase64String(info.Data));
         }
         else
         {
-            navi.NavigateTo($"Home/Error/{info.ErrorMessage}");
+            NavigationManager.NavigateTo($"Home/Error/{info.ErrorMessage}");
         }
     }
 

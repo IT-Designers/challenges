@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Caching;
 using System.Text.RegularExpressions;
-using System.Web;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Exceptions;
 using SubmissionEvaluation.Contracts.Providers;
@@ -14,6 +14,8 @@ namespace SubmissionEvaluation.Domain.Operations
 {
     public static class ChallengeOperations
     {
+        private static readonly MemoryCache challengesCanBeViewedByMemberCache = new MemoryCache("ChallengesCanBeViewedByMemberCache");
+
         internal static void RemoveAdditionalFileFromChallenge(ProviderStore providerStore, string challengeName, string filename)
         {
             using var writeLock = providerStore.FileProvider.GetLock();
@@ -180,6 +182,7 @@ namespace SubmissionEvaluation.Domain.Operations
             var allowed = GetChallengesCanBeViewedByMember(member, fileProvider);
             return allowed.Values.Where(x => containUnavailable || x.IsAvailable).ToList();
         }
+
         public static IReadOnlyList<IChallenge> GetAllChallengesForMember(IFileProvider fileProvider, bool containUnavailable)
         {
             var allowed = GetChallengesCanBeViewedByMember(null, fileProvider);
@@ -200,34 +203,60 @@ namespace SubmissionEvaluation.Domain.Operations
                 return new List<IChallenge>().ToDictionary(x => x.Id);
             }
 
+            if (member.Id != null && challengesCanBeViewedByMemberCache.Contains(member.Id))
+            {
+                return challengesCanBeViewedByMemberCache.Get(member.Id) as IReadOnlyDictionary<string, IChallenge>;
+            }
+
             var visibleChallenges = FetchDefaultVisibleChallenges(member, fileProvider);
 
+            #region determine challenges visible for an user that is not an admin or groupadmin
 
-            #region determine challenges visible for an user
-
-            // Please, be aware that there are several dependencies which must be considered
-            // 1) There are bundles of challenges - although always the first challenge of a bundle should be visible
-            // 2) There could be an overlap of challenge across the different groups
-            //    Nevertheless, group constraints of forced challenges should be guaranteed
-            //    In addition, the maximum count of visible challenges of the group should be guaranteed, too
-            // 3) Challenges within a group should be assigned randomly
-            // 4) Once assigned challenges should be stable
-            //    First, changes in the member rating should not affect assigned challenges
-            //    Second, further added challenges to a group should not affect the visible challenges
-
-            // Get groups of the member
-            var groupsOfMember = (member.Groups ?? new string[] { }).Select(x => fileProvider.LoadGroup(x));
-
-            // it is possible to treat each group independently ;)
-            foreach (var groupOfMember in groupsOfMember)
+            if (!(member.IsAdmin || member.IsGroupAdmin))
             {
-                AddChallengesForGroup(groupOfMember, member, visibleChallenges, fileProvider);
+                // Please, be aware that there are several dependencies which must be considered
+                // 1) There are bundles of challenges - although always the first challenge of a bundle should be visible
+                // 2) There could be an overlap of challenge across the different groups
+                //    Nevertheless, group constraints of forced challenges should be guaranteed
+                //    In addition, the maximum count of visible challenges of the group should be guaranteed, too
+                // 3) Challenges within a group should be assigned randomly
+                // 4) Once assigned challenges should be stable
+                //    First, changes in the member rating should not affect assigned challenges
+                //    Second, further added challenges to a group should not affect the visible challenges
+
+                // Get groups of the member
+                var groupsOfMember = (member.Groups ?? new string[] { }).Select(x => fileProvider.LoadGroup(x));
+
+                // it is possible to treat each group independently ;)
+                foreach (var groupOfMember in groupsOfMember)
+                {
+                    if (groupOfMember != null)
+                    {
+                        AddChallengesForGroup(groupOfMember, member, visibleChallenges, fileProvider);
+                    }
+                }
             }
 
             #endregion
+            #region pre-sort challenges by title, complexity and solved - which is a sensitive default for most views
+
+            visibleChallenges = visibleChallenges
+                .OrderBy(x => x.Title)
+                .OrderBy(x => x.State.DifficultyRating > 0 ? x.State.DifficultyRating : 1000)
+                .OrderBy(x => member.SolvedChallenges?.Contains(x.Id))
+                .ToList();
+
+            #endregion
+
+            var res = visibleChallenges.Distinct(new ChallengeComparer()).ToDictionary(x => x.Id);
+
+            if (member.Id != null && res.Count != 0)
+            {
+                challengesCanBeViewedByMemberCache.Set(member.Id, res, DateTimeOffset.Now.AddSeconds(15));
+            }
 
             // ensure list of challenges is unique before returning as dictionary
-            return visibleChallenges.Distinct(new IChallengeComparer()).ToDictionary(x => x.Id);
+            return res;
         }
 
         /*
@@ -237,8 +266,9 @@ namespace SubmissionEvaluation.Domain.Operations
         {
             var visibleChallenges = new List<IChallenge>();
 
-            // If admin append all challenges
-            if (member.IsAdmin)
+            // If admin or group admin append all challenges
+            // Group admin needs to see all challenges to check which one he/she wants to add to his group!
+            if (member.IsAdmin || member.IsGroupAdmin)
             {
                 visibleChallenges.AddRange(fileProvider.LoadChallenges());
                 return visibleChallenges;
@@ -247,15 +277,7 @@ namespace SubmissionEvaluation.Domain.Operations
             // If creator append all challenges he*she has created
             if (member.IsCreator)
             {
-                visibleChallenges.AddRange(fileProvider.LoadChallenges().Where(x => x.AuthorID.Equals(member.Id)));
-            }
-
-            // If groupAdmin append all challenges of his*her group
-            if (member.IsGroupAdmin)
-            {
-                var groups = fileProvider.LoadAllGroups().Where(x => (x.GroupAdminIds ?? new List<string>()).Contains(member.Id));
-                visibleChallenges.AddRange(groups.SelectMany(x => x.AvailableChallenges).Distinct().Select(x => fileProvider.LoadChallenge(x)));
-                visibleChallenges.AddRange(groups.SelectMany(x => x.ForcedChallenges).Distinct().Select(x => fileProvider.LoadChallenge(x)));
+                visibleChallenges.AddRange(fileProvider.LoadChallenges().Where(x => x.AuthorId.Equals(member.Id)));
             }
 
             // Append all solved and unlocked challenges
@@ -315,10 +337,8 @@ namespace SubmissionEvaluation.Domain.Operations
             // determine the first unsolved challenge of each bundle and
             // determine all unsolved challenges which are not part of a bundle
             var bundles = fileProvider.LoadAllBundles();
-            var unlockableChallengeIdsOfBundles = bundles
-                .Select(x => x.Challenges.FirstOrDefault(y => !member.SolvedChallenges.Contains(y)))
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Where(x => group.AvailableChallenges.Contains(x));
+            var unlockableChallengeIdsOfBundles = bundles.Select(x => x.Challenges.FirstOrDefault(y => !member.SolvedChallenges.Contains(y)))
+                .Where(x => !string.IsNullOrEmpty(x)).Where(x => group.AvailableChallenges.Contains(x));
             var challengesWithinBundles = bundles.SelectMany(x => x.Challenges).ToList();
             var unlockableChallengeIdsNotPartOfBundles = group.AvailableChallenges.Where(x => !challengesWithinBundles.Contains(x));
             // If there is no maximum count of visible challenges defined, than add all challenges to the group
@@ -350,11 +370,10 @@ namespace SubmissionEvaluation.Domain.Operations
 
             // remove challenges which are too simple for a member, except they are part of a bundle or have no rating
             var ongoingChallengesOfBundle = bundles.SelectMany(x => x.Challenges.GetRange(1, x.Challenges.Count - 1));
-            var challengesWhichAreNotTooEasyOrPartOfABundle = challengesWhichAreNotAlreadySolvedOrUnlocked.Where(
-                x => x.State.DifficultyRating >= member.AverageDifficultyLevel * 0.9 ||
-                (!x.State.DifficultyRating.HasValue && member.AverageDifficultyLevel > 40) ||
+            var challengesWhichAreNotTooEasyOrPartOfABundle = challengesWhichAreNotAlreadySolvedOrUnlocked.Where(x =>
+                x.State.DifficultyRating >= member.AverageDifficultyLevel * 0.9 || !x.State.DifficultyRating.HasValue && member.AverageDifficultyLevel > 40 ||
                 ongoingChallengesOfBundle.Contains(x.Id));
-            
+
             // shuffle list of challenges using the random seed from the name of the user
             var availableChallengesShuffled = challengesWhichAreNotTooEasyOrPartOfABundle.Shuffle(GetAsciiSumOfString(member.Name)).ToList();
 
@@ -362,6 +381,9 @@ namespace SubmissionEvaluation.Domain.Operations
             var nextUnlockableChallenges = new List<IChallenge>();
             nextUnlockableChallenges.AddRange(availableChallengesShuffled.Where(x => ongoingChallengesOfBundle.Contains(x.Id)));
             nextUnlockableChallenges.AddRange(availableChallengesShuffled.Where(x => !ongoingChallengesOfBundle.Contains(x.Id)));
+
+            // filter out challenges that are unavailable
+            nextUnlockableChallenges = nextUnlockableChallenges.Where(x => x.IsAvailable).ToList();
 
             // select only as much challenges as required or available
             var nextUnlockedChallenges = nextUnlockableChallenges.Count >= numberOfMissingChallenges

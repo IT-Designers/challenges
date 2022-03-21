@@ -1,8 +1,9 @@
-@inject HttpClient httpClient
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Classes.Messages
-@inject PasswordRequirementsService pwService
-@inject IToastService toaster
+
+@inject HttpClient HttpClient
+@inject PasswordRequirementsService PwService
+@inject IToastService Toaster
 
 <div class="shadow text-center loginbox">
     <div class="post-area post">
@@ -11,52 +12,57 @@
         </div>
         <div class="post-body">
             <EditForm Model="Model" OnValidSubmit="CheckPasswordRequirements">
-                <ValidationSummary />
-                <DataAnnotationsValidator />
+                <ValidationSummary/>
+                <DataAnnotationsValidator/>
                 @if (Features.EnableSendMail)
                 {
                     <div class="form-group has-feedback">
                         <i class="oi oi-person form-control-feedback"></i><label class="col-form-label">E-Mail</label>
-                        <InputText @bind-Value="Model.Mail" class="form-control" placeholder="E-Mail" />
+                        <InputText @bind-Value="Model.Mail" class="form-control" placeholder="E-Mail"/>
                     </div>
-                    <ValidationMessage For="() => Model.Mail" />
+                    <ValidationMessage For="() => Model.Mail"/>
                 }
                 else
                 {
                     <div class="form-group has-feedback">
                         <label class="col-form-label">@RegistrationMessage</label>
+                        @if (!string.IsNullOrEmpty(Model.MessageTranslation) && Model.HasError)
+                        {
+                            <br/>
+                            <label class="col-form-label" style="font-weight: bold">@Model.MessageTranslation</label>
+                        }
                     </div>
                     <div class="form-group has-feedback">
                         <i class="oi oi-person form-control-feedback"></i>
                         <label class="col-form-label"> Benutzername</label>
-                        <InputText @bind-Value="Model.Username" class="form-control" placeholder="Username" />
+                        <InputText @bind-Value="Model.Username" class="form-control" placeholder="Username"/>
                     </div>
-                    <ValidationMessage For="() => Model.Username" class="text-danger" />
+                    <ValidationMessage For="() => Model.Username" class="text-danger"/>
                     <div class="form-group has-feedback">
                         <i class="oi oi-person form-control-feedback"></i>
                         <label class="col-form-label"> Name (Vor- und Nachname)</label>
-                        <InputText @bind-Value="Model.Fullname" class="form-control" placeholder="Max Mustermann" />
+                        <InputText @bind-Value="Model.Fullname" class="form-control" placeholder="Max Mustermann"/>
                     </div>
-                    <ValidationMessage For="() => Model.Fullname" class="text-danger" />
+                    <ValidationMessage For="() => Model.Fullname" class="text-danger"/>
                     <div class="form-group has-feedback">
                         <i class="oi oi-lock-locked form-control-feedback"></i>
                         <label class="col-form-label"> Passwort</label>
-                        <input type="password" name="password" class="form-control" placeholder="Password" @bind="Model.Password" />
+                        <input type="password" name="password" class="form-control" placeholder="Password" @bind="Model.Password"/>
                     </div>
-                    <ValidationMessage For="() => Model.Password" />
+                    <ValidationMessage For="() => Model.Password"/>
                     <div>
                         <ol style="list-style-type: none; padding-left: 33%; text-align: left;">
                             <li style="padding-bottom: 5px;">Passwort Anforderungen:</li>
-                            <li id="pwLength" style="color: @colorLength">- min. 12 Zeichen</li>
-                            <li id="pwUp" style="color: @colorUp">- min. ein Großbuchstabe</li>
-                            <li id="pwLow" style="color: @colorLow">- min. ein Kleinbuchstabe</li>
-                            <li id="pwDigit" style="color: @colorDigit">- min. eine Zahl</li>
+                            <li id="pwLength" style="color: @ColorLength">- min. 12 Zeichen</li>
+                            <li id="pwUp" style="color: @ColorUp">- min. ein Großbuchstabe</li>
+                            <li id="pwLow" style="color: @ColorLow">- min. ein Kleinbuchstabe</li>
+                            <li id="pwDigit" style="color: @ColorDigit">- min. eine Zahl</li>
                         </ol>
                     </div>
                 }
-                <hr />
+                <hr/>
                 <div>
-                    <input id="Register" name="Register" type="submit" class="btn btn-info" value="Registrieren" />
+                    <input id="Register" name="Register" type="submit" class="btn btn-info" value="Registrieren"/>
                 </div>
             </EditForm>
         </div>
@@ -74,32 +80,32 @@
     [Parameter]
     public Action SendRegistration { get; set; }
 
-    string colorLength { get; set; }
+    string ColorLength { get; set; }
 
-    string colorLow { get; set; }
+    string ColorLow { get; set; }
 
-    string colorUp { get; set; }
+    string ColorUp { get; set; }
 
-    string colorDigit { get; set; }
+    string ColorDigit { get; set; }
 
     string RegistrationMessage { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        RegistrationMessage = await httpClient.GetStringAsync("api/Account/GetRegistrationMessage");
+        RegistrationMessage = await HttpClient.GetStringAsync("api/Account/GetRegistrationMessage");
         StateHasChanged();
     }
 
     void CheckPasswordRequirements()
     {
-        if (pwService.CheckRequirements(Model.Password))
+        if (PwService.CheckRequirements(Model.Password))
         {
             SendRegistration.Invoke();
         }
         else
         {
-            string outputString = "";
-            List<string> errorList = pwService.GetRequirementsString();
+            var outputString = "";
+            var errorList = PwService.GetRequirementsString();
             Model.HasError = true;
             Model.Message = ErrorMessages.WrongUserPassword;
             outputString += Model.MessageTranslation + "\n";
@@ -107,44 +113,43 @@
 
             foreach (var error in errorList)
             {
-                // this.GetType().GetField("myVar").GetValue(this)
+    // this.GetType().GetField("myVar").GetValue(this)
                 switch (error)
                 {
                     case "lengthFalse":
                         Model.Message = ErrorMessages.PasswordWrongLength;
                         outputString += "\n -" + Model.MessageTranslation;
-                        colorLength = "red";
+                        ColorLength = "red";
                         break;
                     case "upperFalse":
                         Model.Message = ErrorMessages.PasswordNoUpper;
                         outputString += "\n -" + Model.MessageTranslation;
-                        colorUp = "red";
+                        ColorUp = "red";
                         break;
                     case "lowerFalse":
                         Model.Message = ErrorMessages.PasswordNoLower;
                         outputString += "\n -" + Model.MessageTranslation;
-                        colorLow = "red";
+                        ColorLow = "red";
                         break;
                     case "digitFalse":
                         Model.Message = ErrorMessages.PasswordNoDigit;
                         outputString += "\n -" + Model.MessageTranslation;
-                        colorDigit = "red";
-                        break;
-                    default:
+                        ColorDigit = "red";
                         break;
                 }
             }
 
-            toaster.ShowError(outputString, "Passwortfehler");
+            Toaster.ShowError(outputString, "Passwortfehler");
             StateHasChanged();
         }
     }
 
     void SetColorsToGreen()
     {
-        colorLength = "green";
-        colorUp = "green";
-        colorLow = "green";
-        colorDigit = "green";
+        ColorLength = "green";
+        ColorUp = "green";
+        ColorLow = "green";
+        ColorDigit = "green";
     }
+
 }

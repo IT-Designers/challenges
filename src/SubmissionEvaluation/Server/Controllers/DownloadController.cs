@@ -3,12 +3,10 @@ using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
 using SubmissionEvaluation.Server.Classes.Messages;
 using SubmissionEvaluation.Shared.Classes;
-using SubmissionEvaluation.Shared.Models.Shared;
 
 namespace SubmissionEvaluation.Server.Controllers
 {
@@ -17,13 +15,6 @@ namespace SubmissionEvaluation.Server.Controllers
     [Authorize(Policy = "IsChallengePlattformUser")]
     public class DownloadController : Controller
     {
-        private readonly ILogger _logger;
-
-        public DownloadController(ILogger<DownloadController> logger)
-        {
-            _logger = logger;
-        }
-
         [HttpGet("Help")]
         public IActionResult Help(string id, string path)
         {
@@ -36,8 +27,8 @@ namespace SubmissionEvaluation.Server.Controllers
                     return RedirectToAction("Error", "Home");
                 }
 
-                var file = JekyllHandler.Domain.Query.GetHelpAdditionalFile(path);
-                return File(file.data, file.type, filename, file.lastMod, EntityTagHeaderValue.Any);
+                var (_, data, type, lastMod) = JekyllHandler.Domain.Query.GetHelpAdditionalFile(path);
+                return File(data, type, filename, lastMod, EntityTagHeaderValue.Any);
             }
             catch (Exception ex)
             {
@@ -57,8 +48,8 @@ namespace SubmissionEvaluation.Server.Controllers
                     return Ok(new DownloadInfo(ErrorMessages.GenericError));
                 }
 
-                var file = JekyllHandler.Domain.Query.GetChallengeAdditionalFile(id, path);
-                return Ok(new DownloadInfo(file.data));
+                var (_, data, _, _) = JekyllHandler.Domain.Query.GetChallengeAdditionalFile(id, path);
+                return Ok(new DownloadInfo(data));
             }
             catch (Exception ex)
             {
@@ -66,6 +57,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(new DownloadInfo(ErrorMessages.GenericError));
             }
         }
+
         private static bool IsFileHidden(string path)
         {
             if (path.Contains(".."))

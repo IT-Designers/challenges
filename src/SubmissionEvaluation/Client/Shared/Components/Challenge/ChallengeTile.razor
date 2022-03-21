@@ -1,60 +1,59 @@
 @using SubmissionEvaluation.Client.Services
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-@inject HelperService help
-<a class="post-list-item" href="@($"{(entry.IsBundle ? "Bundle" : "Challenge")}/View/{entry.Id}")">
-    @if (IsSolved(entry))
+@inject HelperService HelperService
+
+<a class="post-list-item" href="@($"{(Entry.IsBundle ? "Bundle" : "Challenge")}/View/{Entry.Id}")">
+    @if (IsSolved(Entry))
     {
         <div class="challenge-solved">&#x2713;</div>
     }
     <div class="toForeground">
-        <h2 class="challengeTileHeader" style="@(entry.IsBundle ? "font-style: italic" : null)">@entry.Title</h2>
+        <h2 class="challengeTileHeader" style="@(Entry.IsBundle ? "font-style: italic" : null)">@Entry.Title</h2>
     </div>
     <div class="challengeTileLevelBack">
-        @if (entry.DifficultyRating == null)
+        @if (Entry.DifficultyRating == null)
         {
             <div class="challengeTileLevelUnknown"> ? </div>
         }
         else
         {
-            <div class="challengeTileLevelKnown" style="background: @help.CalculateDifficultyColor(entry.DifficultyRating); left: @(entry.DifficultyRating - 2)%;"></div>
+            <div class="challengeTileLevelKnown" style="background: @HelperService.CalculateDifficultyColor(Entry.DifficultyRating); left: @(Entry.DifficultyRating - 2)%;"></div>
         }
     </div>
-    @if (entry.IsBundle)
+    @if (Entry.IsBundle)
     {
         <span style="color: #A6A6A4">Besteht aus mehreren Teilen</span>
     }
     else
     {
-        <span style="color: #@entry.RatingMethod.Color">@entry.RatingMethod.Title</span>
+        <span style="color: #@Entry.RatingMethod.Color">@Entry.RatingMethod.Title</span>
     }
     <br/>
-    @if (!string.IsNullOrEmpty(entry.LearningFocus))
+    @if (!string.IsNullOrEmpty(Entry.LearningFocus))
     {
-        <span style="color: #A6A6A4">Lernfokus: @entry.LearningFocus</span>
+        <span style="color: #A6A6A4">Lernfokus: @Entry.LearningFocus</span>
         <br/>
     }
-    <span class="challengeTileLanguage">@(entry.Languages != null ? string.Join(", ", entry.Languages) : string.Empty)</span>
+    <span class="challengeTileLanguage">@(Entry.Languages != null ? string.Join(", ", Entry.Languages) : string.Empty)</span>
 </a>
 
 @code {
-    [Parameter]
-    public CategoryListEntryModel entry { get; set; }
 
     [Parameter]
-    public List<BundleModel> bundles { get; set; }
+    public CategoryListEntryModel Entry { get; set; }
+
+    [Parameter]
+    public List<BundleModel> Bundles { get; set; }
 
     [Parameter]
     public Member Member { get; set; }
 
     private bool IsSolved(CategoryListEntryModel entry)
     {
-        if (!entry.IsBundle) return (Member.SolvedChallenges ?? new string[] { }).Contains(entry.Id);
-        var bundle = bundles.Where(x => x.Id.Equals(entry.Id)).FirstOrDefault();
-        if (bundle != null)
-        {
-            return bundle.Challenges.All(x => (Member.SolvedChallenges ?? new string[] { }).Contains(x));
-        }
-        return false;
+        if (!entry.IsBundle)
+            return (Member.SolvedChallenges ?? new string[] {}).Contains(entry.Id);
+        var bundle = Bundles.FirstOrDefault(x => x.Id.Equals(entry.Id));
+        return bundle != null && bundle.Challenges.All(x => (Member.SolvedChallenges ?? new string[] {}).Contains(x));
     }
 
 }

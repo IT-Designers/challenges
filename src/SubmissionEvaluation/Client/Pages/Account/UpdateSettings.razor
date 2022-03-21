@@ -1,7 +1,7 @@
 @page "/Account/UpdateSettings"
 @using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
 
 <div class="panel-group shadow text-center loginbox">
     <div class="post-area post">
@@ -49,21 +49,21 @@
 
     protected override async void OnInitialized()
     {
-        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
-        Model = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Model = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
         StateHasChanged();
     }
 
     async void SendNewSettings()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<SettingsModel>("api/Account/UpdateSettings", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Account/UpdateSettings", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<SettingsModel>();
         }
         if (Model.HasSuccess)
         {
-            navi.NavigateTo("Account/View");
+            Navi.NavigateTo("Account/View");
         }
         StateHasChanged();
     }

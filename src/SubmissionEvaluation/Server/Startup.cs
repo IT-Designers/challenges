@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
-using SubmissionEvaluation.Shared.Classes.Config;
 
 namespace SubmissionEvaluation.Server
 {
@@ -25,12 +24,11 @@ namespace SubmissionEvaluation.Server
         {
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("IsChallengePlattformUser",
-                    policyBuilder =>
-                    {
-                        policyBuilder.RequireAuthenticatedUser().RequireClaim(ClaimTypes.Name).RequireClaim(ClaimTypes.GivenName)
-                            .RequireClaim(ClaimTypes.NameIdentifier).Build();
-                    });
+                options.AddPolicy("IsChallengePlattformUser", policyBuilder =>
+                {
+                    policyBuilder.RequireAuthenticatedUser().RequireClaim(ClaimTypes.Name).RequireClaim(ClaimTypes.GivenName)
+                        .RequireClaim(ClaimTypes.NameIdentifier).Build();
+                });
             });
 
             services.AddAuthentication(o =>
@@ -56,6 +54,7 @@ namespace SubmissionEvaluation.Server
             services.AddResponseCompression(opts => { opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] {"application/octet-stream"}); });
 
             services.AddHangfire(x => { });
+            services.AddHangfireServer(x => { x.WorkerCount = Environment.ProcessorCount; });
             services.AddDirectoryBrowser();
             services.AddControllersWithViews();
             services.AddRazorPages();
@@ -70,6 +69,7 @@ namespace SubmissionEvaluation.Server
                 Cron.Daily(21), TimeZoneInfo.Local);
             RecurringJob.AddOrUpdate("Schedule_PendingReviews", () => SchedulesAndTasks.Schedule_PendingReviews(), "00 05 * * 1-5", TimeZoneInfo.Local);
             RecurringJob.AddOrUpdate("Schedule_PromotionsAndMails", () => SchedulesAndTasks.Schedule_PromotionsAndMails(), "00 08 * * 1-5", TimeZoneInfo.Local);
+            RecurringJob.AddOrUpdate("Schedule_Cleanup", () => SchedulesAndTasks.Schedule_Cleanup(), "00 04 * * *", TimeZoneInfo.Local);
             RecurringJob.AddOrUpdate("Schedule_ChallengeStatsUpdate", () => SchedulesAndTasks.Schedule_ChallengeStatsUpdate(), "00 06,12 * * *",
                 TimeZoneInfo.Local);
             RecurringJob.AddOrUpdate("Schedule_DuplicateCheck", () => SchedulesAndTasks.Schedule_DuplicateCheck(), "00 03 * * *", TimeZoneInfo.Local);
@@ -89,18 +89,8 @@ namespace SubmissionEvaluation.Server
                 app.UseHsts();
                 app.UseHttpsRedirection();
             }
-            
+
             app.UseStaticFiles(new StaticFileOptions {ServeUnknownFileTypes = true});
-
-            app.UseHangfireDashboard("/hangfire", new DashboardOptions {Authorization = new[] {new MyAuthorizationFilter()}});
-            app.UseHangfireServer(new BackgroundJobServerOptions
-            {
-                ServerName = "Default",
-                Queues = new[] {"default"},
-                WorkerCount = 3,
-                SchedulePollingInterval = TimeSpan.FromSeconds(Settings.Application.Delaytime)
-            });
-
             app.Use(async (context, next) =>
             {
                 if (!context.Request.Path.StartsWithSegments(new PathString("/Account")) && !context.Request.Path.StartsWithSegments(new PathString("/Help")))
@@ -109,12 +99,9 @@ namespace SubmissionEvaluation.Server
                     if (id != null)
                     {
                         var member = JekyllHandler.MemberProvider.GetMemberById(id);
-                        if (member.Groups.Length == 0)
+                        if (member.Groups.Length == 0 && JekyllHandler.Domain.Query.GetAllGroups().Any())
                         {
-                            if (JekyllHandler.Domain.Query.GetAllGroups().Any())
-                            {
-                                context.Response.Redirect("/Account/Groups");
-                            }
+                            context.Response.Redirect("/Account/Groups");
                         }
                     }
                 }
@@ -125,6 +112,7 @@ namespace SubmissionEvaluation.Server
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseHangfireDashboard("/hangfire", new DashboardOptions {Authorization = new[] {new MyAuthorizationFilter()}});
             app.UseBlazorFrameworkFiles();
             app.UseEndpoints(endpoints =>
             {
@@ -133,6 +121,7 @@ namespace SubmissionEvaluation.Server
                 endpoints.MapControllerRoute("imageView", "Challenge/Edit/{challengeName}/{action=Show}/{FileName}", new {controller = "Challenge"});
                 endpoints.MapControllerRoute("files", "files/{action}/{id}/{*path}", new {controller = "Download"});
                 endpoints.MapControllerRoute("help", "Help/{*path}", new {controller = "Help", action = "ViewPage"});
+                endpoints.MapHangfireDashboard();
                 endpoints.MapFallbackToFile("index.html");
             });
         }

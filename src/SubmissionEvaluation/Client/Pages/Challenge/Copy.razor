@@ -1,10 +1,14 @@
 @page "/Challenge/Copy/{challengeId}"
+
 @using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Permissions
-@using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Models
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
 <div class="post-area">
     <div class="post-header">Aufgabe kopieren</div>
     <div class="card-body challenge-creation-panel">
@@ -26,7 +30,7 @@
                         Gibt die neue Challenge-ID an.
                     </p>
                 </div>
-                <button id="btnCopy" name="command" type="submit" value="copy" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-book"></span> Challenge kopieren</button>
+                <button id="btnCopy" name="command" type="submit" value="copy" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-book"></span> Challenge kopieren</button>
             </EditForm>
         }
 
@@ -36,37 +40,34 @@
 @code {
 
     [Parameter]
-    public string challengeId { get; set; }
+    public string ChallengeId { get; set; }
 
     CopyModel Model { get; set; }
 
     protected override async void OnInitialized()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Challenges", Permissions, Restriction.CHALLENGES, challengeId))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Create, "Challenges", permissions, Restriction.Challenges, ChallengeId))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = new CopyModel
-        {
-            NameCopyFrom = challengeId
-        };
+        Model = new CopyModel {NameCopyFrom = ChallengeId};
         StateHasChanged();
     }
 
     public async void CopyChallenge()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<CopyModel>("api/Challenge/Copy", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/Copy", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<CopyModel>();
             if (!Model.HasError)
             {
-                navi.NavigateTo($"/Challenges/Edit/{Model.NameCopyTo}");
+                Navi.NavigateTo($"/Challenges/Edit/{Model.NameCopyTo}");
             }
             else
             {
-                navi.NavigateTo($"Home/Error/{Model.Message}");
+                Navi.NavigateTo($"Home/Error/{Model.Message}");
             }
         }
     }

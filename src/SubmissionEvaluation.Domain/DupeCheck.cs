@@ -1,7 +1,10 @@
 using SubmissionEvaluation.Contracts.Data;
 
-internal class DupeCheck
+namespace SubmissionEvaluation.Domain
 {
-    public Result Result;
-    public string[] Source;
+    internal class DupeCheck
+    {
+        public Result Result;
+        public string[] Source;
+    }
 }

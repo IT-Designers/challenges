@@ -1,5 +1,6 @@
 using System;
 using SubmissionEvaluation.Contracts.Data.Review;
+using System.Collections.Generic;
 
 namespace SubmissionEvaluation.Contracts.Data
 {
@@ -11,11 +12,9 @@ namespace SubmissionEvaluation.Contracts.Data
         string Uid { get; }
         DateTime DateOfEntry { get; }
         bool IsReviewer { get; }
-        int ReviewCounter { get; }
-        ReviewLevel ReviewLevel { get; }
         int ReviewFrequency { get; }
         DateTime LastReview { get; }
-        string[] ReviewLanguages { get; }
+        Dictionary<string, ReviewLevelAndCounter> ReviewLanguages { get; }
         string FirstName { get; }
         DateTime LastActivity { get; }
         string[] Roles { get; }

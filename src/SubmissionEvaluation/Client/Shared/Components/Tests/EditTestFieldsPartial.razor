@@ -1,5 +1,6 @@
 @using SubmissionEvaluation.Shared.Models.Shared
 @using SubmissionEvaluation.Client.Shared.Components.FileExplorer
+
 @if (Model != null)
 {
     <div>
@@ -14,9 +15,8 @@
         <label for="parametersTextAreaArrays">Startparameter</label>
         <div id="parametersTextAreas">
             <ForEachInputText @bind-Parameters="Model.Parameters" NameOfParameter="Parameter"/>
-
         </div>
-        <button id="addParameterButton" type="button" class="btn btn-outline-dark" @onclick="addInputTextArea">Parameter hinzufügen</button>
+        <button id="addParameterButton" type="button" class="btn btn-outline-dark" @onclick="AddInputTextArea">Parameter hinzufügen</button>
         <p id="parametersHelpBlock" class="form-text text-muted">
             Gibt die Parameter an, die beim Programmstart übergeben werden. Eine Textbox entspricht einem Parameter. Der entfernen Button wird erst nach dem Speichern hinzugefügt.
         </p>
@@ -35,14 +35,14 @@
                 <textarea @bind="Model.Output.Alternatives[index]" class="form-control" style="min-height: 200px"></textarea>
             }
         }
-        <button id="btnNewExpectedOutput" name="command" type="button" @onclick="addExpectedOutput" class="btn btn-outline-dark btn-upload"><span class="oi oi-plus"></span> Alternative hinzufügen</button>
+        <button id="btnNewExpectedOutput" name="command" type="button" @onclick="AddExpectedOutput" class="btn btn-outline-dark btn-upload"><span class="oi oi-plus"></span> Alternative hinzufügen</button>
         <p id="outputHelpBlock" class="form-text text-muted">
             Beschreibt die erwartete Programmausgabe. Wird diese nicht erfüllt, schlägt der Test fehl.
         </p>
-        <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#consoleOutputCompareSettings" aria-controls="collapseExample" @onclick="() => collapse = !collapse">
+        <button class="btn btn-outline-dark" type="button" data-toggle="collapse" data-target="#consoleOutputCompareSettings" aria-controls="collapseExample" @onclick="() => Collapse = !Collapse">
             Zeige Vergleichseinstellungen der erwarteten Ausgabe
         </button>
-        <div hidden="@collapse" id="consoleOutputCompareSettings">
+        <div hidden="@Collapse" id="consoleOutputCompareSettings">
             <div class="card card-body">
                 <h6>Vergleichs Modus</h6>
                 <select @bind="Model.Output.CompareSettings.CompareMode">
@@ -164,10 +164,10 @@
             Beschreibt den Inhalt der erwarteten Ausgabedatei.
         </p>
 
-        <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#fileOutputCompareSettings" aria-controls="collapseExample" @onclick="() => collapseFileCompareSettings = !collapseFileCompareSettings">
+        <button class="btn btn-outline-dark" type="button" data-toggle="collapse" data-target="#fileOutputCompareSettings" aria-controls="collapseExample" @onclick="() => CollapseFileCompareSettings = !CollapseFileCompareSettings">
             Zeige Vergleichseinstellungen der erwarteten Ausgabedatei
         </button>
-        <div hidden="@collapseFileCompareSettings" id="fileOutputCompareSettings">
+        <div hidden="@CollapseFileCompareSettings" id="fileOutputCompareSettings">
             <div class="col-border">
                 <h6>Vergleichs Modus</h6>
                 <select @bind="Model.OutputFile.CompareSettings.CompareMode">
@@ -272,7 +272,6 @@
 
     <div>
         <FileExplorer RootFolder='Input' Index="@Model.Id.ToString()" DownloadUrl=@($"api/Download/Challenges/{ChallengeId}")/>
-
     </div>
 
     @*TODO: Change from Text Based to File Based like InputFile*@
@@ -313,8 +312,8 @@
     [Parameter]
     public Folder Input { get; set; }
 
-    bool collapse { get; set; } = true;
-    bool collapseFileCompareSettings { get; set; } = true;
+    bool Collapse { get; set; } = true;
+    bool CollapseFileCompareSettings { get; set; } = true;
 
     protected override void OnInitialized()
     {
@@ -324,15 +323,19 @@
         }
     }
 
-    private void addInputTextArea()
+    private void AddInputTextArea()
     {
         Model.Parameters = Model.Parameters ?? new List<string>();
         Model.Parameters.Add(string.Empty);
         StateHasChanged();
     }
-    private void addExpectedOutput()
+
+    private void AddExpectedOutput()
     {
-        if (Model.Output.Alternatives == null) Model.Output.Alternatives = new List<string>();
+        if (Model.Output.Alternatives == null)
+        {
+            Model.Output.Alternatives = new List<string>();
+        }
         Model.Output.Alternatives.Add("<Alternative>");
     }
 

@@ -1,9 +1,12 @@
-@inject HttpClient HttpClient
-@inject NavigationManager NavigationManager
 @page "/Members/List"
+
 @using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
 
 <style>
     .rankChange { font-size: 1.2em; }
@@ -43,7 +46,7 @@
                 <table class="ranking_table">
                     <thead>
                     <tr class="ranking_head">
-                        @if (Permissions.isAdmin)
+                        @if (Permissions.IsAdmin)
                         {
                             <th class="th_name">
                                 <button @onclick='() => ChangeView("Group", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Gruppen</button>
@@ -52,7 +55,7 @@
                         <th class="th_name">
                             <button @onclick='() => ChangeView("Name", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Name</button>
                         </th>
-                        @if (Settings.EnableRating || Permissions.isAdmin)
+                        @if (Settings.EnableRating || Permissions.IsAdmin)
                         {
                             <th class="th_not_name d-none d-sm-table-cell">
                                 <button @onclick='() => ChangeView("Solved", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Gelöst</button>
@@ -60,7 +63,7 @@
                             <th class="th_not_name d-none d-sm-table-cell">
                                 <button @onclick='() => ChangeView("Challenges", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Erstellt</button>
                             </th>
-                            if (Permissions.isAdmin)
+                            if (Permissions.IsAdmin)
                             {
                                 <th class="th_not_name d-none d-sm-table-cell">
                                     <button @onclick='() => ChangeView("Duplication", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Duplikate</button>
@@ -76,7 +79,7 @@
                                 <button @onclick='() => ChangeView("Stars", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Sterne</button>
                             </th>
                         }
-                        @if (Settings.EnableRating || Permissions.isAdmin)
+                        @if (Settings.EnableRating || Permissions.IsAdmin)
                         {
                             <th class="th_not_name">
                                 <button @onclick='() => ChangeView("Points", Model.FilterMode, Model.FilterValue, Model.IsSemesterRanking)'>Punkte</button>
@@ -89,7 +92,7 @@
                     {
                         var member = Model.Members[submitter.Id];
                         <tr class="ranking_row">
-                            @if (Permissions.isAdmin)
+                            @if (Permissions.IsAdmin)
                             {
                                 <td>
                                     @foreach (var group in member.Groups)
@@ -101,7 +104,7 @@
                             <td>
                                 <a href=@($"/Members/Member/{submitter.Id}")>@member?.Name</a>
                             </td>
-                            @if (Settings.EnableRating || Permissions.isAdmin)
+                            @if (Settings.EnableRating || Permissions.IsAdmin)
                             {
                                 <td class="number">
                                     <span class="my-badge d-none d-sm-table-cell">@submitter.SolvedCount</span>
@@ -109,7 +112,7 @@
                                 <td class="number d-none d-sm-table-cell">
                                     <span class="my-badge">@submitter.ChallengesCreated</span>
                                 </td>
-                                if (Permissions.isAdmin)
+                                if (Permissions.IsAdmin)
                                 {
                                     <td class="number d-none d-sm-table-cell">
                                         <span class="my-badge">@submitter.DuplicationScore</span>
@@ -132,7 +135,7 @@
                                     }
                                 </td>
                             }
-                            @if (Settings.EnableRating || Permissions.isAdmin)
+                            @if (Settings.EnableRating || Permissions.IsAdmin)
                             {
                                 <td class="number">
                                     <span class="my-badge">
@@ -164,21 +167,26 @@
                 }
             </div>
         }
+        else
+        {
+            <Wave />
+        }
     </div>
 </div>
 
 @code {
-        MemberListModel<Contracts.ClientPocos.Member> Model { get; set; }
-        FeatureSettings Settings { get; set; }
-        Permissions Permissions { get; set; }
+    MemberListModel<Contracts.ClientPocos.Member> Model { get; set; }
+    FeatureSettings Settings { get; set; }
+    Permissions Permissions { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         Model = await HttpClient.GetFromJsonAsync<MemberListModel<Contracts.ClientPocos.Member>>("api/Members/ShowList/false");
         Settings = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
         Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if(!PermissionHelper.CheckPermissions(Actions.VIEW, "Members", Permissions) &! Settings.EnableRating) {
-            NavigationManager.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+        if (!PermissionHelper.CheckPermissions(Actions.View, "Members", Permissions) & !Settings.EnableRating)
+        {
+            NavigationManager.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
         StateHasChanged();
     }

@@ -1,9 +1,18 @@
-﻿.ace_editor {
+﻿.editor {
     float: left;
     height: 550px;
     position: relative;
     width: 75%;
     z-index: 1;
+}
+
+.myInlineDecoration {
+	color: white !important;
+    background-color: red;
+	cursor: pointer;
+	text-decoration: underline;
+	font-weight: bold;
+	font-style: oblique;
 }
 
 .comments {
@@ -118,7 +127,7 @@
     background-color: rgba(255, 0, 0, 0.5);
     box-shadow: none;
 }
- 
+
 
 .switch-field option:first-of-type { border-radius: 4px 0 0 4px; }
 

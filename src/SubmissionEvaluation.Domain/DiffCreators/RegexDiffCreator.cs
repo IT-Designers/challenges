@@ -1,24 +1,15 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using System.Web;
-using SubmissionEvaluation.Contracts.Data;
 
 namespace SubmissionEvaluation.Domain.DiffCreators
 {
     internal class RegexDiffCreator : IDiffCreator
     {
         private readonly bool ignoreCase;
-        private readonly bool ignoreUmlauts;
-        private readonly TrimMode trimMode;
-        private readonly bool unifyFloatingNumbers;
-        private readonly WhitespacesMode whitespacesMode;
 
-        public RegexDiffCreator(TrimMode trimMode, bool ignoreCase, bool ignoreUmlauts, bool unifyFloatingNumbers, WhitespacesMode whitespacesMode)
+        public RegexDiffCreator(bool ignoreCase)
         {
-            this.trimMode = trimMode;
             this.ignoreCase = ignoreCase;
-            this.ignoreUmlauts = ignoreUmlauts;
-            this.unifyFloatingNumbers = unifyFloatingNumbers;
-            this.whitespacesMode = whitespacesMode;
         }
 
         public (bool Success, string Details, bool showExpected) GetDiff(string submission, string solution)

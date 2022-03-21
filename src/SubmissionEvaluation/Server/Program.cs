@@ -11,7 +11,10 @@ namespace SubmissionEvaluation.Server
 {
     public static class Program
     {
+#pragma warning disable S1104 // Fields should not have public accessibility
+        // ignored as SchdulesAndTasks.cs uses this field
         public static IWebHost Host;
+#pragma warning restore S1104 // Fields should not have public accessibility
 
         public static int Main(string[] args)
         {

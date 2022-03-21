@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -39,40 +39,40 @@ namespace SubmissionEvaluation.Domain.DiffCreators
             var solutionText = string.Join(Environment.NewLine,
                 arSolutionLines.Select(x => DiffHelper.CleanString(x, trimMode, ignoreCase, ignoreUmlauts, unifyFloatingNumbers, whitespacesMode)));
 
-            var differences = matchSubstring ? DiffAsSubstring(submissionText, solutionText) : DiffViaDiffPlex(submissionText, solutionText);
+            var (success, details) = matchSubstring ? DiffAsSubstring(submissionText, solutionText) : DiffViaDiffPlex(submissionText, solutionText);
 
-            if (differences.Success == false && !string.IsNullOrWhiteSpace(differences.Details))
+            if (success == false && !string.IsNullOrWhiteSpace(details))
             {
-                differences.Details += Environment.NewLine + "<p><b>Hinweis:</b> Der Text wurde in HTML convertiert und ggf. normalisiert. ";
+                details += Environment.NewLine + "<p><b>Hinweis:</b> Der Text wurde in HTML convertiert und ggf. normalisiert. ";
                 if (trimMode != TrimMode.None)
                 {
-                    differences.Details += "Die Zeilen wurden am Anfang/Ende getrimmt. ";
+                    details += "Die Zeilen wurden am Anfang/Ende getrimmt. ";
                 }
 
                 if (ignoreCase)
                 {
-                    differences.Details += "Es wurde alles in Kleinbuchstaben konvertiert. ";
+                    details += "Es wurde alles in Kleinbuchstaben konvertiert. ";
                 }
 
                 if (ignoreUmlauts)
                 {
-                    differences.Details += "Alle Umlaute wurden ersetzt. ";
+                    details += "Alle Umlaute wurden ersetzt. ";
                 }
 
                 if (unifyFloatingNumbers)
                 {
-                    differences.Details += "Kommazahlen wurden vereinheitlicht. ";
+                    details += "Kommazahlen wurden vereinheitlicht. ";
                 }
 
                 if (whitespacesMode != WhitespacesMode.LeaveAsIs)
                 {
-                    differences.Details += "Leerzeichen wurden entfernt. ";
+                    details += "Leerzeichen wurden entfernt. ";
                 }
 
-                differences.Details += "</p>";
+                details += "</p>";
             }
 
-            return (differences.Success, differences.Details, true);
+            return (success, details, true);
         }
 
         private (bool Success, string Details) DiffAsSubstring(string actual, string expected)

@@ -1,0 +1,41 @@
+{
+    "folders": [
+        {
+            "path": ".devcontainer",
+            "name": ".devcontainer"
+        }
+        {
+            "path": "devops",
+            "name": "devops"
+        },
+        {
+            "path": "docs",
+            "name": "docs"
+        },
+        {
+            "path": "src",
+            "name": "src"
+        },
+        {
+            "path": "web",
+            "name": "web"
+        }
+    ],
+    "settings": {},
+    "extensions": {
+        "recommendations": [
+            "ms-dotnettools.vscode-dotnet-pack",
+            // code quality
+            "EditorConfig.EditorConfig",
+            "esbenp.prettier-vscode",
+            "SonarSource.sonarlint-vscode",
+            "fakesharper.fakesharper",
+            // git
+            "donjayamanne.git-extension-pack",
+            "mhutchie.git-graph",
+            // utilities
+            "usernamehw.errorlens",
+            "aaron-bond.better-comments"
+        ]
+    }
+}

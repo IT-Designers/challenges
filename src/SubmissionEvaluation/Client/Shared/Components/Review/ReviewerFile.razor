@@ -1,15 +1,21 @@
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Contracts.Data.Review
 @using Newtonsoft.Json
-@inject IJSRuntime runtime
-@inject ReviewSynchronizer synchronizer
+@using BlazorMonaco
+@using System.Collections.Generic;
+@using SubmissionEvaluation.Shared.Models.Review
 
-<div id="Editorparent">
-    <div>
-        <div @ref="MyElementReference" id="editor" class="ace_editor" style="z-index: 0"></div>
+@inject IToastService ToastService
+@inject IJSRuntime Runtime
+@inject ReviewSynchronizer Synchronizer
+
+@if (Language != null)
+{
+        <MonacoEditor @ref="_editor" Id="editor" CssClass="editor" ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorOnDidInit"/>
         <div>
-            <Comments_Box Categories="Categories" isReadOnly="IsReadOnly" AllComments="AllComments"/>
+            <Comments_Box Editor="_editor" IsReadOnly="IsReadOnly" AllComments="AllComments"/>
         </div>
+        <!--
         <div id="reviewContextMenu" class="context-menu dropdown" hidden="@(!IsContextMenuActive)" style="@ContextMenuStyle">
             <ul class="dropdown-menu context-drop" role="menu" aria-labelledby="dropdownMenu">
                 @foreach ((string, string) tupel in Categories)
@@ -19,14 +25,17 @@
                     </li>
                 }
             </ul>
-        </div>
-    </div>
-</div>
-
+        </div>-->
+}
 @code {
 
+    private MonacoEditor _editor { get; set; }
+
     [Parameter]
-    public IEnumerable<(string Id, string title)> Categories { get; set; }
+    public ReviewFile Initial { get; set; }
+
+    [Parameter]
+    public string Language { get; set; }
 
     [Parameter]
     public Issue CurrentIssue { get; set; }
@@ -41,37 +50,86 @@
     [Parameter]
     public bool IsReadOnly { get; set; }
 
-    protected override void OnInitialized()
-    {
-        synchronizer.SomeDataChanged += StateHasChanged;
-        synchronizer.FileHasChanged += ReloadEditor;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-    //Includes event listeners and style.
-            await runtime.InvokeVoidAsync("loadEditorForReview", synchronizer.CurrentAssoziation.SourceFile.Name, synchronizer.CurrentAssoziation.SourceFile.Content, DotNetObjectReference.Create(this));
-        }
-    }
-
-    async void MarkCodeSmellFromSelection(string Id)
+    private async Task EditorOnDidInit(MonacoEditorBase editor)
     {
         if (!IsReadOnly)
         {
-            var marker = await runtime.InvokeAsync<string>("MarkCodeSmellFromSelection", Id);
-            synchronizer.CurrentAssoziation.Comments.Comments.Add(JsonConvert.DeserializeObject<ReviewComments>(marker));
+        await _editor.AddAction("cr-issue", "Create Issue", new int[] { (int)KeyMode.CtrlCmd | (int)KeyCode.KEY_D, (int)KeyMode.CtrlCmd | (int)KeyCode.KEY_B }, null, null, "navigation", 1.5, async (editor, keyCodes) =>
+        {
+                var sels = await editor.GetSelections();
+                if (Synchronizer.CurrentIssueId!=null || sels.Count < 1)
+                {
+                    var selections = new List<ReviewComments.Selection>();
+                    foreach (var item in sels)
+                    {
+                        selections.Add(new ReviewComments.Selection{start_row = item.StartLineNumber, start_col = item.StartColumn, end_row = item.EndLineNumber, end_col=item.EndColumn});
+                    }
+                    var mark = new ReviewCodeComments();
+                    var com = new ReviewComments{AssignedIssue = Synchronizer.CurrentIssueId, Selections = selections, Title = Synchronizer.CurrentIssueTitle };
+                    Synchronizer.CurrentAssociation.Comments.Comments.Add(com);
+                    UpdateAllComments();
+                    Console.WriteLine(Synchronizer.CurrentIssueTitle);
+                }
+                else
+                {
+                    ToastService.ShowError("Bitte eine Problem Kategorie auswählen und ein Markierung im Editor setzen! ", "Error");
+                }
+        });
+        }
+        TextModel original_model = await MonacoEditorBase.GetModel("code-editor");
+        string original_value = "";
+        if (Synchronizer.CurrentAssociation == null)
+        {
+            original_value = Initial.Content;
+        }
+        else
+            original_value =  Synchronizer.CurrentAssociation.SourceFile.Content;
+
+        if (original_model == null)
+            original_model = await MonacoEditorBase.CreateModel(original_value, Language.ToLower(), "code-editor");
+        else
+        {
+            await original_model.SetValue(original_value);
+        }
+        await _editor.SetModel(original_model);
+    }
+
+    protected override void OnInitialized()
+    {
+        Synchronizer.SomeDataChanged += StateHasChanged;
+        Synchronizer.FileHasChanged += ReloadEditor;
+        UpdateAllComments();
+        ReloadEditor();
+        StateHasChanged();
+    }
+
+    async void MarkCodeSmellFromSelection(string id)
+    {
+        if (!IsReadOnly)
+        {
+            var marker = await Runtime.InvokeAsync<string>("MarkCodeSmellFromSelection", id);
+            Synchronizer.CurrentAssociation.Comments.Comments.Add(JsonConvert.DeserializeObject<ReviewComments>(marker));
             UpdateAllComments();
         }
         HideMenu();
     }
 
+private StandaloneEditorConstructionOptions EditorConstructionOptions(MonacoEditor editor)
+{
+	return new StandaloneEditorConstructionOptions
+	{
+		AutomaticLayout = false,
+		Language = "",
+        Value = Initial.Content,
+        ReadOnly = true
+	};
+}
+
     [JSInvokable("ShowMenu")]
     public async void ShowMenu(double[] positionEvent)
     {
         IsContextMenuActive = true;
-        var position = await runtime.InvokeAsync<double[]>("CalculatePosition", positionEvent[0], positionEvent[1]);
+        var position = await Runtime.InvokeAsync<double[]>("CalculatePosition", positionEvent[0], positionEvent[1]);
         ContextMenuStyle = $"top: {position[1]}px; left: {position[0]}px;";
         StateHasChanged();
     }
@@ -94,22 +152,51 @@
         {
             return;
         }
-        var marker = await runtime.InvokeAsync<string>("MarkIssue", CurrentIssue.Category, CurrentIssue.Id, CurrentIssue.SmellComment);
-        synchronizer.CurrentAssoziation.Comments.Comments.Add(JsonConvert.DeserializeObject<ReviewComments>(marker));
+        var marker = await Runtime.InvokeAsync<string>("MarkIssue", CurrentIssue.Category, CurrentIssue.Id, CurrentIssue.SmellComment);
+        Synchronizer.CurrentAssociation.Comments.Comments.Add(JsonConvert.DeserializeObject<ReviewComments>(marker));
         UpdateAllComments();
         HideMenu();
     }
 
     void UpdateAllComments()
     {
-        AllComments.UnionWith(synchronizer.CurrentAssoziation.Comments.Comments);
-        //All comments are updated automatically, due the reference is not changed.
-        synchronizer.InvokeEvent();
+        AllComments.UnionWith(Synchronizer.CurrentAssociation.Comments.Comments);
+    //All comments are updated automatically, due the reference is not changed.
+        Synchronizer.InvokeEvent();
     }
 
     async void ReloadEditor()
     {
-        await runtime.InvokeVoidAsync("changeContent", synchronizer.CurrentAssoziation.SourceFile.Name, synchronizer.CurrentAssoziation.SourceFile.Content);
+        TextModel original_model = await MonacoEditorBase.GetModel("code-editor");
+        string original_value = "";
+        if (Synchronizer.CurrentAssociation == null)
+        {
+            original_value = Initial.Content;
+        }
+        else
+            original_value =  Synchronizer.CurrentAssociation.SourceFile.Content;
+
+        if (Language == null)
+        {
+            if (original_model == null)
+                original_model = await MonacoEditorBase.CreateModel(original_value, "", "code-editor");
+            else
+                await original_model.SetValue(original_value);
+        }
+        else
+        {
+            if (original_model == null)
+                original_model = await MonacoEditorBase.CreateModel(original_value, Language.ToLower(), "code-editor");
+            else
+                await original_model.SetValue(original_value);
+        }
+        Console.WriteLine("Did Init!");
+        if (_editor != null)
+            await _editor.SetModel(original_model);
+        //var model = await _editor.GetModel("code-editor");
+        //await MonacoEditorBase.SetModelLanguage(model, Language.ToLower());
+        UpdateAllComments();
+        //await _editor.SetValue(Synchronizer.CurrentAssociation.SourceFile.Content);
     }
 
 }

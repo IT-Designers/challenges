@@ -1,10 +1,10 @@
-﻿@using SubmissionEvaluation.Shared.Models.Shared
+@using SubmissionEvaluation.Shared.Models.Shared
 <div class="@ButtonStyling">
-    <button type="button" hidden="@(!hidden)" class="btn btn-primary file-button @ButtonStyling new_button" @onclick="ShowOrHide">Neuer Ordner</button>
-    <input hidden="@hidden" @bind-value="@FolderName" style="@fontColor" class="folder_input @ButtonStyling" @onkeypress="() => { fontColor = InputButtonHelper.GetNormalColor();StateHasChanged(); }"/>
+    <button type="button" hidden="@(!Hidden)" class="btn btn-outline-dark file-button @ButtonStyling new_button" @onclick="ShowOrHide">Neuer Ordner</button>
+    <input hidden="@Hidden" @bind-value="@FolderName" style="@FontColor" class="folder_input @ButtonStyling" @onkeypress="() => { FontColor = InputButtonHelper.GetNormalColor; StateHasChanged(); }"/>
     <div class="align-center">
-        <button type="button" hidden="@hidden" class="btn btn-primary file-button @ButtonStyling" @onclick="NewFolder">Anlegen</button>
-        <button type="button" hidden="@hidden" class="btn btn-primary file-button @ButtonStyling" @onclick="ShowOrHide">Abbrechen</button>
+        <button type="button" hidden="@Hidden" class="btn btn-outline-dark file-button @ButtonStyling" @onclick="NewFolder">Anlegen</button>
+        <button type="button" hidden="@Hidden" class="btn btn-outline-dark file-button @ButtonStyling" @onclick="ShowOrHide">Abbrechen</button>
     </div>
 </div>
 
@@ -22,10 +22,10 @@
     [Parameter]
     public string Path { get; set; }
 
-    public bool hidden { get; set; } = true;
+    public bool Hidden { get; set; } = true;
     private string ButtonStyling { get; set; } = "newFolderButtonFlexed";
     public string FolderName { get; set; } = "Enter a name.";
-    public string fontColor { get; set; } = InputButtonHelper.GetNormalColor();
+    public string FontColor { get; set; } = InputButtonHelper.GetNormalColor;
 
     [Parameter]
     public EventCallback<List<DetailedInputFile>> FilesChanged { get; set; } = new EventCallback<List<DetailedInputFile>>();
@@ -40,21 +40,21 @@
 
     public void ShowOrHide()
     {
-        hidden = !hidden;
+        Hidden = !Hidden;
     }
 
     public void NewFolder()
     {
         if (InputButtonHelper.CheckValidity(OtherFiles, Files, FolderName, new File()))
         {
-            var folder = new Folder {Name = FolderName, OriginalName = FolderName, Path = Path.StartsWith(Folder.pathSeperator) ? "" : Path};
+            var folder = new Folder {Name = FolderName, OriginalName = FolderName, Path = Path.StartsWith(Folder.PathSeperator) ? "" : Path};
             Files.Add(folder);
             ShowOrHide();
             FilesChanged.InvokeAsync(Files);
         }
         else
         {
-            fontColor = "color:red;";
+            FontColor = "color:red;";
         }
         StateHasChanged();
     }

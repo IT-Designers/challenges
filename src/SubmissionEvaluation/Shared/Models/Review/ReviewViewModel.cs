@@ -14,7 +14,7 @@ namespace SubmissionEvaluation.Shared.Models.Review
         public ReviewRating ReviewRating { get; set; }
         public List<(string Id, string Title)> Categories { get; set; }
         public Dictionary<string, CommentModel[]> Comments { get; set; }
-
+        public string Language { get; set; }
         public int CalculateReviewRating(ReviewRating rating) //TODO: COPY FROM REVIEW OPERATIONS REMOVE
         {
             if (rating.Rating == null)

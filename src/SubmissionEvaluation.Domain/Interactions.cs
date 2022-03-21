@@ -160,10 +160,11 @@ namespace SubmissionEvaluation.Domain
             var challengeToCopy = domain.ProviderStore.FileProvider.LoadChallenge(challenge.Id);
             challengeToCopy.Id = toChallengeName;
             challengeToCopy.IsDraft = true;
-            challengeToCopy.AuthorID = userId;
+            challengeToCopy.AuthorId = userId;
             challengeToCopy.Date = DateTime.Now;
-            challengeToCopy.LastEditorID = null;
+            challengeToCopy.LastEditorId = null;
             challengeToCopy.LearningFocus = challenge.LearningFocus;
+            challengeToCopy.FreezeDifficultyRating = challenge.FreezeDifficultyRating;
             domain.ProviderStore.FileProvider.CreateChallenge(challengeToCopy);
 
             using (var writeLock = domain.ProviderStore.FileProvider.GetLock())
@@ -193,7 +194,9 @@ namespace SubmissionEvaluation.Domain
             domain.Log.Information($"Interaktion: Kopiere Gruppe {group.Id} zu {toGroupName}");
             var groupToCopy = domain.ProviderStore.FileProvider.LoadGroup(group.Id);
             groupToCopy.Id = toGroupName;
-            domain.ProviderStore.FileProvider.CreateGroup(groupToCopy.Id, groupToCopy.Title, groupToCopy.GroupAdminIds, groupToCopy.IsSuperGroup, groupToCopy.SubGroups, groupToCopy.ForcedChallenges, groupToCopy.AvailableChallenges, groupToCopy.MaxUnlockedChallenges, groupToCopy.RequiredPoints, groupToCopy.StartDate);
+            domain.ProviderStore.FileProvider.CreateGroup(groupToCopy.Id, groupToCopy.Title, groupToCopy.GroupAdminIds, groupToCopy.IsSuperGroup,
+                groupToCopy.SubGroups, groupToCopy.ForcedChallenges, groupToCopy.AvailableChallenges, groupToCopy.MaxUnlockedChallenges,
+                groupToCopy.RequiredPoints, groupToCopy.StartDate, groupToCopy.EndDate);
 
             using (var writeLock = domain.ProviderStore.FileProvider.GetLock())
             {
@@ -225,7 +228,7 @@ namespace SubmissionEvaluation.Domain
         {
             var props = domain.ProviderStore.FileProvider.LoadChallenge(changes.Id, writeLock);
             props.Title = changes.Title;
-            props.AuthorID = changes.AuthorID;
+            props.AuthorId = changes.AuthorId;
             props.Category = changes.Category;
             props.RatingMethod = changes.RatingMethod;
             props.IsDraft = changes.IsDraft;
@@ -340,16 +343,20 @@ namespace SubmissionEvaluation.Domain
             }
 
             domain.Log.Information("Interaktion: Registriere neuen user {username}", username);
-            var member = domain.MemberProvider.GetMemberByName(username);
+            var member = domain.MemberProvider.GetMemberByName(fullname);
             if (member != null)
             {
-                throw new Exception("User already exists");
+                throw new Exception("User with fullname already exists");
             }
 
-            member = domain.Interactions.AddMember(username, "");
-            domain.MemberProvider.UpdateUid(member, username);
+            member = domain.MemberProvider.GetMemberByUid(username);
+            if (member != null)
+            {
+                throw new Exception("User with Uid already exists");
+            }
+
+            member = domain.Interactions.AddMember(fullname, "", username);
             domain.MemberProvider.UpdatePassword(member, passwordHash);
-            domain.MemberProvider.UpdateName(member, fullname);
             return member;
         }
 
@@ -570,6 +577,25 @@ namespace SubmissionEvaluation.Domain
             domain.StatisticsOperations.UpdateBundleDifficultyRatings(bundles);
         }
 
+        public void ResetMemberAvailableChallenges(string memberId)
+        {
+            if (domain.IsMaintenanceMode)
+            {
+                domain.Log.Warning("Interaktion: System ist im Wartungsmodus");
+                return;
+            }
+
+            var member = domain.MemberProvider.GetMemberById(memberId);
+            if (member == null)
+            {
+                domain.Log.Warning($"Interaktion: Ein Nutzer mit der Benutzerid {memberId} existiert nicht.");
+                return;
+            }
+
+            domain.Log.Information($"Interaktion: Zurücksetzen der verfügbaren Challenges für Benutzerid {memberId}");
+            domain.MemberProvider.ResetMemberAvailableChallenges(member);
+        }
+
         public void DeleteMember(string memberId)
         {
             if (domain.IsMaintenanceMode)
@@ -578,8 +604,14 @@ namespace SubmissionEvaluation.Domain
                 return;
             }
 
-            domain.Log.Information($"Interaktion: Lösche Nutzer mit der Benutzerid {memberId}");
             var member = domain.MemberProvider.GetMemberById(memberId);
+            if (member == null)
+            {
+                domain.Log.Warning($"Interaktion: Ein Nutzer mit der Benutzerid {memberId} existiert nicht.");
+                return;
+            }
+
+            domain.Log.Information($"Interaktion: Lösche Nutzer mit der Benutzerid {memberId}");
             domain.Maintenance.EnsureMemberIsNotChallengeAuthor(member);
             var dataStore = domain.ProviderStore;
             SubmissionOperations.DeleteSubmissionForMember(dataStore, member);
@@ -729,7 +761,7 @@ namespace SubmissionEvaluation.Domain
 
             domain.Log.Information("Interaktion: Prüfe nach potentiellen neuen Reviewern");
             var ranklist = domain.ProviderStore.FileProvider.LoadGlobalRanklist();
-            domain.ReviewOperations.ActivateNewReviewers();
+            //domain.ReviewOperations.ActivateNewReviewers();
             domain.ReviewOperations.UpgradeReviewerLevels();
             domain.ReviewOperations.UpdateReviewerLanguages(ranklist);
         }
@@ -746,7 +778,19 @@ namespace SubmissionEvaluation.Domain
             domain.StatisticsOperations.UpdateGlobalRanking();
         }
 
-        public void IdentifyInactiveMembers()
+        public void Cleanup()
+        {
+            if (domain.IsMaintenanceMode)
+            {
+                domain.Log.Warning("Interaktion: System ist im Wartungsmodus");
+                return;
+            }
+
+            domain.Log.Information("Interaktion: Cleanup");
+            domain.Maintenance.Cleanup();
+        }
+
+        public void IdentifyActivityStatusForMembers()
         {
             if (domain.IsMaintenanceMode)
             {
@@ -755,7 +799,7 @@ namespace SubmissionEvaluation.Domain
             }
 
             domain.Log.Information("Interaktion: Identifiziere inaktive Mitglieder");
-            domain.Maintenance.MarkInactiveUsers();
+            domain.Maintenance.MarkActivityStatusForUsers();
         }
 
         public void LoadCompilerData()
@@ -977,7 +1021,7 @@ namespace SubmissionEvaluation.Domain
             domain.MemberProvider.UpdateRoles(member, roles.ToArray());
         }
 
-        public void IncreaseReviewLevel(IMember member)
+        public void IncreaseReviewLevel(IMember member, string language)
         {
             if (domain.IsMaintenanceMode)
             {
@@ -985,12 +1029,12 @@ namespace SubmissionEvaluation.Domain
                 return;
             }
 
-            if (member.ReviewLevel == ReviewLevel.Master)
+            if (member.ReviewLanguages[language].ReviewLevel == ReviewLevelType.Master || member.ReviewLanguages[language].ReviewLevel == ReviewLevelType.Deactivated)
             {
                 return;
             }
 
-            domain.MemberProvider.UpdateReviewLevel(member, member.ReviewLevel + 1);
+            domain.MemberProvider.UpdateReviewLevel(member, language, member.ReviewLanguages[language].ReviewLevel + 1);
         }
 
         public void ActivatePendingMember(IMember member)
@@ -1041,6 +1085,7 @@ namespace SubmissionEvaluation.Domain
 
             domain.Log.Information("Interaktion: Suche nach Code Duplikaten:");
             var fp = domain.ProviderStore.FileProvider;
+            var query = domain.Query;
             var challenges = fp.GetChallengeIds();
             foreach (var challenge in challenges)
             {
@@ -1052,17 +1097,19 @@ namespace SubmissionEvaluation.Domain
                     domain.Log.Information("- " + challenge);
                     foreach (var sub in submissions)
                     {
-                        var files = fp.GetSubmissionFilesPath(sub.Result);
+                        var files = query.GetSubmissionRelativeFilesPathInZip(sub.Result);
                         var compiler = domain.CompilerOperations.GetCompilerForContent(files);
-                        var srcFiles = compiler.GetSourceFiles(files).Select(x => Regex.Replace(File.ReadAllText(x).ToLower(), @"[\s\n\r]+", string.Empty));
+                        var srcFiles = compiler.GetSourceFiles(files).Select(x => Regex.Replace(query.GetSubmissionSourceCodeInZip(sub.Result,x).ToLower(), @"[\s\n\r]+", string.Empty));
                         sub.Source = srcFiles.ToArray();
                     }
-                    
+
                     foreach (var toCheck in notChecked)
                     {
                         var bestScore = 0;
                         Result bestMatch = null;
-                        foreach (var sub in submissions.Where(x => x.Result.SubmissionDate < toCheck.Result.SubmissionDate && x.Result.SubmissionDate >= toCheck.Result.SubmissionDate.AddDays(-Settings.DuplicateCheckWindow)))
+                        foreach (var sub in submissions.Where(x =>
+                            x.Result.SubmissionDate < toCheck.Result.SubmissionDate &&
+                            x.Result.SubmissionDate >= toCheck.Result.SubmissionDate.AddDays(-Settings.DuplicateCheckWindow)))
                         {
                             var score = EvaluateDuplicationScore(toCheck, sub);
                             if (score > bestScore)
@@ -1142,7 +1189,7 @@ namespace SubmissionEvaluation.Domain
                 return;
             }
 
-            if (!member.IsAdmin && challenge.AuthorID != member.Id)
+            if (!member.IsAdmin && challenge.AuthorId != member.Id)
             {
                 throw new UnauthorizedAccessException($"Nicht mehr lauffähige Submissions für {challenge.Id} durch {member.Name} nicht löschbar.");
             }
@@ -1180,7 +1227,7 @@ namespace SubmissionEvaluation.Domain
             }
 
             domain.Log.Information("Interaktion: Lösche Challenge {challenge} durch {member}", challenge.Id, member.Name);
-            if (!member.IsAdmin && member.Id != challenge.AuthorID)
+            if (!member.IsAdmin && member.Id != challenge.AuthorId)
             {
                 throw new UnauthorizedAccessException($"{member.Name} darf Challenge {challenge.Id} nicht löschen!");
             }
@@ -1205,7 +1252,7 @@ namespace SubmissionEvaluation.Domain
             domain.Log.Information("Interaktion: Dupliziere Test {id} für {challenge} durch {member}", testid, challengeId, member.Name);
             using var writeLock = domain.ProviderStore.FileProvider.GetLock();
             var challenge = domain.ProviderStore.FileProvider.LoadChallenge(challengeId, writeLock);
-            if (!member.IsAdmin && member.Id != challenge.AuthorID)
+            if (!member.IsAdmin && member.Id != challenge.AuthorId)
             {
                 throw new Exception("Access denied for User " + member.Id);
             }
@@ -1239,7 +1286,7 @@ namespace SubmissionEvaluation.Domain
             domain.Log.Information("Interaktion: Verbessere Schwierigkeitseinstufung für {challenge} durch {member}", challengeId, member.Name);
 
             var challenge = domain.ProviderStore.FileProvider.LoadChallenge(challengeId);
-            if (!member.IsAdmin && member.Id != challenge.AuthorID)
+            if (!member.IsAdmin && member.Id != challenge.AuthorId)
             {
                 throw new Exception("Access denied for User " + member.Id);
             }
@@ -1256,7 +1303,7 @@ namespace SubmissionEvaluation.Domain
             var sorted = challenges.OrderBy(x => x.State.FeasibilityIndex > 0 ? x.State.FeasibilityIndex : max).ToList();
             var feasibilityIndex = challenge.State.FeasibilityIndex;
             var challengeBefore = sorted.FirstOrDefault(x => x.State.FeasibilityIndex > feasibilityIndex);
-            if (challengeBefore != null && !challengeBefore.StickAsBeginner)
+            if (challengeBefore?.FreezeDifficultyRating == false)
             {
                 var diff = levels + challengeBefore.State.FeasibilityIndex - challenge.State.FeasibilityIndex;
                 challenge.State.FeasibilityIndexMod += diff;
@@ -1276,7 +1323,7 @@ namespace SubmissionEvaluation.Domain
 
             domain.Log.Information("Interaktion: Veringere Schwierigkeitseinstufung für {challenge} durch {member}", challengeId, member.Name);
             var challenge = domain.ProviderStore.FileProvider.LoadChallenge(challengeId);
-            if (!member.IsAdmin && member.Id != challenge.AuthorID)
+            if (!member.IsAdmin && member.Id != challenge.AuthorId)
             {
                 throw new Exception("Access denied for User " + member.Id);
             }
@@ -1288,7 +1335,7 @@ namespace SubmissionEvaluation.Domain
         {
             using var writeLock = domain.ProviderStore.FileProvider.GetLock();
             var challenge = domain.ProviderStore.FileProvider.LoadChallenge(challengeId, writeLock);
-            if (challenge.State.FeasibilityIndex == 0 || challenge.StickAsBeginner)
+            if (challenge.State.FeasibilityIndex == 0)
             {
                 return;
             }
@@ -1329,7 +1376,7 @@ namespace SubmissionEvaluation.Domain
                     throw new Exception("Challenge can not be published");
                 }
 
-                if (!member.IsAdmin && challenge.AuthorID != member.Id)
+                if (!member.IsAdmin && challenge.AuthorId != member.Id)
                 {
                     throw new Exception("Challenge can not be published");
                 }
@@ -1349,35 +1396,34 @@ namespace SubmissionEvaluation.Domain
             return member;
         }
 
-        public void CreateGroup(IMember member, string id, string title, List<string> groupAdminIds, bool isSuperGroup, string[] subGroups, string[] forcedChallenges, string[] availableChallenges,
-            int maxUnlockedChallenges, int? requiredPoints, DateTime? startDate)
+        public void CreateGroup(IMember member, string id, string title, List<string> groupAdminIds, bool isSuperGroup, string[] subGroups,
+            string[] forcedChallenges, string[] availableChallenges, int maxUnlockedChallenges, int? requiredPoints, DateTime? startDate, DateTime? endDate)
         {
             if (requiredPoints == 0)
             {
                 requiredPoints = null;
             }
 
-            domain.ProviderStore.FileProvider.CreateGroup(id, title, groupAdminIds, isSuperGroup, subGroups, forcedChallenges, availableChallenges, maxUnlockedChallenges,
-                requiredPoints, startDate);
+            domain.ProviderStore.FileProvider.CreateGroup(id, title, groupAdminIds, isSuperGroup, subGroups, forcedChallenges, availableChallenges,
+                maxUnlockedChallenges, requiredPoints, startDate, endDate);
         }
 
-        public void EditGroup(IMember member, string id, string title, List<string> groupAdminIds, bool isSuperGroup, string[] subGroups, string[] forcedChallenges, string[] availableChallenges,
-            int maxUnlockedChallenges, int? requiredPoints, DateTime? startDate)
+        public void EditGroup(IMember member, string id, string title, List<string> groupAdminIds, bool isSuperGroup, string[] subGroups,
+            string[] forcedChallenges, string[] availableChallenges, int maxUnlockedChallenges, int? requiredPoints, DateTime? startDate, DateTime? endDate)
         {
-            using (var writeLock = domain.ProviderStore.FileProvider.GetLock())
-            {
-                var group = domain.ProviderStore.FileProvider.LoadGroup(id, writeLock);
-                group.Title = title;
-                group.GroupAdminIds = groupAdminIds ?? new List<string>();
-                group.ForcedChallenges = forcedChallenges;
-                group.AvailableChallenges = availableChallenges;
-                group.MaxUnlockedChallenges = maxUnlockedChallenges;
-                group.RequiredPoints = requiredPoints;
-                group.StartDate = startDate;
-                group.IsSuperGroup = isSuperGroup;
-                group.SubGroups = subGroups;
-                domain.ProviderStore.FileProvider.SaveGroup(group, writeLock);
-            }
+            using var writeLock = domain.ProviderStore.FileProvider.GetLock();
+            var group = domain.ProviderStore.FileProvider.LoadGroup(id, writeLock);
+            @group.Title = title;
+            @group.GroupAdminIds = groupAdminIds ?? new List<string>();
+            @group.ForcedChallenges = forcedChallenges;
+            @group.AvailableChallenges = availableChallenges;
+            @group.MaxUnlockedChallenges = maxUnlockedChallenges;
+            @group.RequiredPoints = requiredPoints;
+            @group.StartDate = startDate;
+            @group.EndDate = endDate;
+            @group.IsSuperGroup = isSuperGroup;
+            @group.SubGroups = subGroups;
+            domain.ProviderStore.FileProvider.SaveGroup(@group, writeLock);
         }
 
         public void DeleteGroup(string id)
@@ -1403,11 +1449,11 @@ namespace SubmissionEvaluation.Domain
                 var firstAdmin = members.Values.OrderBy(x => x.DateOfEntry).First(x => x.IsAdmin);
                 foreach (var challenge in domain.ProviderStore.FileProvider.LoadChallenges())
                 {
-                    if (!members.ContainsKey(challenge.AuthorID))
+                    if (!members.ContainsKey(challenge.AuthorId))
                     {
                         using var writeLock = domain.ProviderStore.FileProvider.GetLock();
                         var update = domain.ProviderStore.FileProvider.LoadChallenge(challenge.Id, writeLock);
-                        update.AuthorID = firstAdmin.Id;
+                        update.AuthorId = firstAdmin.Id;
                         domain.ProviderStore.FileProvider.SaveChallenge(update, writeLock);
                     }
                 }
@@ -1441,9 +1487,9 @@ namespace SubmissionEvaluation.Domain
 
             var challenge = domain.ProviderStore.FileProvider.LoadChallengeFromZip(data);
 
-            if (domain.MemberProvider.GetMemberById(challenge.Item1.AuthorID) == null)
+            if (domain.MemberProvider.GetMemberById(challenge.Item1.AuthorId) == null)
             {
-                challenge.Item1.AuthorID = domain.MemberProvider.GetMembers().OrderBy(x => x.DateOfEntry).First(x => x.IsAdmin).Id;
+                challenge.Item1.AuthorId = domain.MemberProvider.GetMembers().OrderBy(x => x.DateOfEntry).First(x => x.IsAdmin).Id;
             }
 
             if (domain.ProviderStore.FileProvider.ChallengeExists(challenge.Item1.Id))

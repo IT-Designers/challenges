@@ -11,9 +11,9 @@ namespace SubmissionEvaluation.Contracts.Data
 
         [YamlIgnore] public string Name { get; set; }
 
-        [YamlMember(Alias = "Author")] public string AuthorID { get; set; }
+        [YamlMember(Alias = "Author")] public string AuthorId { get; set; }
 
-        [YamlMember(Alias = "LastEditor")] public string LastEditorID { get; set; }
+        [YamlMember(Alias = "LastEditor")] public string LastEditorId { get; set; }
 
         public string Title { get; set; }
         public bool HasError { get; set; }

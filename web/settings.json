@@ -1,6 +1,9 @@
 {
+    "Authentication": {
+        "RegistrationMessage": ""
+    },
     "Duplicate": {
-        "duplicate-check-window": 365
+        "DuplicateCheckWindow": 365
     },
     "Permissions": {
         "Creator": {
@@ -21,24 +24,26 @@
     },
     "ToolPaths": {
         "CCompiler": "gcc",
+        "CMake": "cmake",
         "CppCheck": "cppcheck",
         "CppCompiler": "g++",
-        "CMake": "cmake",
         "DotNet": "dotnet",
         "Go": "go",
+        "Dart": "dart",
         "HaskellCompiler": "ghc",
+        "IoRuntime": "io",
         "Java": "java",
-        "Maven": "mvn",
         "Julia": "julia",
         "KotlinCompiler": "kotlinc",
-        "Miktex": "/usr/local/bin",
-        "NodeJS": "node",
+        "Maven": "mvn",
+        "Node": "node",
         "Npm": "npm",
-        "Pandoc": "pandoc",
         "Perl": "perl",
         "Python": "python3",
+        "Tu": "tu-cli",
         "Rust": "rustc",
         "RustCargo": "cargo",
+        "RustCompiler": "rustc",
         "Scala": "scala",
         "ScalaCompiler": "scalac",
         "TypeScriptCompiler": "tsc"
@@ -47,11 +52,11 @@
         "Delaytime": "60",
         "Inactive": "false",
         "InstancePort": "80",
-        "InstanceName": "Test",
+        "InstanceName": "Prod",
         "WebApiPassphrase": "Pappna$e",
         "PathToServerWwwRoot": "/app/wwwroot",
-        "PathToLogger": "../log/log.txt",
-        "BaseUrl": "http://localhost"
+        "SiteUrl": "http://localhost",
+        "DeleteAfterMoreThenOneYearInactivity": "false"
     },
     "Ldap": {
         "Ip": "127.0.0.1",
@@ -68,179 +73,219 @@
         "ImapServer": "awe",
         "SmtpServer": "awe",
         "SendMailAddress": "awe",
-        "HelpMailAddress": "awe"
+        "HelpMailAddress": "awe",
+        "Port": "22"
     },
     "Features": {
+        "EnableAchievements": true,
+        "EnableAutoUpdate": false,
+        "EnableEffortEstimation": true,
+        "EnableLdap": false,
+        "EnableRating": true,
         "EnableReview": true,
         "EnableReviewerPromotion": true,
-        "EnableRating": true,
-        "EnableAchivements": true,
         "EnableSendMail": false,
         "EnableUseGogs": false,
-        "EnableEffortEstamination": true,
-        "EnableAutoUpdate": false,
-        "EnableLdap": false,
         "RequiresMemberActivation": false
-    },
-    "Authentication": {
-        "RegistrationMessage": ""
     },
     "Customization": {
         "RatingMethods": {
-            "fixed": {
-                "title": "Feste Punktzahl",
-                "color": "AF9B60"
+            "Fixed": {
+                "Title": "Feste Punktzahl",
+                "Color": "AF9B60"
             },
-            "exec_time": {
-                "title": "Ausführzeit",
-                "color": "79a66E"
+            "ExecTime": {
+                "Title": "Ausführzeit",
+                "Color": "79a66E"
             },
-            "submission_time": {
-                "title": "Einreichdatum",
-                "color": "72A7A7"
+            "SubmissionTime": {
+                "Title": "Einreichdatum",
+                "Color": "72A7A7"
             },
-            "score": {
-                "title": "Punkte",
-                "color": "BB00FF"
+            "Score": {
+                "Title": "Punkte",
+                "Color": "BB00FF"
             }
         },
         "Categories": {
-            "Grundlagen": {
-                "title": "Grundlagen",
-                "color": 0
-            },
-            "Fortgeschritten": {
-                "title": "Fortgeschritten",
-                "color": 0
+            "Games": {
+                "Title": "Games",
+                "Color": 0
             },
             "Katas": {
-                "title": "Katas",
-                "color": 0
+                "Title": "Katas",
+                "Color": 0
+            }
+        },
+        "Levels": {
+            "Beginner": {
+                "Title": "Anfänger",
+                "Color": "4AA533",
+                "Difficulty": 0
             },
-            "Maths": {
-                "title": "Maths",
-                "color": 0
+            "Easy": {
+                "Title": "Einfach",
+                "Color": "79a66E",
+                "Difficulty": 1
+            },
+            "Normal": {
+                "Title": "Normal",
+                "Color": "AF9B60",
+                "Difficulty": 2
+            },
+            "Hard": {
+                "Title": "Schwer",
+                "Color": "D15300",
+                "Difficulty": 3
+            },
+            "Impossible": {
+                "Title": "Unmöglich",
+                "Color": "FF0000",
+                "Difficulty": 4
             }
         },
         "Achievements": {
             "selfpublisher": {
-                "description": "Veröffentliche eine Aufgabe",
-                "titel": "Selbstverleger"
+                "Description": "Veröffentliche eine Aufgabe",
+                "Title": "Selbstverleger"
             },
-            "coach": {
-                "description": "Reviewe 3 Einreichung",
-                "titel": "Coach"
+            "Coach": {
+                "Description": "Reviewe 3 Einreichung",
+                "Title": "Coach"
             },
-            "beginner": {
-                "description": "Reiche erfolgreich eine Lösung ein",
-                "titel": "Anfänger"
+            "Beginner": {
+                "Description": "Reiche erfolgreich eine Lösung ein",
+                "Title": "Anfänger"
             },
-            "working": {
-                "description": "Reiche erfolgreich 25 Lösungen ein",
-                "titel": "Arbeiter"
+            "Working": {
+                "Description": "Reiche erfolgreich 25 Lösungen ein",
+                "Title": "Arbeiter"
             },
-            "gettingOld": {
-                "description": "Neue Mitglieder (mind. 5) nach deiner Anmeldung. Wie wäre es mit ein bisschen Werbung? ;-)",
-                "titel": "Altern"
+            "GettingOld": {
+                "Description": "Neue Mitglieder (mind. 5) nach deiner Anmeldung. Wie wäre es mit ein bisschen Werbung? ;-)",
+                "Title": "Altern"
             },
-            "polyglot": {
-                "description": "Löse eine Aufgabe mit allen verfügbaren Sprachen",
-                "titel": "Polyglot"
+            "JuniorDeveloper": {
+                "Description": "Löse 10 Aufgaben auf Level Einfach oder höher",
+                "Title": "Junior Entwickler"
             },
-            "teacher": {
-                "description": "Reviewe 30 Einreichungen",
-                "titel": "Lehrer"
+            "Developer": {
+                "Description": "Löse 10 Aufgaben auf Level Normal oder höher",
+                "Title": "Entwickler"
             },
-            "writer": {
-                "description": "Veröffentliche fünf Aufgaben",
-                "titel": "Schreiberling"
+            "MolehillClimber": {
+                "Description": "Löse eine Aufgabe auf Level Einfach als Erster in einer Programmiersprache die bisher noch nicht verwendet wurde",
+                "Title": "Maulwurfhügelbezwinger"
             },
-            "fiveInARow": {
-                "description": "Reiche erfolgreich 5 Lösungen hintereinander ein, ohne dass eine Einreichung fehlschlägt (mit jeweils der ersten Einreichung)",
-                "titel": "Perfektionist"
+            "Boulderer": {
+                "Description": "Löse eine Aufgabe auf Level Normal als Erster in einer Programmiersprache die bisher noch nicht verwendet wurde",
+                "Title": "Boulderer"
             },
-            "heavyWorking": {
-                "description": "Reiche erfolgreich 50 Lösungen ein",
-                "titel": "Schwerstarbeit"
+            "Polyglot": {
+                "Description": "Löse eine Aufgabe mit allen verfügbaren Sprachen",
+                "Title": "Polyglot"
             },
-            "hillClimber": {
-                "description": "Löse eine Aufgabe als Erster in einer Programmiersprache die bisher noch nicht verwendet wurde",
-                "titel": "Hügelbesteiger"
+            "Teacher": {
+                "Description": "Reviewe 30 Einreichungen",
+                "Title": "Lehrer"
             },
-            "kingOfAmazon": {
-                "description": "Veröffentliche 25 Aufgaben",
-                "titel": "König vom großen Fluß"
+            "Writer": {
+                "Description": "Veröffentliche fünf Aufgaben",
+                "Title": "Schreiberling"
             },
-            "contributor": {
-                "description": "Hilf uns beim Weiterentwickeln der Plattform",
-                "titel": "Mitmacher"
+            "FiveInARow": {
+                "Description": "Reiche erfolgreich 5 Lösungen hintereinander ein, ohne dass eine Einreichung fehlschlägt (mit jeweils der ersten Einreichung)",
+                "Title": "Perfektionist"
             },
-            "chainmaster": {
-                "description": "Reiche erfolgreich 20 Lösungen hintereinander ein, ohne dass eine Einreichung fehlschlägt (mit jeweils der ersten Einreichung)",
-                "titel": "Kettenmeister"
+            "SeniorDeveloper": {
+                "Description": "Löse 10 Aufgaben auf Level Schwer oder höher",
+                "Title": "Entwickler"
             },
-            "mountainClimber": {
-                "description": "Löse eine Aufgabe als Erster",
-                "titel": "Bergsteiger"
+            "HeavyWorking": {
+                "Description": "Reiche erfolgreich 50 Lösungen ein",
+                "Title": "Schwerstarbeit"
             },
-            "dayOne": {
-                "description": "Löse eine neue Aufgabe innerhalb eines Tages nach deren Veröffentlichung",
-                "titel": "Day One"
+            "HillClimber": {
+                "Description": "Löse eine Aufgabe auf Level Schwer als Erster in einer Programmiersprache die bisher noch nicht verwendet wurde",
+                "Title": "Hügelbesteiger"
             },
-            "numberOneSemester": {
-                "description": "Sei auf dem ersten Platz in der Rangliste am Ende des abgelaufenen Semesters",
-                "titel": "Semesterbester"
+            "KingOfAmazon": {
+                "Description": "Veröffentliche 25 Aufgaben",
+                "Title": "König vom großen Fluß"
             },
-            "teachingMaster": {
-                "description": "Reviewe 100 Einreichungen",
-                "titel": "Lehrmeister"
+            "Contributor": {
+                "Description": "Hilf uns beim Weiterentwickeln der Plattform",
+                "Title": "Mitmacher"
             },
-            "topPupil": {
-                "description": "Schließe das Semester als Semesterbester ab.",
-                "titel": "Semesterbester"
+            "Chainmaster": {
+                "Description": "Reiche erfolgreich 20 Lösungen hintereinander ein, ohne dass eine Einreichung fehlschlägt (mit jeweils der ersten Einreichung)",
+                "Title": "Kettenmeister"
             },
-            "nobelLaureate": {
-                "description": "Veröffentliche 50 Aufgaben",
-                "titel": "Nobelpreisträger"
+            "MountainClimber": {
+                "Description": "Löse eine Aufgabe auf Level Unmöglich als Erster in einer Programmiersprache die bisher noch nicht verwendet wurde",
+                "Title": "Bergsteiger"
             },
-            "numberOne": {
-                "description": "Erreiche den ersten Platz in der Rangliste (Gesamt)",
-                "titel": "Gugelhupf"
+            "DayOne": {
+                "Description": "Löse eine neue Aufgabe innerhalb eines Tages nach deren Veröffentlichung",
+                "Title": "Day One"
+            },
+            "NumberOneSemester": {
+                "Description": "Sei auf dem ersten Platz in der Rangliste am Ende des abgelaufenen Semesters",
+                "Title": "Semesterbester"
+            },
+            "TeachingMaster": {
+                "Description": "Reviewe 100 Einreichungen",
+                "Title": "Lehrmeister"
+            },
+            "TopPupil": {
+                "Description": "Schließe das Semester als Semesterbester ab.",
+                "Title": "Semesterbester"
+            },
+            "NobelLaureate": {
+                "Description": "Veröffentliche 50 Aufgaben",
+                "Title": "Nobelpreisträger"
+            },
+            "NumberOne": {
+                "Description": "Erreiche den ersten Platz in der Rangliste (Gesamt)",
+                "Title": "Gugelhupf"
             }
         },
         "Results": {
             "Undefined": {
-                "description": "???",
-                "color": "aaaaaa"
+                "Description": "???",
+                "Color": "aaaaaa"
             },
             "UnknownError": {
-                "description": "Error",
-                "color": "ffdddd"
+                "Description": "Error",
+                "Color": "ffdddd"
             },
             "CompilationError": {
-                "description": "Kompilierfehler",
-                "color": "ffdddd"
+                "Description": "Kompilierfehler",
+                "Color": "ffdddd"
             },
             "NotAllowedLanguage": {
-                "description": "Nicht erlaubte Sprache",
-                "color": "ffdddd"
+                "Description": "Nicht erlaubte Sprache",
+                "Color": "ffdddd"
             },
             "Timeout": {
-                "description": "Zeitüberschreitung",
-                "color": "ffdddd"
+                "Description": "Zeitüberschreitung",
+                "Color": "ffdddd"
             },
             "TestsFailed": {
-                "description": "Test fehlgeschlagen",
-                "color": "ffdddd"
+                "Description": "Test fehlgeschlagen",
+                "Color": "ffdddd"
             },
             "SucceededWithTimeout": {
-                "description": "Erfolgreich (mit Timeout)",
-                "color": "ffffaa"
+                "Description": "Erfolgreich (mit Timeout)",
+                "Color": "ffffaa"
             },
             "Succeeded": {
-                "description": "Erfolgreich",
-                "color": "ddffdd"
+                "Description": "Erfolgreich",
+                "Color": "ddffdd"
             }
+        },
+        "IgnoreFiles": {
+           "Filenames": ["CMakeLists.txt","pom.xml"]
         }
     }
 }

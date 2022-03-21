@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -23,7 +24,7 @@ namespace SubmissionEvaluation.Domain.Operations
         internal CompilerOperations CompilerOperations { private get; set; }
 
         internal bool ProcessSubmission(ISubmission result, IChallenge challenge, bool runFailed = false, bool runEvenNonCompilable = false,
-            bool resetStats = false, bool breakAfterFirstFailedTest = false, bool forceRebuild = false)
+            bool resetStats = false, bool breakAfterFirstFailedTest = true, bool forceRebuild = false)
         {
             if (!runEvenNonCompilable || !runFailed)
             {
@@ -46,6 +47,9 @@ namespace SubmissionEvaluation.Domain.Operations
                 var pathToZip = ProviderStore.FileProvider.GetSourceZipPathForSubmission(result);
                 var (execParams, sizeInfo, submissionBinaryPath) = CompilerOperations.CompileSubmission(pathToZip, challenge, forceRebuild);
                 evaluationParameters = Evaluate(challenge, execParams, submissionBinaryPath, sizeInfo, breakAfterFirstFailedTest);
+                Directory.Delete(submissionBinaryPath, true);
+                var extracted_path = Path.GetDirectoryName(pathToZip)+Path.DirectorySeparatorChar+"extracted";
+                Directory.Delete(extracted_path, true);
             }
             catch (CompilerException e)
             {
@@ -54,7 +58,8 @@ namespace SubmissionEvaluation.Domain.Operations
                 {
                     ErrorDetails = new List<FailedTestRunDetails> {new FailedTestRunDetails {ErrorMessage = $"<pre>{e.Message}</pre>"}},
                     Language = e.Language,
-                    State = EvaluationResult.CompilationError
+                    State = EvaluationResult.CompilationError,
+                    SizeInBytes = new FileInfo(ProviderStore.FileProvider.GetSourceZipPathForSubmission(result)).Length
                 };
             }
             catch (LanguageNotAllowedException e)
@@ -62,7 +67,8 @@ namespace SubmissionEvaluation.Domain.Operations
                 Log.Warning("Nicht erlaubte Programmiersprache für Aufgabe verwendet!");
                 evaluationParameters = new EvaluationParameters
                 {
-                    ErrorDetails = new List<FailedTestRunDetails> {new FailedTestRunDetails {ErrorMessage = $"<pre>{e.Message}</pre>"}},
+                    ErrorDetails =
+                        new List<FailedTestRunDetails> {new FailedTestRunDetails {ErrorMessage = $"<pre>{WebUtility.HtmlEncode(e.Message)}</pre>"}},
                     Language = e.Language,
                     State = EvaluationResult.NotAllowedLanguage
                 };
@@ -143,8 +149,8 @@ namespace SubmissionEvaluation.Domain.Operations
             return changed;
         }
 
-        internal void RunSubmissions(IEnumerable<Result> submissions, bool runFailed = false, bool runEvenNonCompilable = false,
-            bool resetStats = false, bool breakAfterFirstFailedTest = false)
+        internal void RunSubmissions(IEnumerable<Result> submissions, bool runFailed = false, bool runEvenNonCompilable = false, bool resetStats = false,
+            bool breakAfterFirstFailedTest = true)
         {
             var results = submissions as IList<Result> ?? submissions.ToList();
             var workingBefore = results.Count(x => x.IsPassed);
@@ -173,7 +179,7 @@ namespace SubmissionEvaluation.Domain.Operations
             if (challenge.IsAvailable)
             {
                 var withResult = ProviderStore.FileProvider.SubmissionsOfChallengeWhichShouldRerun(challenge.Id);
-                var updateRating = withResult.Select(x => ProcessSubmission(x, challenge, true, breakAfterFirstFailedTest: true)).ToList().Any(x => x);
+                var updateRating = withResult.Select(x => ProcessSubmission(x, challenge, true, breakAfterFirstFailedTest: true)).Any(x => x);
             }
 
             return false;
@@ -312,10 +318,7 @@ namespace SubmissionEvaluation.Domain.Operations
         private List<RunResult> RunConfiguredTestsAndCompareResults(IChallenge challenge, ExecutionParameters execParams, string submissionBinaryPath,
             IEnumerable<TestParameters> tests, bool breakAfterFirstFailedTest)
         {
-            var folderMappings = new[]
-            {
-                new FolderMapping {ReadOnly = true, Source = submissionBinaryPath, Target = "/testrun/bin"}
-            };
+            var folderMappings = new[] {new FolderMapping {ReadOnly = true, Source = submissionBinaryPath, Target = "/testrun/bin"}};
 
             ISyncLock CreateLock()
             {
@@ -531,7 +534,7 @@ namespace SubmissionEvaluation.Domain.Operations
             }
 
             var result = new ComparisonResult {Success = false};
-            IDiffCreator diffCreator = null;
+            IDiffCreator diffCreator;
             switch (settings.CompareMode)
             {
                 case CompareModeType.Exact:
@@ -545,12 +548,13 @@ namespace SubmissionEvaluation.Domain.Operations
                         settings.Whitespaces, settings.CompareMode == CompareModeType.ContainsWord);
                     break;
                 case CompareModeType.Regex:
-                    diffCreator = new RegexDiffCreator(settings.Trim, !settings.IncludeCase, !settings.KeepUmlauts, settings.UnifyFloatingNumbers,
-                        settings.Whitespaces);
+                    diffCreator = new RegexDiffCreator(!settings.IncludeCase);
                     break;
                 case CompareModeType.Numbers:
                     diffCreator = new NumbersDiffCreator(settings.UnifyFloatingNumbers, settings.Threshold);
                     break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
             var (success, details, showExpected) = diffCreator.GetDiff(output, expectedOutput);

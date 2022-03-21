@@ -2,8 +2,8 @@
 @using System.IO
 @using File = SubmissionEvaluation.Shared.Models.Shared.File
 <!--TODO: Check the license thing. Need to copy it.-->
-<div hidden="@hidden">
-    <BlazorInputFile.InputFile OnChange="HandleFileInput" multiple class="upload-drop col-lg-11 cut_to_parent" id="@id"/>
+<div hidden="@Hidden">
+    <BlazorInputFile.InputFile OnChange="HandleFileInput" multiple class="upload-drop col-lg-11 cut_to_parent" id="@Id"/>
     @foreach (var file in Files)
     {
         <FileComponent File="file"/>
@@ -26,13 +26,13 @@
     public List<File> OtherFiles { get; set; } = new List<File>();
 
     [Parameter]
-    public bool hidden { get; set; }
+    public bool Hidden { get; set; }
 
     [Parameter]
     public string Path { get; set; }
 
     [Parameter]
-    public string id { get; set; } = "defaultID";
+    public string Id { get; set; } = "defaultID";
 
     public async void HandleFileInput(IFileListEntry[] files)
     {
@@ -45,7 +45,7 @@
                 var inputfile = new DetailedInputFile {Content = ms.ToArray(), Name = file.Name, LastModified = file.LastModified.ToString(), OriginalName = file.Name, IsDelete = false, IsFolder = false, Type = file.Type};
                 if (Path != null)
                 {
-                    inputfile.Path = Path.StartsWith(Folder.pathSeperator) ? "" : Path;
+                    inputfile.Path = Path.StartsWith(Folder.PathSeperator) ? "" : Path;
                 }
                 Files.Add(inputfile);
                 await FilesChanged.InvokeAsync(Files);

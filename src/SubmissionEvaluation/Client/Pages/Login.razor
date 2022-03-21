@@ -1,10 +1,10 @@
 @page "/Account/Login"
-@using SubmissionEvaluation.Client.Services
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Client.Services
 
-@inject HttpClient httpClient
-@inject NavigationManager navigationManager
-@inject LoginService loginService
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@inject LoginService LoginService
 
 
 <div class="shadow text-center loginbox">
@@ -41,30 +41,30 @@
 
 @code {
 
-    public LoginModel Model { get; set; } = new LoginModel {};
+    public LoginModel Model { get; set; } = new LoginModel();
     FeatureSettings Features { get; set; } = new FeatureSettings();
 
     protected override async void OnInitialized()
     {
     //Check, if it´s necessary to do an initial setup. (No members existing)
-        var membersExist = await httpClient.GetFromJsonAsync<bool>("api/Members/ExistsAnyMember");
+        var membersExist = await HttpClient.GetFromJsonAsync<bool>("api/Members/ExistsAnyMember");
         if (!membersExist)
         {
-            navigationManager.NavigateTo("/Setup");
+            NavigationManager.NavigateTo("/Setup");
         }
-        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
     }
 
     public async void HandleLogin()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<LoginModel>("api/Account/Login", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Account/Login", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<LoginModel>();
             if (result.HasSuccess)
             {
-                navigationManager.NavigateTo("/");
-                loginService.InvokeEvent();
+                NavigationManager.NavigateTo("/");
+                LoginService.InvokeEvent();
             }
             else
             {

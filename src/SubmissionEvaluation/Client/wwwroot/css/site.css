@@ -32,46 +32,51 @@ pre {
 pre code { font-size: 14px; }
 
 table {
-    border-top: 2px solid #777;
     border-bottom: 2px solid #777;
+    border-top: 2px solid #777;
     margin: 8px 0;
 }
+
 .ql-editor .quill-better-table {
     background-color: #777;
     border-collapse: separate;
 }
+
 .qlbt-operation-menu {
-    border-radius: 5px;
     background-color: #f8f8fd;
+    border-radius: 5px;
     z-index: 10;
 }
+
 #toolbar.fullscreen {
-    width: 100%;
-    height: 50px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    box-sizing: border-box;
     background: #fff;
     border: 0;
-    position: fixed;
-    top: 0;
+    box-sizing: border-box;
+    height: 50px;
     left: 0;
     opacity: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 10px;
+    padding-top: 10px;
+    position: fixed;
+    top: 0;
+    white-space: nowrap;
+    width: 100%;
     z-index: 9;
 }
+
 .fullscreen {
     background: #fff;
-    position: fixed !important;
-    top: 50px;
-    left: 0;
-    right: 0;
     bottom: 0;
     height: auto;
+    left: 0;
+    position: fixed !important;
+    right: 0;
+    top: 50px;
     z-index: 9;
 }
+
 table thead {
     background-color: #AAA;
     border-bottom: 1px dashed #777;
@@ -116,9 +121,7 @@ tr.solved_row td {
     vertical-align: middle;
 }
 
-tbody tr:hover .my-badge {
-    transform: scale(1.2);
-}
+tbody tr:hover .my-badge { transform: scale(1.2); }
 
 tbody tr:hover { background-color: rgba(220, 220, 220, 0.8); }
 
@@ -946,11 +949,11 @@ button.no-styling {
 .send-solution { font-size: 2em; }
 
 .operation-btn { margin-left: 2pt; }
-.groupEdit {
-    position: relative;
-}
+
+.groupEdit { position: relative; }
+
 .dropdown-menu.groupEdit {
-    position: absolute;
     left: 5%;
+    position: absolute;
     top: auto;
 }

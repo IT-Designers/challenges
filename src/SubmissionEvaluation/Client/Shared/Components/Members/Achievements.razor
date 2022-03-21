@@ -1,7 +1,8 @@
+@using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using SubmissionEvaluation.Shared.Models.Members
-@using System.Net.Http.Json
-@inject HttpClient httpClient
+
+@inject HttpClient HttpClient
 
 @if (FeatureSettings != null && FeatureSettings.EnableAchievements)
 {
@@ -37,16 +38,16 @@
 
     [Parameter]
     public MemberModel<Result, Member> Model { get; set; }
+
     List<Achievement> MemberAchievements { get; set; }
     CustomizationSettingsClient CustomSettings { get; set; }
     FeatureSettings FeatureSettings { get; set; }
 
-
     protected override async Task OnInitializedAsync()
     {
-        MemberAchievements = await httpClient.GetFromJsonAsync<List<Achievement>>("api/Members/GetAchievements");
-        CustomSettings = await httpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
-        FeatureSettings = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        MemberAchievements = await HttpClient.GetFromJsonAsync<List<Achievement>>("api/Members/GetAchievements");
+        CustomSettings = await HttpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        FeatureSettings = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
         StateHasChanged();
     }
 

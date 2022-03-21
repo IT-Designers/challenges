@@ -1,47 +1,55 @@
 ﻿using System.Collections.Generic;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Review;
+using System;
 
-namespace SubmissionEvaluation.Domain.Achievements
+namespace SubmissionEvaluation.Domain.Achivements
 {
     internal class ReviewAchievementRater : IAchievementRater
     {
-        private const string coach = "coach";
-        private const string teacher = "teacher";
-        private const string teachingMaster = "teachingMaster";
+        private const string Coach = "coach";
+        private const string Teacher = "teacher";
+        private const string TeachingMaster = "teachingMaster";
 
         public List<Achievement> ListOfAchievements =>
             new List<Achievement>
             {
-                new Achievement {Id = coach, Quality = QualityType.Bronze},
-                new Achievement {Id = teacher, Quality = QualityType.Silver},
-                new Achievement {Id = teachingMaster, Quality = QualityType.Gold}
+                new Achievement {Id = Coach, Quality = QualityType.Bronze},
+                new Achievement {Id = Teacher, Quality = QualityType.Silver},
+                new Achievement {Id = TeachingMaster, Quality = QualityType.Gold}
             };
 
         public void AddAwards(Awards awards, AchievementConditions conditions)
         {
             foreach (var member in conditions.Members)
             {
-                if (IsReviewLevelEqualOrHigherAndActiveReviewer(member, ReviewLevel.Intermediate))
+                if (IsReviewLevelEqualOrHigherAndActiveReviewer(member, ReviewLevelType.Intermediate))
                 {
-                    awards.AwardWith(member.Id, coach);
+                    awards.AwardWith(member.Id, Coach);
                 }
 
-                if (IsReviewLevelEqualOrHigherAndActiveReviewer(member, ReviewLevel.Expert))
+                if (IsReviewLevelEqualOrHigherAndActiveReviewer(member, ReviewLevelType.Expert))
                 {
-                    awards.AwardWith(member.Id, teacher);
+                    awards.AwardWith(member.Id, Teacher);
                 }
 
-                if (IsReviewLevelEqualOrHigherAndActiveReviewer(member, ReviewLevel.Master))
+                if (IsReviewLevelEqualOrHigherAndActiveReviewer(member, ReviewLevelType.Master))
                 {
-                    awards.AwardWith(member.Id, teachingMaster);
+                    awards.AwardWith(member.Id, TeachingMaster);
                 }
             }
         }
 
-        private bool IsReviewLevelEqualOrHigherAndActiveReviewer(IMember member, ReviewLevel compare)
+        private bool IsReviewLevelEqualOrHigherAndActiveReviewer(IMember member, ReviewLevelType compare)
         {
-            return member.ReviewLevel >= compare && member.ReviewLevel != ReviewLevel.Deactivated && member.ReviewLevel != ReviewLevel.Deactivated;
+            if (member.ReviewLanguages != null && member.ReviewLanguages.Count > 0)
+            {
+                foreach (KeyValuePair<string, ReviewLevelAndCounter> item in member.ReviewLanguages)
+                {
+                    if (item.Value.ReviewLevel >= compare && item.Value.ReviewLevel != ReviewLevelType.Deactivated && item.Value.ReviewLevel != ReviewLevelType.Deactivated) return true;
+                }
+            }
+            return false;
         }
     }
 }

@@ -32,69 +32,83 @@ Then upload the SBOMs generated with [CycloneDX module for .NET](https://github.
 
 > Note: to resolve github licences, generate a github token without specific rights (<https://github.com/settings/tokens/new>)
 
-Development
+Building
 ---------------------
 
-**Prerequesites**
-
-- Team preference:
-  - [Docker/Windows](https://docs.docker.com/docker-for-windows/install/)
-  - [Visual Studio 2019](https://www.visualstudio.com/de/downloads)
-  - [Resharper](https://www.jetbrains.com/resharper/)
-- But feel free to use your own preferred tooling, e.g.:
-  - [Docker/Linux](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
-  - [Visual Studio Code](https://code.visualstudio.com/)
-
-**Building Developer-Version**
+**Developer-Version**
 
 1. You need either Windows or Linux with Docker installed
 2. Clone repository and switch into the cloned repository
-3. Build docker test image `docker build -t test -f src/docker/test.dockerfile src/docker`
-4. Build the webhost image `docker build -t webhost --build-arg target=Debug -f src/docker/aspnet.dockerfile .`
+3. Build docker testrunner image `docker build -t test -f devops/testrunner/Dockerfile devops/testrunner`
+4. Build the server image `docker build -t challenge-platform-server --build-arg target=Debug -f devops/server/Dockerfile .`
 5. Run system:
-   1. Windows: `docker run -it --rm -v %cd%/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 webhost`
-   2. Linux:   `docker run -it --rm -v`pwd`/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 webhost`
+   1. Windows: `docker run -it --rm -v %cd%/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 challenge-platform-server`
+   2. Linux:   `docker run -it --rm -v`pwd`/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 challenge-platform-server`
 6. Finally attach the debugger of your choice to the running docker container
 
-**Building Release-Version**
+**Release-Version**
 
 1. You need either Windows or Linux with Docker installed
 2. Clone repository and switch into the cloned repository
-3. Build docker test image `docker build -t test -f src/docker/test.dockerfile src/docker`
-4. Build the webhost image `docker build -t webhost --build-arg target=Release -f src/docker/aspnet.dockerfile .`
+3. Build docker testrunner image `docker build -t test -f devops/testrunner/Dockerfile devops/testrunner`
+4. Build the server image `docker build -t challenge-platform-server --build-arg target=Release -f devops/server/Dockerfile .`
 5. Run system:
-   1. Windows: `docker run -it --rm -v %cd%/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 webhost`
-   2. Linux:   `docker run -it --rm -v`pwd`/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 webhost`
+   1. Windows: `docker run -it --rm -v %cd%/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 challenge-platform-server`
+   2. Linux:   `docker run -it --rm -v`pwd`/web:/web -v /var/run/docker.sock:/var/run/docker.sock -p 80:80 challenge-platform-server`
 
-Development almost without Docker (legacy)
+Development with Visual Studio
 ---------------------
-
-> “Almost without Docker” means, that the sln project itself can be build without docker.
-> However, the `test` image must still be build `docker build -t test -f src/docker/test.dockerfile src/docker` from project root folder, as it provides the necessary compilers.
 
 **Prerequesites**
 
-- dotnet Core SDK 3.1
-- NodeJs and NPM
-- Docker (is still needed to run the submissions)
+- [Visual Studio 2019](https://www.visualstudio.com/de/downloads)
+- [Docker/Windows](https://docs.docker.com/docker-for-windows/install/)
+- [dotnet core](https://dotnet.microsoft.com/download/dotnet)
+- [node & npm](https://nodejs.org/)
+
+**Recommended VS Extensions**
+
+- [Resharper](https://www.jetbrains.com/resharper/)
+- [SonarLint](https://www.sonarlint.org/)
 
 **Building & Running the Developer-Version**
 
 Steps:
 
-- Build docker test image:              `docker build -t test -f src/docker/test.dockerfile src/docker`
+- Build docker test image:              `docker build -t test -f devops/testrunner/Dockerfile devops/testrunner`
+- Open:                                 `src/SubmissionEvaluation.sln`
+- Start development and debugging ;)
+
+Development with Visual Studio Code
+---------------------
+
+**Prerequisites**
+
+- [Visual Studio Code](https://www.visualstudio.com/de/downloads)
+- [Docker](https://docs.docker.com/engine/install/)
+
+**Recommended**
+- Open Workspace...
+
+**Common Steps**
+- Run Task:                            `docker: build testrunner image`
+- Run Task:                            `npm: install`
+- Run Task:                            `npm: wbp`
+- Start development & debugging ;)
+- Run Task:                            `docker: build server image`
+
+Development from Command Line
+---------------------
+
+- Build docker test image:              `docker build -t test -f devops/testrunner/Dockerfile devops/testrunner`
+- Adapt `appsettings.json`:             `src\SubmissionEvaluation\Server\bin\Debug\netcoreapp3.1\publish\appsettings.json` to `"DataPath": "../../../../../../../web"`
 - Install & pack the node dependencies: `pushd src\SubmissionEvaluation\Client; npm install; npm run wbp; popd`
 - Build & publish the dotnet project:   `pushd src\; dotnet restore; dotnet publish; popd`
-- Ensure the path in `src\SubmissionEvaluation\Server\bin\Debug\netcoreapp3.1\publish\appsettings.json` points to `"DataPath": "../../../../../../../web"`
 - To run the system, execute:           `pushd src\SubmissionEvaluation\Server\bin\Debug\netcoreapp3.1\publish\; dotnet .\SubmissionEvaluation.Server.dll`
 
 Setup your platform
 ---------------------
 
 - Tailor the challenge platform to your needs via the `web\settings.json` file.
-- At the first start, opens the website a setup page to add an admin account. Therefore, you have to enter the security key which you can either find in the generated file `web\security_token.txt`.
-
-<!-- styling section -->
-<style>
-    body {text-align: justify}
-</style>
+- At the first start, opens the website a setup page to add an admin account.
+  Therefore, you have to enter the security key which you can either find in the generated file `web\security_token.txt`.

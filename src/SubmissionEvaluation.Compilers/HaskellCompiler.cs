@@ -20,7 +20,7 @@ namespace SubmissionEvaluation.Compilers
         }
 
         public override string Name => "Haskell";
-        public override string Description => "";
+        public override string Description => "-";
         public override string LatexCodeExtension => ".hs";
 
         public override string ReadVersionDetails(IProcessProvider processProvider, ISyncLock versionlock)

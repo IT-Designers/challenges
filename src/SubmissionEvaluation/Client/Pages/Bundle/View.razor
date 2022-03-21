@@ -1,10 +1,13 @@
 @page  "/Bundle/View/{bundlename}"
-@using SubmissionEvaluation.Client.Services
-@using Markdig
+
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Classes
-@inject HttpClient httpClient
-@inject HelperService helper
+@using Markdig
+
+@inject HttpClient HttpClient
+@inject HelperService Helper
+
 <div class="col-sm-9">
     <div class="post-area">
         <div class="post-header">
@@ -14,7 +17,7 @@
             <div class="all-posts" post-cate="All">
                 @if (model?.Description != null)
                 {
-                    <p>@((MarkupString)MarkdownToHtml.Convert(model?.Description))</p>
+                    <p>@((MarkupString) MarkdownToHtml.Convert(model?.Description))</p>
                 }
                 @{
                     var i = 1;
@@ -35,7 +38,7 @@
                                     }
                                     else
                                     {
-                                        <div class="challengeTileLevelKnown" style="background: @(helper.CalculateDifficultyColor(challenge.State.DifficultyRating)); left: @(challenge.State.DifficultyRating - 2)%;"></div>
+                                        <div class="challengeTileLevelKnown" style="background: @(Helper.CalculateDifficultyColor(challenge.State.DifficultyRating)); left: @(challenge.State.DifficultyRating - 2)%;"></div>
                                     }
                                 </div>
                             }
@@ -59,7 +62,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        model = await httpClient.GetFromJsonAsync<BundleViewModel>($"/api/Bundle/Get/{Bundlename}");
+        model = await HttpClient.GetFromJsonAsync<BundleViewModel>($"/api/Bundle/Get/{Bundlename}");
     }
 
 

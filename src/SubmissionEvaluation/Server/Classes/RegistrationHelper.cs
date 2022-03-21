@@ -17,7 +17,7 @@ namespace SubmissionEvaluation.Server.Classes
         {
         }
 
-        public static RegistrationHelper registrationHelper { get; } = new RegistrationHelper();
+        public static RegistrationHelper RegistrationHelperInstance { get; } = new RegistrationHelper();
 
         public RegisterModel RegisterMember(RegisterModel model, HttpContext context, ILogger logger)
         {
@@ -80,8 +80,6 @@ namespace SubmissionEvaluation.Server.Classes
                 var attributeTable = authentication.VerifyUser(model.Username, model.Password);
                 if (attributeTable != null)
                 {
-                    new IdentityAuthenticator().WriteIdentityCookie(model.Username, attributeTable, context).Wait(5000);
-
                     return new RegisterModel {HasSuccess = true};
                 }
             }

@@ -9,7 +9,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 {
     internal class CachedYamlProvider : YamlProvider
     {
-        private const int cacheSize = 16000;
+        private const int CacheSize = 16000;
         private readonly object lockkey = new object();
         private readonly ILog log;
         private Dictionary<string, CacheEntry> cache = new Dictionary<string, CacheEntry>();
@@ -35,16 +35,16 @@ namespace SubmissionEvaluation.Providers.FileProvider
             return newItem;
         }
 
-        public override T DeserializeWithDescription<T>(string pathToFile, bool forceLoad = false)
+        public override T DeserializeWithDescription<T>(string file, bool forceLoad = false)
         {
-            var entry = GetEntryFromCache<T>(pathToFile);
+            var entry = GetEntryFromCache<T>(file);
             if (entry != null)
             {
                 return entry;
             }
 
-            var newItem = base.DeserializeWithDescription<T>(pathToFile);
-            AddEntryToCache(pathToFile, newItem);
+            var newItem = base.DeserializeWithDescription<T>(file);
+            AddEntryToCache(file, newItem);
             return newItem;
         }
 
@@ -80,18 +80,15 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             lock (lockkey)
             {
-                if (cache.Values.Count > cacheSize * 1.5)
+                if (cache.Values.Count > CacheSize * 1.5)
                 {
                     CleanCache();
                 }
 
-                if (File.Exists(pathToFile) && cache.TryGetValue(pathToFile, out var entry))
+                if (File.Exists(pathToFile) && cache.TryGetValue(pathToFile, out var entry) && entry.FileDateTime == File.GetLastWriteTime(entry.Path))
                 {
-                    if (entry.FileDateTime == File.GetLastWriteTime(entry.Path))
-                    {
-                        entry.AccessCounter++;
-                        return (T) entry.Content.DeepClone();
-                    }
+                    entry.AccessCounter++;
+                    return (T) entry.Content.DeepClone();
                 }
 
                 return null;
@@ -108,14 +105,14 @@ namespace SubmissionEvaluation.Providers.FileProvider
             base.Serialize(pathToFile, obj, emitDefaults, referenceDuplicates);
         }
 
-        public override void SerializeWithDescription<T>(string pathToFile, T obj)
+        public override void SerializeWithDescription<T>(string path, T obj)
         {
             lock (lockkey)
             {
-                cache.Remove(pathToFile);
+                cache.Remove(path);
             }
 
-            base.SerializeWithDescription(pathToFile, obj);
+            base.SerializeWithDescription(path, obj);
         }
 
         private void CleanCache()
@@ -123,7 +120,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
             lock (lockkey)
             {
                 log.Warning("Räume Cache auf. Derzeit {count} Einträge", cache.Values.Count);
-                var leftEntries = cache.Values.OrderByDescending(x => x.AccessCounter).Take(cacheSize);
+                var leftEntries = cache.Values.OrderByDescending(x => x.AccessCounter).Take(CacheSize);
                 cache = new Dictionary<string, CacheEntry>();
                 foreach (var entry in leftEntries)
                 {

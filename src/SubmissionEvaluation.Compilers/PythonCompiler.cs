@@ -68,7 +68,7 @@ namespace SubmissionEvaluation.Compilers
             }
             else
             {
-                bool ContainsMain(string code)
+                static bool ContainsMain(string code)
                 {
                     return code.Contains("if __name__ == \"__main__\":") || code.Contains("if __name__ == '__main__':");
                 }

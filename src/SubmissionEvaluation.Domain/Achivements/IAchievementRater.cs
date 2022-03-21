@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using SubmissionEvaluation.Contracts.Data;
 
-namespace SubmissionEvaluation.Domain.Achievements
+namespace SubmissionEvaluation.Domain.Achivements
 {
     public interface IAchievementRater
     {

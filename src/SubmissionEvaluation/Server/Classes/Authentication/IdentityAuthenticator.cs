@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using SubmissionEvaluation.Contracts.Data;
-using SubmissionEvaluation.Contracts.Interfaces;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
+using SubmissionEvaluation.Server.Contracts.Interfaces;
 
 namespace SubmissionEvaluation.Server.Classes.Authentication
 {
@@ -28,7 +28,6 @@ namespace SubmissionEvaluation.Server.Classes.Authentication
                 if (foundMember != null)
                 {
                     JekyllHandler.MemberProvider.UpdateUid(foundMember, attributeTable["uid"]);
-                    JekyllHandler.MemberProvider.LogLastActivity(foundMember);
                 }
             }
 
@@ -36,7 +35,7 @@ namespace SubmissionEvaluation.Server.Classes.Authentication
             {
                 foundMember = JekyllHandler.Domain.Interactions.AddMember(fullname, mail, attributeTable["uid"]);
             }
-
+            JekyllHandler.MemberProvider.LogLastActivity(foundMember);
             await LoginForMember(foundMember, foundMember.Type.ToString(), httpContext);
         }
 

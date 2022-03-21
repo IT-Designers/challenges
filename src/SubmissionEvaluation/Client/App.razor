@@ -1,5 +1,5 @@
-﻿@using System.Net.Http.Json
-@inject HttpClient httpClient
+@using System.Net.Http.Json
+@inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
 
 <Router AppAssembly="@typeof(Program).Assembly">
@@ -17,8 +17,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var isloggedin = await httpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
-        if (!isloggedin)
+        var isLoggedIn = await HttpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
+        if (!isLoggedIn)
         {
             NavigationManager.NavigateTo("Account/Login");
         }

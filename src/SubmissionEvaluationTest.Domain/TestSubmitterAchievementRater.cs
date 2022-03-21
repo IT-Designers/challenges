@@ -4,7 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
-using SubmissionEvaluation.Domain.Achievements;
+using SubmissionEvaluation.Domain.Achivements;
 
 namespace SubmissionEvaluationTest.Domain
 {

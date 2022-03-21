@@ -4,7 +4,7 @@ using System.Linq;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
 using SubmissionEvaluation.Contracts.Providers;
-using SubmissionEvaluation.Domain.Achievements;
+using SubmissionEvaluation.Domain.Achivements;
 
 namespace SubmissionEvaluation.Domain.Operations
 {
@@ -14,17 +14,14 @@ namespace SubmissionEvaluation.Domain.Operations
         public List<string> Contributors { private get; set; }
         internal StatisticsOperations StatisticsOperations { get; set; }
 
-        private IEnumerable<Achievement> ListOfAchievements
-        {
-            get { return AchievementRaters.SelectMany(p => p.ListOfAchievements); }
-        }
+        private IEnumerable<Achievement> ListOfAchievements { get { return AchievementRaters.SelectMany(p => p.ListOfAchievements); } }
 
         public ChallengeRanklist BuildAchievementsRanklist(IFileProvider fileProvider)
         {
             var awards = fileProvider.LoadAwards();
             var ranklist = new ChallengeRanklist {Challenge = "Achievements"};
             foreach (var user in awards)
-            { 
+            {
                 foreach (var achievementId in user.Value)
                 {
                     var achievement = ListOfAchievements.SingleOrDefault(x => x.Id == achievementId.Id);
@@ -42,13 +39,14 @@ namespace SubmissionEvaluation.Domain.Operations
                     }
                 }
             }
+
             return ranklist;
         }
 
         public Awards AddAchievementsForSubmitters(IFileProvider fileProvider, IMemberProvider memberProvider, IEnumerable<string> compilerNames, Awards awards)
         {
             var challenges = ChallengeOperations.LoadAllChallengeProperties(fileProvider);
-            var challengeAuthors = challenges.Where(x => x.IsAvailable).Select(x => memberProvider.GetMemberById(x.AuthorID)).Where(x => x != null)
+            var challengeAuthors = challenges.Where(x => x.IsAvailable).Select(x => memberProvider.GetMemberById(x.AuthorId)).Where(x => x != null)
                 .Select(x => x.Id).ToList();
 
             var challengeRanklists = StatisticsOperations.GenerateAllChallengeRanklists(false);

@@ -8,7 +8,7 @@ namespace SubmissionEvaluation.Domain.RatingMethods
 {
     internal class RateExecTime : ISubmissionRater
     {
-        public RatingMethod Name => RatingMethod.Exec_Time;
+        public RatingMethod Name => RatingMethod.ExecTime;
 
         public int Compare(SubmissionEntry x, SubmissionEntry y)
         {

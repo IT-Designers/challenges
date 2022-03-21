@@ -1,16 +1,16 @@
 ﻿@page "/Challenges/Edit/FileExplorer"
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Models.Shared
-@inject FileExplorerDomain domain
+@inject FileExplorerDomain Domain
 <div class="row">
     <div id="filelistCol" class="col-12">
         <div>
             <div class="folder-structure explorer">
                 <div class="explorer-header">Ordner</div>
                 <ul class="less-padding" hidden="@InfoActive">
-                    <FolderComponent folder="RootFolder"/>
+                    <FolderComponent Folder="RootFolder"/>
                     <li>
-                        <NewFolderButton @bind-Files="RootFolder.NewFilesInFolder" OtherFiles="RootFolder.FilesInFolder" Path="@(Index + domain.Path.Replace("/", Folder.pathSeperator))"/>
+                        <NewFolderButton @bind-Files="RootFolder.NewFilesInFolder" OtherFiles="RootFolder.FilesInFolder" Path="@(Index + Domain.Path.Replace("/", Folder.PathSeperator))"/>
                     </li>
                 </ul>
                 <button class="infoButton" type="button" hidden="@InfoActive" @onclick="() => InfoActive = !InfoActive">
@@ -19,13 +19,13 @@
                 <InfoField @bind-hidden="@InfoActive"></InfoField>
             </div>
             <div class="file-overview explorer">
-                <div class="explorer-header">@domain.Path</div>
+                <div class="explorer-header">@Domain.Path</div>
                 <div class="no-overflow flex-column h-82 explorer-content">
-                    <DropDownZone @bind-Files="domain.NewFiles" OtherFiles="domain.Files" hidden="@domain.InFileEdit" Path="@(Index + domain.Path.Replace("/", Folder.pathSeperator))"/>
-                    <EditFileProperties file="domain.SelectedFile" hidden="@(!domain.InFileEdit)" DownloadUrl="@DownloadUrl"/>
+                    <DropDownZone @bind-Files="Domain.NewFiles" OtherFiles="Domain.Files" Hidden="@Domain.InFileEdit" Path="@(Index + Domain.Path.Replace("/", Folder.PathSeperator))"/>
+                    <EditFileProperties File="Domain.SelectedFile" Hidden="@(!Domain.InFileEdit)" DownloadUrl="@DownloadUrl"/>
                 </div>
                 <div>
-                    <NewFolderButton @bind-Files="domain.NewFiles" OtherFiles="domain.Files" Small="false" Path="@(Index + domain.Path.Replace("/", Folder.pathSeperator))"/>
+                    <NewFolderButton @bind-Files="Domain.NewFiles" OtherFiles="Domain.Files" Small="false" Path="@(Index + Domain.Path.Replace("/", Folder.PathSeperator))"/>
                 </div>
             </div>
         </div>
@@ -49,10 +49,10 @@
     protected override void OnInitialized()
     {
         RootFolder.IsExpanded = false;
-        domain.Path = "/" + RootFolder.Name + "/";
-        domain.Files = RootFolder.FilesInFolder;
-        domain.NewFiles = RootFolder.NewFilesInFolder;
-        domain.DomainEvent += StateHasChanged;
+        Domain.Path = "/" + RootFolder.Name + "/";
+        Domain.Files = RootFolder.FilesInFolder;
+        Domain.NewFiles = RootFolder.NewFilesInFolder;
+        Domain.DomainEvent += StateHasChanged;
         StateHasChanged();
     }
 

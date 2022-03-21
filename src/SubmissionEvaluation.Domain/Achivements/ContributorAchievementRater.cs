@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
 using SubmissionEvaluation.Contracts.Data;
 
-namespace SubmissionEvaluation.Domain.Achievements
+namespace SubmissionEvaluation.Domain.Achivements
 {
     public class ContributorAchievementRater : IAchievementRater
     {
-        private const string contributorAchievement = "contributor";
+        private const string ContributorAchievement = "contributor";
 
-        public List<Achievement> ListOfAchievements => new List<Achievement> {new Achievement {Id = contributorAchievement, Quality = QualityType.Gold}};
+        public List<Achievement> ListOfAchievements => new List<Achievement> {new Achievement {Id = ContributorAchievement, Quality = QualityType.Gold}};
 
         public void AddAwards(Awards awards, AchievementConditions conditions)
         {
@@ -15,7 +15,7 @@ namespace SubmissionEvaluation.Domain.Achievements
             {
                 if (contributor != null)
                 {
-                    awards.AwardWith(contributor, contributorAchievement);
+                    awards.AwardWith(contributor, ContributorAchievement);
                 }
             }
         }

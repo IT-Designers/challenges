@@ -14,7 +14,7 @@ namespace SubmissionEvaluation.Providers.MemberProvider
         private readonly MemberType defaultMemberType;
         private readonly IFileProvider fileProvider;
         private readonly ILog log;
-        private readonly Member removedMember = new Member {Id = Member.REMOVED_ENTRY_ID, Name = "xxx"};
+        private readonly Member removedMember = new Member {Id = Member.RemovedEntryId, Name = "xxx"};
         private readonly bool requiresMemberActivation;
 
         public MemberProvider(ILog log, IFileProvider fileProvider, MemberType defaultMemberType, bool requiresMemberActivation)
@@ -159,6 +159,17 @@ namespace SubmissionEvaluation.Providers.MemberProvider
             }
         }
 
+        public void ResetMemberAvailableChallenges(IMember member)
+        {
+            if (member != null)
+            {
+                using var @lock = fileProvider.GetLock();
+                var loadedMember = fileProvider.LoadMember(member.Id, @lock);
+                loadedMember.UnlockedChallenges = new string[]{};
+                fileProvider.SaveMember(loadedMember, @lock);
+            }
+        }
+
         public void ActivatePendingMember(IMember member)
         {
             if (member != null)
@@ -231,7 +242,7 @@ namespace SubmissionEvaluation.Providers.MemberProvider
             {
                 using var @lock = fileProvider.GetLock();
                 var loadedMember = fileProvider.LoadMember(member.Id, @lock);
-                loadedMember.ReviewFrequency = 0;
+                loadedMember.ReviewFrequency = loadedMember.ReviewFrequency+1;
                 fileProvider.SaveMember(loadedMember, @lock);
             }
         }
@@ -248,11 +259,7 @@ namespace SubmissionEvaluation.Providers.MemberProvider
                 using var @lock = fileProvider.GetLock();
                 var loadedMember = fileProvider.LoadMember(member.Id, @lock);
                 loadedMember.LastActivity = DateTime.Today;
-                if (loadedMember.State == MemberState.Inactive)
-                {
-                    loadedMember.State = MemberState.Active;
-                }
-
+                loadedMember.State = MemberState.Active;
                 fileProvider.SaveMember(loadedMember, @lock);
             }
         }
@@ -317,7 +324,7 @@ namespace SubmissionEvaluation.Providers.MemberProvider
                 return null;
             }
 
-            if (id == Member.REMOVED_ENTRY_ID)
+            if (id == Member.RemovedEntryId)
             {
                 return removedMember;
             }
@@ -362,24 +369,57 @@ namespace SubmissionEvaluation.Providers.MemberProvider
             fileProvider.DeleteMember(member, @lock);
         }
 
-        public void UpdateReviewLevel(IMember member, ReviewLevel level)
+        public void DeleteAllSubmissionsByMember(IMember member)
+        {
+            using var @lock = fileProvider.GetLock();
+            var subs = fileProvider.LoadAllSubmissionsFor(member, true);
+            foreach (var item in subs)
+            {
+                fileProvider.DeleteSubmission(item);
+            }
+        }
+
+        public void UpdateReviewLevel(IMember member, string language, ReviewLevelType level)
         {
             if (member != null)
             {
                 using var @lock = fileProvider.GetLock();
                 var loadedMember = fileProvider.LoadMember(member.Id, @lock);
-                loadedMember.ReviewLevel = level;
+                loadedMember.ReviewLanguages[language].ReviewLevel = level;
                 fileProvider.SaveMember(loadedMember, @lock);
             }
         }
 
-        public void IncreaseReviewCounter(IMember member)
+        public void UpdateAllReviewLevelsAndCounters(IMember member, Dictionary<string, ReviewLevelAndCounter> model)
         {
             if (member != null)
             {
                 using var @lock = fileProvider.GetLock();
                 var loadedMember = fileProvider.LoadMember(member.Id, @lock);
-                loadedMember.ReviewCounter++;
+                if (loadedMember.ReviewLanguages==null)
+                {
+                    loadedMember.ReviewLanguages = new Dictionary<string, ReviewLevelAndCounter>();
+                }
+                else
+                {
+                    loadedMember.ReviewLanguages.Clear();
+                }
+                foreach (var item in model)
+                {
+                    loadedMember.ReviewLanguages.Add(item.Key, new ReviewLevelAndCounter{ReviewCounter = item.Value.ReviewCounter, ReviewLevel = item.Value.ReviewLevel});
+                }
+                fileProvider.SaveMember(loadedMember, @lock);
+            }
+        }
+
+        public void IncreaseReviewCounter(IMember member, string language)
+        {
+            if (member != null)
+            {
+                using var @lock = fileProvider.GetLock();
+                var loadedMember = fileProvider.LoadMember(member.Id, @lock);
+                if (loadedMember.ReviewLanguages.ContainsKey(language))
+                    loadedMember.ReviewLanguages[language].ReviewCounter = loadedMember.ReviewLanguages[language].ReviewCounter+1;
                 fileProvider.SaveMember(loadedMember, @lock);
             }
         }
@@ -390,7 +430,7 @@ namespace SubmissionEvaluation.Providers.MemberProvider
             {
                 using var @lock = fileProvider.GetLock();
                 var loadedMember = fileProvider.LoadMember(member.Id, @lock);
-                loadedMember.ReviewLanguages = (member.ReviewLanguages ?? new string[0]).Concat(new[] {language}).Distinct().ToArray();
+                loadedMember.ReviewLanguages.Add(language, new ReviewLevelAndCounter{ ReviewLevel=ReviewLevelType.Beginner, ReviewCounter=0});
                 fileProvider.SaveMember(loadedMember, @lock);
             }
         }

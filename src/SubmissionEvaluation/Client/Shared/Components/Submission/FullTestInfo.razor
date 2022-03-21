@@ -1,9 +1,11 @@
+@using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using SubmissionEvaluation.Contracts.Data.Review
 @using Newtonsoft.Json
-@using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject NavigationManager navi
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
 <div class="col-12">
     <h2>Einreichung vom @Model.SelectedSubmission.SubmissionDate</h2>
 
@@ -13,7 +15,7 @@
             @if (Model.SelectedSubmission.EvaluationState == EvaluationState.Dead)
             {
                 @((MarkupString) "Einreichung wurde gelöscht<br />")
-                <DownloadComponent Class="btn" title="Download Einreichung" content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" URL="api/Submission/Download" FileName="source.zip"/>
+                <DownloadComponent Class="btn" Title="Download Einreichung" Content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" Url="api/Submission/Download" FileName="source.zip"/>
                 <a href="/Submission/View/@Model.Id/@Model.SubmissionId" class="btn" title="Zeige Einreichung" style="padding-left: 0;">
                     <span class="oi oi-eye"> Quellcode anzeigen</span>
                 </a>
@@ -21,7 +23,7 @@
             else
             {
                 @((MarkupString) "Einreichung wird derzeit ausgeführt.<br />")
-                <DownloadComponent Class="btn" title="Download Einreichung" content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" URL="api/Submission/Download" FileName="source.zip"/>
+                <DownloadComponent Class="btn" Title="Download Einreichung" Content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" Url="api/Submission/Download" FileName="source.zip"/>
                 <a href="/Submission/View/@Model.Id/@Model.SubmissionId" class="btn" title="Zeige Einreichung" style="padding-left: 0;">
                     <span class="oi oi-eye"> Quellcode anzeigen</span>
                 </a>
@@ -42,17 +44,22 @@
                 {
                     @((MarkupString) $"<b>{Model.SelectedSubmission.TestsFailed}</b> von <b>{Model.SelectedSubmission.TestsFailed + Model.SelectedSubmission.TestsPassed + Model.SelectedSubmission.TestsSkipped}</b> Tests fehlgeschlagen!<br />")
                 }
-                else
+                else if (Model.SelectedSubmission.EvaluationResult != EvaluationResult.CompilationError)
                 {
                     <b>@Model.SelectedSubmission.TestsFailed</b>
                     @((MarkupString) "Test(s) fehlgeschlagen! <br />")
                 }
-                if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.Timeout)
+                if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.CompilationError)
+                {
+                    <b>Compilierfehler:</b>
+                    @((MarkupString) "Die Einreichung konnte wegen Fehlern nicht compiliert werden!<br />")
+                }
+                else if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.Timeout)
                 {
                     <b>Timeout:</b>
                     @((MarkupString) "Die Einreichung lief zu lange und musste abgebrochen werden! Evtl. ist eine Endlosschleife vorhanden?<br />")
                 }
-                if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.SucceededWithTimeout)
+                else if (Model.SelectedSubmission.EvaluationResult == EvaluationResult.SucceededWithTimeout)
                 {
                     <b>Timeout:</b>
                     @((MarkupString) "Die Einreichung hat zwar den Test bestanden, aber sie lief zu lange und musste abgebrochen werden! Evtl. ist eine Endlosschleife vorhanden?<br />")
@@ -65,7 +72,7 @@
                     @($"Erreichte Punktzahl: {Model.SelectedSubmission.CustomScore} ")
                     <br/>
                     break;
-                case RatingMethod.Submission_Time:
+                case RatingMethod.SubmissionTime:
                     @($"Einreichedatum/-zeit: {Model.SelectedSubmission.LastSubmissionDate}, erreichte Punktzahl: {Model.SelectedSubmission.CustomScore} ")
                     <br/>
                     break;
@@ -78,7 +85,7 @@
         </p>
 
         <p>
-            <DownloadComponent Class="btn" title="Download Einreichung" content='<span class="oi oi - cloud - download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" URL="api/Submission/Download" FileName="source.zip"/>
+            <DownloadComponent Class="btn" Title="Download Einreichung" Content='<span class="oi oi-data-transfer-download">Quellcode downloaden</span>' Id="@Model.Id" SubId="@Model.SubmissionId" TwoIds="true" Url="api/Submission/Download" FileName="source.zip"/>
             <a href="/Submission/View/@Model.Id/@Model.SubmissionId" class="btn" title="Zeige Einreichung" style="padding-left: 0;">
                 <span class="oi oi-eye"> Quellcode anzeigen</span>
             </a>
@@ -95,18 +102,22 @@
 
             @if (Model.SelectedSubmission.HasReviewData)
             {
-                <a href="Review/View/@Model.Id/@Model.SubmissionId" class="btn" title="Reviewergebnis anzeigen (BETA)" style="padding: 0;">
+                <a href="Review/View/@Model.Id/@Model.SubmissionId" class="btn" title="Reviewergebnis anzeigen" style="padding: 0;">
                     <span class="oi-eye oi"> Review anzeigen</span>
                 </a>
             }
         </p>
-        @if (!Model.SelectedSubmission.IsPassed && Model.ErrorDetails != null)
+        @if (!Model.SelectedSubmission.IsPassed && Model.ErrorDetails != null && Model.SelectedSubmission.EvaluationResult != EvaluationResult.CompilationError)
         {
-            <DetailedTestInfo detail="Model.ErrorDetails"/>
+            <DetailedTestInfo Detail="Model.ErrorDetails"/>
         }
-        else if (!Model.SelectedSubmission.IsPassed)
+        else if (!Model.SelectedSubmission.IsPassed && Model.SelectedSubmission.EvaluationResult != EvaluationResult.CompilationError)
         {
             @((MarkupString) "<p>Kein Testergebnis verfügbar.</p>")
+        }
+        else if (!Model.SelectedSubmission.IsPassed && Model.SelectedSubmission.EvaluationResult == EvaluationResult.CompilationError && Model.SelectedSubmission.CompileError != null)
+        {
+            @((MarkupString) Model.SelectedSubmission.CompileError)
         }
     }
 </div>
@@ -124,7 +135,7 @@
 
     private async void RerunSubmission()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<bool>($"api/Submission/RerunSubmission/{Model.Id}/{Model.SubmissionId}", false);
+        var responseMessage = await HttpClient.PostAsJsonAsync($"api/Submission/RerunSubmission/{Model.Id}/{Model.SubmissionId}", false);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<UploadModel<Result, Member>>();
@@ -137,7 +148,7 @@
 
     private async void ReportSubmission()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<string>($"api/Submission/ReportError/{Model.Id}", Model.SubmissionId);
+        var responseMessage = await HttpClient.PostAsJsonAsync($"api/Submission/ReportError/{Model.Id}", Model.SubmissionId);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<UploadModel<Result, Member>>();
@@ -150,7 +161,7 @@
     {
         if (Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
     }
 

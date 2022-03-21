@@ -9,7 +9,7 @@ using SubmissionEvaluation.Client.Services;
 
 namespace SubmissionEvaluation.Client
 {
-    public class Program
+    public static class Program
     {
         public static async Task Main(string[] args)
         {
@@ -25,7 +25,7 @@ namespace SubmissionEvaluation.Client
             builder.Services.AddSingleton<ReviewSynchronizer>();
             builder.Services.AddSingleton<HelperService>();
             builder.Services.AddSingleton<PasswordRequirementsService>();
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+            builder.Services.AddScoped(sp => new HttpClient {BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)});
 
             await builder.Build().RunAsync();
         }

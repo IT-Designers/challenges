@@ -5,8 +5,8 @@ namespace SubmissionEvaluation.Contracts.Data
 {
     public interface IChallenge : ICompilerProperties, IWithDescription
     {
-        string AuthorID { get; }
-        string LastEditorID { get; }
+        string AuthorId { get; }
+        string LastEditorId { get; }
         string Id { get; } //ChallengeId
         string Title { get; }
         bool IsDraft { get; }
@@ -20,7 +20,7 @@ namespace SubmissionEvaluation.Contracts.Data
         bool IsReviewable { get; }
         bool IsAvailable { get; }
         ChallengeState State { get; }
-        bool StickAsBeginner { get; }
+        bool FreezeDifficultyRating { get; }
         DateTime LastEdit { get; }
         string LearningFocus { get; }
     }

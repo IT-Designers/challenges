@@ -13,7 +13,7 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
     {
         public ChallengeModel(IChallenge c)
         {
-            AuthorID = c.AuthorID;
+            AuthorId = c.AuthorId;
             Category = c.Category;
             Date = c.Date;
             Description = c.Description;
@@ -21,7 +21,7 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
             IsDraft = c.IsDraft;
             Languages = c.Languages;
             LastEdit = c.LastEdit;
-            LastEditorID = c.LastEditorID;
+            LastEditorId = c.LastEditorId;
             RatingMethod = c.RatingMethod;
             Source = c.Source;
             Title = c.Title;

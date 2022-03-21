@@ -1,11 +1,11 @@
-﻿@using System.Net.Http.Json
-@inject HttpClient httpClient
+@using System.Net.Http.Json
+@inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
-@inject IToastService toastService
+@inject IToastService ToastService
 
 <a href="/Test/Create/@Model.Id" class="btn btn-outline-dark btn-margin btn-block">Füge neuen Test hinzu</a>
 
-@if (User?.Roles != null && (User.Roles.Contains("admin") ||User.Roles.Contains("creator")))
+@if (User?.Roles != null && (User.Roles.Contains("admin") || User.Roles.Contains("creator")))
 {
     <a href="/Test/CreateWithGenerator/@Model.Id" class="btn btn-outline-dark btn-margin btn-block">Füge neuen Test hinzu mit Testgenerator hinzu</a>
 }
@@ -63,7 +63,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        User = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        User = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
     }
 
     private static string ShortenCompareSettings(ChallengeTest element)
@@ -77,7 +77,8 @@
         var mode = OnlyUpperChars(settings.CompareMode.ToString());
         var trim = OnlyUpperChars(settings.Trim.ToString());
         var whitespaces = OnlyUpperChars(settings.Whitespaces.ToString());
-        if (settings.Whitespaces == WhitespacesMode.Remove) whitespaces += "em";
+        if (settings.Whitespaces == WhitespacesMode.Remove)
+            whitespaces += "em";
         var unify = settings.IsUnifyFloatingNumbers ? "UNI" : "-";
         var umlauts = settings.IsKeepUmlauts ? "UML" : "-";
         var upper = settings.IsIncludeCase ? "Case" : "-";
@@ -95,7 +96,7 @@
     private async Task EditTest(ChallengeTest test)
     {
     /* ToDo: Add ReturnUrl */
-        var isloggedin = await httpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
+        var isloggedin = await HttpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
         if (!isloggedin)
         {
             NavigationManager.NavigateTo("/Account/Login");
@@ -106,24 +107,24 @@
     private async Task CopyTest(ChallengeTest test)
     {
     /* ToDo: Add ReturnUrl */
-        var copyResult = await httpClient.GetFromJsonAsync<ChallengeTestCreateModel>($"/api/Test/copy/{Model.Id}/{test.Index}");
+        var copyResult = await HttpClient.GetFromJsonAsync<ChallengeTestCreateModel>($"/api/Test/copy/{Model.Id}/{test.Index}");
         if (copyResult.HasSuccess)
         {
             Model.Tests.Add(copyResult.Test);
-            toastService.ShowSuccess($"Test {Convert.ToInt32(test.Index) - 1} copied", "Success");
+            ToastService.ShowSuccess($"Test {Convert.ToInt32(test.Index) - 1} copied", "Success");
         }
     }
 
     private async Task DeleteTest(ChallengeTest test)
     {
     /* ToDo: Add ReturnUrl */
-        var deleteResult = await httpClient.GetFromJsonAsync<GenericModel>($"/api/Test/delete/{Model.Id}/{test.Index}");
+        var deleteResult = await HttpClient.GetFromJsonAsync<GenericModel>($"/api/Test/delete/{Model.Id}/{test.Index}");
         if (deleteResult.HasSuccess)
         {
-            toastService.ShowSuccess($"Test {Convert.ToInt32(test.Index)} deleted", "Success");
+            ToastService.ShowSuccess($"Test {Convert.ToInt32(test.Index)} deleted", "Success");
             Model.Tests.Remove(test);
             Model.Files.Where(x => x.Name.StartsWith(test.Id.ToString()) || x.Name.StartsWith("_" + test.Id)).ToList().ForEach(x => x.IsDelete = true);
-            var responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>("api/Challenge/Edit/Save", Model);
+            var responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/Edit/Save", Model);
             if (responseMessage.IsSuccessStatusCode)
             {
                 Model = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
@@ -131,7 +132,7 @@
         }
         else
         {
-            toastService.ShowError($"Test {Convert.ToInt32(test.Index) - 1} not deleted", "Error");
+            ToastService.ShowError($"Test {Convert.ToInt32(test.Index) - 1} not deleted", "Error");
         }
     }
 

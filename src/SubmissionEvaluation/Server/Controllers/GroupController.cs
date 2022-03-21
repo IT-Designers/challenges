@@ -1,19 +1,19 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
-using SubmissionEvaluation.Shared.Models.Admin;
-using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge;
-using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
-using Group = SubmissionEvaluation.Contracts.ClientPocos.Group;
-using System.Collections.Generic;
-using System.Linq;
-using SubmissionEvaluation.Shared.Models;
-using SubmissionEvaluation.Shared.Classes.Messages;
-using SubmissionEvaluation.Shared.Models.Permissions;
 using SubmissionEvaluation.Shared.Classes;
-using System.IO;
-using Microsoft.Extensions.Logging;
+using SubmissionEvaluation.Shared.Classes.Messages;
+using SubmissionEvaluation.Shared.Models;
+using SubmissionEvaluation.Shared.Models.Admin;
+using SubmissionEvaluation.Shared.Models.Permissions;
+using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge;
+using Group = SubmissionEvaluation.Contracts.ClientPocos.Group;
+using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
 
 namespace SubmissionEvaluation.Server.Controllers
 {
@@ -23,35 +23,31 @@ namespace SubmissionEvaluation.Server.Controllers
     [Route("api/[controller]")]
     public class GroupController : Controller
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
 
         public GroupController(ILogger<GroupController> logger)
         {
-            _logger = logger;
+            this.logger = logger;
         }
+
         [HttpGet("Users")]
         public IActionResult Users()
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.VIEW, "Users", member))
+            if (JekyllHandler.CheckPermissions(Actions.View, "Users", member))
             {
-                var groups = JekyllHandler.GetPermissionsForMember(member).GroupsAccessible
-                    .Select(x => JekyllHandler.Domain.Query.GetGroup(x))
-                    .Where(x=> !x.IsSuperGroup).Select(x=> x.Id);
+                var groups = JekyllHandler.GetPermissionsForMember(member).GroupsAccessible.Select(x => JekyllHandler.Domain.Query.GetGroup(x))
+                    .Where(x => !x.IsSuperGroup).Select(x => x.Id);
                 var membersContained = JekyllHandler.MemberProvider.GetMembers().Where(x => x.Groups.Intersect(groups).Any());
                 var memberShips = groups.Select(x => new GroupMemberships<Member>
                 {
-                    Members = membersContained.Where(y => y.Groups.Contains(x)).Select(m=> new Member(m, false)).ToList(),
-                    GroupName = x
+                    Members = membersContained.Where(y => y.Groups.Contains(x)).Select(m => new Member(m, false)).ToList(), GroupName = x
                 });
-                var model = new AdminUserModel<Member>() {
-                    GroupMemberships = memberShips.ToList()
-                };
+                var model = new AdminUserModel<Member> {GroupMemberships = memberShips.ToList()};
                 return Ok(model);
-            } else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
             }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [Authorize(Roles = "admin")]
@@ -68,48 +64,61 @@ namespace SubmissionEvaluation.Server.Controllers
                 SelectableForcedChallenges = challenges.ToList(),
                 ForcedChallenges = new List<string>(),
                 AvailableChallenges = new List<string>(),
-                AdminsSelectable = groupAdmins.Select(x=> new Member(x, false)).ToList(),
+                AdminsSelectable = groupAdmins.Select(x => new Member(x, false)).ToList(),
                 GroupAdminsIds = new List<string>(),
                 SelectableSubGroups = GetSelectableSubGroups(new string[] { })
             });
         }
-
 
         [Authorize(Roles = "admin")]
         [HttpPost("CreateGroup")]
         public IActionResult CreateGroup(GroupModel<Challenge, Member, Group> model)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if (model.ForcedChallenges == null) model.ForcedChallenges = new List<string>();
-            if (model.AvailableChallenges == null) model.AvailableChallenges = new List<string>();
+            if (model.ForcedChallenges == null)
+            {
+                model.ForcedChallenges = new List<string>();
+            }
+
+            if (model.AvailableChallenges == null)
+            {
+                model.AvailableChallenges = new List<string>();
+            }
+
             JekyllHandler.Domain.Interactions.CreateGroup(member, model.Id, model.Title, model.GroupAdminsIds, model.IsSuperGroup, model.SubGroups.ToArray(),
-                model.ForcedChallenges.ToArray(), model.AvailableChallenges.ToArray(), model.MaxUnlockedChallenges,
-                model.RequiredPoints, model.StartDate);
+                model.ForcedChallenges.ToArray(), model.AvailableChallenges.ToArray(), model.MaxUnlockedChallenges, model.RequiredPoints, model.StartDate,
+                model.EndDate);
 
             var challenges = JekyllHandler.Domain.Query.GetAllChallenges(member).OrderBy(x => x.Id).ToList();
-            model.SelectableAvailableChallenges = challenges.Where(x => !model.AvailableChallenges.Contains(x.Id))
-                .Select(x => new Challenge(x)).ToList();
-            model.SelectableForcedChallenges = challenges.Where(x => !model.ForcedChallenges.Contains(x.Id))
-                .Select(x => new Challenge(x)).ToList();
+            model.SelectableAvailableChallenges = challenges.Where(x => !model.AvailableChallenges.Contains(x.Id)).Select(x => new Challenge(x)).ToList();
+            model.SelectableForcedChallenges = challenges.Where(x => !model.ForcedChallenges.Contains(x.Id)).Select(x => new Challenge(x)).ToList();
             ModelState.Clear();
             model.HasSuccess = true;
-            model.AdminsSelectable = JekyllHandler.MemberProvider.GetMembers().Where(x => x.IsAdmin || x.IsGroupAdmin).Select(x => new Member(x, false)).ToList();
+            model.AdminsSelectable = JekyllHandler.MemberProvider.GetMembers().Where(x => x.IsAdmin || x.IsGroupAdmin).Select(x => new Member(x, false))
+                .ToList();
             model.SelectableSubGroups = GetSelectableSubGroups(model.SubGroups.ToArray());
             return Ok(model);
         }
-
 
         [HttpPost("EditGroup")]
         public IActionResult EditGroup(GroupModel<Challenge, Member, Group> model)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if(JekyllHandler.CheckPermissions(Actions.EDIT, "Groups", member, Restriction.GROUPS, model.Id)) {
-                if (model.ForcedChallenges == null) model.ForcedChallenges = new List<string>();
-                if (model.AvailableChallenges == null) model.AvailableChallenges = new List<string>();
-                JekyllHandler.Domain.Interactions.EditGroup(member, model.Id, model.Title, model.GroupAdminsIds,
-                    model.IsSuperGroup, model.SubGroups.ToArray(), model.ForcedChallenges.ToArray(),
-                    model.AvailableChallenges.ToArray(), model.MaxUnlockedChallenges, model.RequiredPoints,
-                    model.StartDate);
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Groups", member, Restriction.Groups, model.Id))
+            {
+                if (model.ForcedChallenges == null)
+                {
+                    model.ForcedChallenges = new List<string>();
+                }
+
+                if (model.AvailableChallenges == null)
+                {
+                    model.AvailableChallenges = new List<string>();
+                }
+
+                JekyllHandler.Domain.Interactions.EditGroup(member, model.Id, model.Title, model.GroupAdminsIds, model.IsSuperGroup, model.SubGroups.ToArray(),
+                    model.ForcedChallenges.ToArray(), model.AvailableChallenges.ToArray(), model.MaxUnlockedChallenges, model.RequiredPoints, model.StartDate,
+                    model.EndDate);
 
                 var challenges = JekyllHandler.Domain.Query.GetAllChallenges(member).OrderBy(x => x.Id).ToList();
                 model.SelectableAvailableChallenges = challenges.Select(x => new Challenge(x)).ToList();
@@ -121,10 +130,8 @@ namespace SubmissionEvaluation.Server.Controllers
                 model.SelectableSubGroups = GetSelectableSubGroups(model.SubGroups.ToArray());
                 return Ok(model);
             }
-            else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
-            }
+
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
 
         [HttpGet("EditGroup/{id}")]
@@ -132,12 +139,11 @@ namespace SubmissionEvaluation.Server.Controllers
         {
             var member = JekyllHandler.GetMemberForUser(User);
             var permissions = JekyllHandler.GetPermissionsForMember(member);
-            if (JekyllHandler.CheckPermissions(Actions.EDIT, "Groups", member, Restriction.GROUPS, id)) {
+            if (JekyllHandler.CheckPermissions(Actions.Edit, "Groups", member, Restriction.Groups, id))
+            {
                 var group = JekyllHandler.Domain.Query.GetGroup(id);
-                var challenges = JekyllHandler.Domain.Query.GetAllChallenges(member).OrderBy(x => x.Id).ToList();
-                var groupAdmins = JekyllHandler.MemberProvider.GetMembers().Where(x => x.IsAdmin || x.IsGroupAdmin);
-
-
+                var challenges = JekyllHandler.Domain.Query.GetAllChallenges(new Member {IsAdmin = true}).Where(x => x.IsAvailable).OrderBy(x => x.Id).ToList();
+                var groupAdmins = JekyllHandler.MemberProvider.GetMembers().Where(x => x.IsGroupAdmin);
                 return Ok(new GroupModel<IChallenge, Member, Group>
                 {
                     Id = id,
@@ -149,26 +155,26 @@ namespace SubmissionEvaluation.Server.Controllers
                     MaxUnlockedChallenges = group.MaxUnlockedChallenges,
                     RequiredPoints = group.RequiredPoints,
                     StartDate = group.StartDate,
+                    EndDate = group.EndDate,
                     AdminsSelectable = groupAdmins.Select(x => new Member(x, false)).ToList(),
                     GroupAdminsIds = group.GroupAdminIds ?? new List<string>(),
                     IsSuperGroup = group.IsSuperGroup,
                     SubGroups = group.SubGroups.ToList(),
                     SelectableSubGroups = GetSelectableSubGroups(group.SubGroups)
                 });
+            }
 
-            }
-            else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
-            }
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
-        List<Group> GetSelectableSubGroups(string[] AlreadySubGroups)
+
+        private static List<Group> GetSelectableSubGroups(string[] alreadySubGroups)
         {
             var subGroups = JekyllHandler.Domain.Query.GetAllGroups();
-            var alreadySubGroup = subGroups.SelectMany(x => x.SubGroups).Distinct();
-            //Remove last condition for multi-level hierarchies & adapt frontend
-            subGroups = subGroups.Where(x => (!alreadySubGroup.Contains(x.Id) || AlreadySubGroups.Contains(x.Id)) & !x.IsSuperGroup);
-            return subGroups.Select(x => new Group(x)).ToList();
+            var enumerable = subGroups.ToList();
+            var alreadySubGroup = enumerable.SelectMany(x => x.SubGroups).Distinct();
+            // Remove last condition for multi-level hierarchies & adapt frontend
+            return enumerable.Where(x => (!alreadySubGroup.Contains(x.Id) || alreadySubGroups.Contains(x.Id)) && !x.IsSuperGroup).Select(x => new Group(x))
+                .ToList();
         }
 
         [Authorize(Roles = "admin")]
@@ -176,8 +182,7 @@ namespace SubmissionEvaluation.Server.Controllers
         public ActionResult<bool> RenameGroup([FromBody] RenameModel model)
         {
             var challenge = JekyllHandler.Domain.Query.GetGroup(model.Name);
-            var result = JekyllHandler.Domain.Interactions.ChangeGroupId(challenge, model.NewName);
-            return result;
+            return JekyllHandler.Domain.Interactions.ChangeGroupId(challenge, model.NewName);
         }
 
         [Authorize(Roles = "admin")]
@@ -185,31 +190,30 @@ namespace SubmissionEvaluation.Server.Controllers
         public IActionResult DeleteGroup([FromBody] string id)
         {
             JekyllHandler.Domain.Interactions.DeleteGroup(id);
-            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
+            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
         }
 
         [HttpGet("Groups")]
         public IActionResult Groups()
         {
             var permissions = JekyllHandler.GetPermissionsForMember(JekyllHandler.GetMemberForUser(User));
-            if (PermissionHelper.CheckPermissions(Actions.VIEW, "Groups", permissions))
+            if (PermissionHelper.CheckPermissions(Actions.View, "Groups", permissions))
             {
                 var model = new AdminGroupsModel<IGroup>
                 {
-                    Groups = JekyllHandler.Domain.Query.GetAllGroups().Where(x => permissions.GroupsAccessible.Contains(x.Id) || permissions.isAdmin)
+                    Groups = JekyllHandler.Domain.Query.GetAllGroups().Where(x => permissions.GroupsAccessible.Contains(x.Id) || permissions.IsAdmin)
                 };
                 return Ok(model);
-            } else
-            {
-                return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
             }
 
+            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
         }
+
         [HttpPost("Copy")]
         public IActionResult Copy(CopyModel model)
         {
             var member = JekyllHandler.GetMemberForUser(User);
-            if (JekyllHandler.CheckPermissions(Actions.CREATE, "Groups", member, Restriction.GROUPS, model.NameCopyFrom))
+            if (JekyllHandler.CheckPermissions(Actions.Create, "Groups", member, Restriction.Groups, model.NameCopyFrom))
             {
                 IGroup group;
                 if (string.IsNullOrEmpty(model.NameCopyTo))
@@ -224,7 +228,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
                 catch (IOException)
                 {
-                    return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
+                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
                 }
 
                 try
@@ -233,7 +237,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
                 catch (IOException ex)
                 {
-                    _logger.LogWarning(ex.Message);
+                    logger.LogWarning(ex.Message);
                     model.HasError = true;
                     model.Message = ex.Message;
                     return Ok(model);
@@ -241,11 +245,8 @@ namespace SubmissionEvaluation.Server.Controllers
 
                 return Ok(model);
             }
-            else
-            {
-                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
-            }
 
+            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
         }
     }
 }

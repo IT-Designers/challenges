@@ -2,47 +2,64 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "dotnet: build",
             "command": "dotnet",
             "type": "shell",
             "args": [
                 "build",
-                // Ask dotnet build to generate full paths for file names.
                 "/property:GenerateFullPaths=true",
-                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
-                "/consoleloggerparameters:NoSummary"
+                "/consoleloggerparameters:NoSummary",
+                "-warnaserror"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         },
         {
-            "label": "restore",
+            "label": "dotnet: restore",
             "command": "dotnet",
             "type": "shell",
             "args": [
                 "restore"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         },
         {
-            "label": "publish",
+            "label": "dotnet: publish",
             "command": "dotnet",
             "type": "shell",
             "args": [
                 "publish"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "type": "npm",
+            "script": "install",
+            "path": "./SubmissionEvaluation/Client/",
+            "problemMatcher": [],
+            "label": "npm: install - src/SubmissionEvaluation/Client",
+            "detail": "install dependencies from package",
+            "group": "build"
+        },
+        {
+            "type": "npm",
+            "script": "wbp",
+            "path": "./SubmissionEvaluation/Client/",
+            "problemMatcher": [],
+            "label": "npm: wbp - src/SubmissionEvaluation/Client",
+            "detail": "webpack",
+            "group": "build"
         }
     ]
 }

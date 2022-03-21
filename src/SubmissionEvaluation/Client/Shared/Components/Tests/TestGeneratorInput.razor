@@ -1,5 +1,5 @@
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-<div hidden="@hidden">
+<div hidden="@Hidden">
     <div class="post-header">
         Submission der Challenge "@Model.ChallengeName" auswählen:
     </div>
@@ -7,14 +7,14 @@
     @if (Model.SubmissionId != null)
     {
         <div class="card-body challenge-creation-panel">
-            <EditForm Model="@Model" OnValidSubmit="@action">
+            <EditForm Model="@Model" OnValidSubmit="@Action">
                 <input type="hidden" @bind-value="@Model.SubmissionId"/>
                 <input type="hidden" @bind-value="@Model.ChallengeId"/>
                 <label for="parametersTextAreaArrays">Startparameter</label>
                 <div id="parametersTextAreas">
                     <ForEachInputText @bind-Parameters="Model.Test.Parameters"/>
                 </div>
-                <a id="addParameterButton" class="btn btn-outline-dark" @onclick="addInputTextArea">Parameter hinzufügen</a>
+                <a id="addParameterButton" class="btn btn-outline-dark" @onclick="AddInputTextArea">Parameter hinzufügen</a>
                 <p id="parametersHelpBlock" class="form-text text-muted">
                     Gibt die Parameter an, die beim Programmstart übergeben werden. Eine Textbox entspricht einem Parameter. Der entfernen Button wird erst nach dem Speichern hinzugefügt.
                 </p>
@@ -26,7 +26,7 @@
                         Beschreibt die Tastatureingaben, die während des Programmablaufs eingegeben wird.
                     </p>
                 </div>
-                <button id="create" type="submit" class="btn btn-primary btn-block text-center input-field-padding" value="generateTest"><span class="glyphicon glyphicon-floppy-disk"></span> Test generieren</button>
+                <button id="create" type="submit" class="btn btn-outline-dark btn-block text-center input-field-padding" value="generateTest"><span class="glyphicon glyphicon-floppy-disk"></span> Test generieren</button>
             </EditForm>
         </div>
     }
@@ -38,18 +38,18 @@
     public TestGeneratorModel<Result, Member> Model { get; set; }
 
     [Parameter]
-    public Action action { get; set; }
+    public Action Action { get; set; }
 
     [Parameter]
-    public bool hidden { get; set; }
+    public bool Hidden { get; set; }
 
-    private void removeInputTextArea(string parameter)
+    private void RemoveInputTextArea(string parameter)
     {
         Model.Test.Parameters.Remove(parameter);
         StateHasChanged();
     }
 
-    private void addInputTextArea()
+    private void AddInputTextArea()
     {
         Model.Test.Parameters.Add(string.Empty);
         StateHasChanged();

@@ -1,12 +1,18 @@
 @page "/Challenge/Overlook"
-@inject HttpClient httpClient
-@inject NavigationManager navi
 @using System.Net.Http.Json
+
 @using SubmissionEvaluation.Client.Shared.Components.Challenge
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-@using SubmissionEvaluation.Shared.Classes
+
 @using SubmissionEvaluation.Shared.Models.Permissions
-@if(CategoryStats != null && Bundles != null) {
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
+@if (CategoryStats != null && Bundles != null)
+{
     @foreach (var category in CategoryStats)
     {
         <div class="post-area">
@@ -16,18 +22,12 @@
             <div class="post-list-body">
                 <div class="all-posts" post-cate="All">
                     @{
-                        @foreach (var entry in category.Value.Take(7))
+                        @foreach (var entry in category.Value)
                         {
                             if (entry.Id != null)
                             {
-                                <ChallengeTile entry="entry" Member="new Member()" bundles="Bundles.Where(x => x.Category.Equals(category.Key)).ToList()"/>
+                                <ChallengeTile Entry="entry" Member="new Member()" Bundles="Bundles.Where(x => x.Category.Equals(category.Key)).ToList()"/>
                             }
-                        }
-                        if (category.Value.Count > 7)
-                        {
-                            <a class="post-list-item" href="Challenge/Category/@category.Key" style="height: 110px">
-                                <h2 style="margin: 0; padding-top: 15%; text-align: center;"> Mehr...</h2>
-                            </a>
                         }
                     }
                 </div>
@@ -36,19 +36,27 @@
         </div>
     }
 }
+else {
+    <Wave />
+}
+
 @code {
     public Dictionary<string, List<CategoryListEntryExtendedModel>> CategoryStats { get; set; }
     public List<BundleModel> Bundles { get; set; }
+
     protected override async void OnInitialized()
     {
-        var permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if(PermissionHelper.CheckPermissions(Actions.VIEW, "ChallengeOverview", permissions)) {
-            CategoryStats = await httpClient.GetFromJsonAsync<Dictionary<string, List<CategoryListEntryExtendedModel>>>("api/Challenge/GetAllChallengesAdminView");
-            Bundles = await httpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/GetAllBundlesAdminView");
-            base.StateHasChanged();
-        }else
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (PermissionHelper.CheckPermissions(Actions.View, "ChallengeOverview", permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            CategoryStats = await HttpClient.GetFromJsonAsync<Dictionary<string, List<CategoryListEntryExtendedModel>>>("api/Challenge/GetAllChallengesAdminView");
+            Bundles = await HttpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/GetAllBundlesAdminView");
+            StateHasChanged();
+        }
+        else
+        {
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
     }
+
 }

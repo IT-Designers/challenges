@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Providers;
-using SubmissionEvaluation.Domain.Achievements;
+using SubmissionEvaluation.Domain.Achivements;
 using SubmissionEvaluation.Domain.Operations;
 using SubmissionEvaluation.Domain.RatingMethods;
 
@@ -12,8 +12,8 @@ namespace SubmissionEvaluation.Domain
     public class Domain
     {
         public Domain(IFileProvider fileProvider, IMemberProvider memberProvider, IProcessProvider processProvider, IProcessProvider sandboxedProcessProvider,
-            IChallengeEstimator challengeEstimator, ISmtpProvider smtpProvider, List<ICompiler> compilers, ILog logger,
-            bool enableReview, bool enableReviewerPromotion, bool enableAchievements, string siteUrl, string helpEmail)
+            IChallengeEstimator challengeEstimator, ISmtpProvider smtpProvider, List<ICompiler> compilers, ILog logger, bool enableReview,
+            bool enableReviewerPromotion, bool enableAchievements, string siteUrl, string helpEmail)
         {
             Log = logger;
             MemberProvider = memberProvider;
@@ -57,7 +57,7 @@ namespace SubmissionEvaluation.Domain
                 MemberProvider = memberProvider,
                 SmtpProvider = smtpProvider,
                 Compilers = compilers,
-                EvaluationOperations = EvaluationOperations,
+                EvaluationOperations = EvaluationOperations
             };
 
             StatisticsOperations = new StatisticsOperations
@@ -82,17 +82,7 @@ namespace SubmissionEvaluation.Domain
                         new SubmitterAchievementRater(),
                         new ReviewAchievementRater()
                     },
-                Contributors = new List<string>
-                {
-                    memberProvider.GetMemberByName("Kevin Erath")?.Id,
-                    memberProvider.GetMemberByName("Wojciech Lesnianski")?.Id,
-                    memberProvider.GetMemberByName("Matthias Gugel")?.Id,
-                    memberProvider.GetMemberByName("Roland Flat")?.Id,
-                    memberProvider.GetMemberByName("Stephan Dittmann")?.Id,
-                    memberProvider.GetMemberByName("Markus Scheider")?.Id,
-                    memberProvider.GetMemberByName("Maximilian Schall")?.Id,
-                    memberProvider.GetMemberByName("Julian Klissenbauer")?.Id
-                },
+                Contributors = new List<string>(),
                 StatisticsOperations = StatisticsOperations
             };
             StatisticsOperations.AchievementOperations = AchievementOperations;
@@ -100,7 +90,6 @@ namespace SubmissionEvaluation.Domain
 
             logger.ActivityAdded += Interactions.AddActivityEntry;
         }
-
 
         internal AchievementOperations AchievementOperations { get; }
         internal MaintenanceOperations Maintenance { get; }

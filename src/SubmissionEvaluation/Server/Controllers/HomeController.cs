@@ -1,14 +1,11 @@
-using System;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SubmissionEvaluation.Contracts.Data;
+using SubmissionEvaluation.Contracts.ClientPocos;
 using SubmissionEvaluation.Server.Classes;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
 using SubmissionEvaluation.Shared.Models;
 using SubmissionEvaluation.Shared.Models.Bundle;
-using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge;
-using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
 
 namespace SubmissionEvaluation.Server.Controllers
 {
@@ -24,8 +21,9 @@ namespace SubmissionEvaluation.Server.Controllers
             var activities = JekyllHandler.Domain.Query.GetRecentActivities();
             if (member == null)
             {
-                return new IndexHomeModel { Member = null };
+                return new IndexHomeModel {Member = null};
             }
+
             var categoryStats = JekyllHandler.Domain.Query.GetCategoryStats(member);
             var elements = categoryStats.ToDictionary(x => x.Key,
                 x => x.Value.Select(element => new CategoryListEntryExtendedModel
@@ -37,7 +35,7 @@ namespace SubmissionEvaluation.Server.Controllers
                     IsAvailable = element.IsAvailable,
                     IsBundle = element.IsBundle,
                     Languages = element.Languages != null ? string.Join(',', element.Languages) : null,
-                    RatingMethod = WASMHelper.helper.ValueRatingMethod(element.RatingMethod),
+                    RatingMethod = WasmHelper.Helper.ValueRatingMethod(element.RatingMethod),
                     Title = element.Title,
                     LearningFocus = element.LearningFocus
                 }).ToList());
@@ -61,9 +59,7 @@ namespace SubmissionEvaluation.Server.Controllers
             }).ToList();
             var indexmodel = new IndexHomeModel
             {
-                Activities = activities,
-                CategoryStats = elements,
-                Member = new Member(member)
+                Activities = activities, CategoryStats = elements, Member = new Member(member)
                 //Bundles = bundles
             };
 
@@ -81,11 +77,16 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(new GenericModel {HasError = true, Message = message});
         }
 
-        [AllowAnonymous]
         [HttpGet("getGitVersionHash")]
         public IActionResult GetGitVersionHash()
         {
             return Ok(Domain.Domain.GetVersionHash());
+        }
+
+        [HttpGet("IsMaintenanceMode")]
+        public IActionResult IsMaintenanceMode()
+        {
+            return Ok(JekyllHandler.Domain.IsMaintenanceMode);
         }
     }
 }

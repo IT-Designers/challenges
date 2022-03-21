@@ -1,10 +1,11 @@
-﻿@page "/Admin/ManageMemberRoles/{memberId}"
-@using SubmissionEvaluation.Shared.Models.Admin
+@page "/Admin/ManageMemberRoles/{memberId}"
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Admin
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Classes.Messages
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
 <div class="row">
     <div class="col-12">
         <div class="post-area post">
@@ -24,7 +25,7 @@
                         }
                     </ul>
                     <div class="input-field-padding">
-                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Änderungen übernehmen" />
+                        <input id="Update" name="Update" type="submit" class="btn btn-outline-dark btn-margin col-sm-3 ml-auto" value="Änderungen übernehmen"/>
                     </div>
                 </EditForm>
             }
@@ -36,30 +37,30 @@
 @code {
 
     [Parameter]
-    public string memberId { get; set; }
+    public string MemberId { get; set; }
 
     ManageMemberRolesModel Model { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Users", Permissions))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Edit, "Users", permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await httpClient.GetFromJsonAsync<ManageMemberRolesModel>($"api/Admin/AllPossibleMemberRoles/{memberId}");
+        Model = await HttpClient.GetFromJsonAsync<ManageMemberRolesModel>($"api/Admin/AllPossibleMemberRoles/{MemberId}");
     }
 
     async void SendChangesToServer()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<ManageMemberRolesModel>("api/Admin/NewMemberRoles", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Admin/NewMemberRoles", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             Model = await responseMessage.Content.ReadFromJsonAsync<ManageMemberRolesModel>();
         }
         if (Model.HasSuccess)
         {
-            navi.NavigateTo("Admin/Users");
+            Navi.NavigateTo("Admin/Users");
         }
     }
 

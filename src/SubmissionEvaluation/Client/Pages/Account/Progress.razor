@@ -1,0 +1,168 @@
+@inject HttpClient HttpClient
+@page "/Account/Progress"
+@using System.Net.Http.Json
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Shared.Models.Members
+
+<div class="row">
+    <ProfileHeader Features="Features" Model="Model"/>
+
+    <div class="col-12">
+        <div class="post-area post">
+            <div>
+                <ProfileMenu Model="Model"/>
+            </div>
+
+            @if (Features != null && Model != null && CustomSettings != null && Achievements != null && Points != null)
+            {
+                @if (Features.EnableAchievements)
+                {
+                    <div>
+                        <h3>Auszeichnungen</h3>
+                    </div>
+                    <div class="challenge-creation-panel">
+                        @foreach (var achievement in Achievements)
+                        {
+                            CustomSettings.Achievements.TryGetValue(achievement.Id, out var config);
+                            var title = config?.Title ?? "Missing";
+                            var description = config?.Description ?? "Missing";
+                            if (Model.Achievements.TryGetValue(achievement.Id, out var award))
+                            {
+                                <img style="box-shadow: unset; padding-right: 4px" title="@title &nbsp; @award.Date&#013;@description" src="/images/Achievement@(achievement.Quality)On.png" width="36px"/>
+                            }
+                            else
+                            {
+                                <img style="box-shadow: unset; padding-right: 4px" title="@title &#013;@description" src="/images/Achievement@(achievement.Quality)Off.png" width="36px"/>
+                            }
+                        }
+                    </div>
+                }
+
+                @if (Model.Groups.Any(x => x.RequiredPoints > 0))
+                {
+                    <div>
+                        <h3>Fortschritt</h3>
+                    </div>
+
+                    @foreach (var group in Model.Groups.Where(x => x.RequiredPoints > 0))
+                    {
+                        var solved = Points.Where(x => group.AvailableChallenges.Length == 0 || group.AvailableChallenges.Contains(x.Challenge)).ToList();
+                        var collectedPoints = solved.Count == 0 ? 0 : solved.Sum(x => x.Points);
+                        var requiredChallenges = collectedPoints == 0 || solved.Count == 0 ? group.RequiredPoints.Value : (int) Math.Ceiling(group.RequiredPoints.Value / (collectedPoints / (double) solved.Count));
+                        <div class="row">
+                            <div class="col form-group">
+                                <label class="col-form-label">
+                                    <span class="oi @(solved.Count >= requiredChallenges ? "oi-circle-check" : "oi-circle-x") "></span> @group.Title
+                                </label>
+                                <progress style="height: 0.8em;" value="@collectedPoints" max="@group.RequiredPoints"></progress>&nbsp;@($"[{solved.Count} von ~{requiredChallenges} Aufgaben]")
+                            </div>
+                        </div>
+                    }
+                }
+
+                @if (MemberModel?.Points != null)
+                {
+                    <div>
+                        <h3>Punktewertungen</h3>
+                    </div>
+
+                    <div class="post">
+                        <table class="ranking_table">
+                            <thead>
+                            <tr class="ranking_head">
+                                <th class="th_name">Name</th>
+                                @* TODO> activate if tested *@
+                                @*<th class="th_name">Platz</th>*@
+                                <th class="th_name">Punkte</th>
+                                @* TODO> activate if tested *@
+                                @*<th class="th_name">Info</th>*@
+                            </tr>
+                            </thead>
+                            @foreach (var submission in MemberModel.Points)
+                            {
+                                <tr>
+                                    <td>
+                                        @switch (submission.Entry?.Challenge)
+                                        {
+                                            case "ChallengeCreators":
+                                                @((MarkupString) "Aufgabenerstellung")
+                                                break;
+                                            case "Achievements":
+                                                @((MarkupString) "Aufgabenerstellung")
+                                                break;
+                                            case "Reviews":
+                                                @((MarkupString) "Review")
+                                                break;
+                                            default:
+                                                <a href=@($"/Challenge/View/{submission.Entry?.Challenge}")>@submission.Entry?.Challenge</a>
+                                                break;
+                                        }
+                                    </td>
+                                    @*<td>
+                                        @((MarkupString) (submission.Entry.Rank > 0 ? submission.Entry.Rank.ToString() : "-"))
+                                    </td>*@
+                                    <td>
+                                        @((MarkupString) (submission.Entry.Points > 0 ? submission.Entry.Points.ToString() : "-"))
+                                    </td>
+                                    @*<td>
+                                        @switch (submission.Entry.Challenge)
+                                        {
+                                            case "ChallengeCreators":
+                                                <a href=@($"/Challenge/View/{submission.Entry.Language}")>@submission.Entry.Language</a>
+                                                break;
+                                            case "Achievements":
+                                                CustomSettings.Achievements.TryGetValue(submission.Entry.Language, out var config);
+                                                @((MarkupString) (config?.Title ?? "Achievement"))
+                                                break;
+                                            case "Reviews":
+                                                @((MarkupString) submission.Entry.Language)
+                                                break;
+                                            default:
+                                                if (submission.Entry.Language != null)
+                                                {
+                                                    <a href=@("/Help/ViewPage/Compilers")>@submission.Entry.Language</a>
+                                                }
+                                                else
+                                                {
+                                                    @((MarkupString) "-")
+                                                }
+                                                break;
+                                        }
+                                    </td>*@
+                                </tr>
+                            }
+
+                        </table>
+                    </div>
+                }
+            }
+            else
+            {
+                <Wave />
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    SettingsModel Model { get; set; }
+    FeatureSettings Features { get; set; }
+    CustomizationSettingsClient CustomSettings { get; set; }
+    List<Achievement> Achievements { get; set; }
+    List<SubmitterRankingEntry> Points { get; set; }
+    MemberModel<Result, Member> MemberModel { get; set; }
+
+    protected override async void OnInitialized()
+    {
+        Model = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Model.CurrentMenu = ProfileMenuType.Progess;
+
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        CustomSettings = await HttpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        Points = await HttpClient.GetFromJsonAsync<List<SubmitterRankingEntry>>("api/Account/PointsList");
+        Achievements = await HttpClient.GetFromJsonAsync<List<Achievement>>("api/Members/GetAchievements");
+        MemberModel = await HttpClient.GetFromJsonAsync<MemberModel<Result, Member>>($"api/Members/Get/{Model.Id}");
+        StateHasChanged();
+    }
+
+}

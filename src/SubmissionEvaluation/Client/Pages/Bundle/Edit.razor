@@ -1,13 +1,12 @@
 @page "/Bundle/Edit/{bundleid}"
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Client.Shared.Components.Bundle
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Shared.Models.Permissions
 
-@using SubmissionEvaluation.Client.Shared.Components.Bundle;
-@using SubmissionEvaluation.Shared.Classes;
-@using SubmissionEvaluation.Shared.Models.Bundle;
-@using SubmissionEvaluation.Shared.Models.Permissions;
-
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
 <style>
     .consoleblock {
         background: #000 !important;
@@ -39,8 +38,8 @@
 
                         <EditBundleFieldsPartial Model="Model" Settings="CustomizationSettings" @ref="Partial"/>
 
-                        <button id="btnSave" name="command" @onclick='() => SubmitForm("Save", formContext)' value="Save" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-book"></span> Bundle speichern</button>
-                        <button id="btnSaveAndClose" name="command" @onclick='() => SubmitForm("SaveAndClose", formContext)' value="SaveAndClose" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-book"></span> Bundle speichern und zurück</button>
+                        <button id="btnSave" name="command" @onclick='() => SubmitForm("Save", formContext)' value="Save" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-book"></span> Bundle speichern</button>
+                        <button id="btnSaveAndClose" name="command" @onclick='() => SubmitForm("SaveAndClose", formContext)' value="SaveAndClose" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-book"></span> Bundle speichern und zurück</button>
                         @if (Model.IsDraft)
                         {
                             <button id="btnPublish" name="command" @onclick='() => SubmitForm("Publish", formContext)' value="Publish" class="btn btn-success btn-block text-center input-field-padding"><span class="oi oi-pin"></span> Bundle veröffentlichen</button>
@@ -57,22 +56,23 @@
 
     [Parameter]
     public string BundleId { get; set; }
+
     EditBundleFieldsPartial Partial { get; set; }
     BundleModel Model { get; set; }
     CustomizationSettingsClient CustomizationSettings { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.EDIT, "Bundles", Permissions, Restriction.BUNDLES, BundleId))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Edit, "Bundles", permissions, Restriction.Bundles, BundleId))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        CustomizationSettings = await httpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
-        Model = await httpClient.GetFromJsonAsync<BundleModel>("api/Bundle/Edit/" + BundleId);
+        CustomizationSettings = await HttpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        Model = await HttpClient.GetFromJsonAsync<BundleModel>("api/Bundle/Edit/" + BundleId);
         if (Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
         StateHasChanged();
     }
@@ -82,14 +82,14 @@
         await Partial.SaveEditor();
         if (context.Validate())
         {
-            var responseMessage = await httpClient.PostAsJsonAsync<BundleModel>($"api/Bundle/Edit/{command}", Model);
+            var responseMessage = await HttpClient.PostAsJsonAsync($"api/Bundle/Edit/{command}", Model);
             if (responseMessage.IsSuccessStatusCode)
             {
                 Model = await responseMessage.Content.ReadFromJsonAsync<BundleModel>();
             }
             if (Model.HasSuccess && (command.Equals("SaveAndClose") || command.Equals("Publish")))
             {
-                navi.NavigateTo("Bundle/List");
+                Navi.NavigateTo("Bundle/List");
             }
         }
         StateHasChanged();

@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Generic;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Review;
+using System.Collections.Generic;
 
 namespace SubmissionEvaluation.Contracts.ClientPocos
 {
@@ -13,7 +13,8 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
 
         public Member(IMember member, bool fullInfo = true, bool isPasswordRequested = false)
         {
-            if(fullInfo) { 
+            if (fullInfo)
+            {
                 AverageDifficultyLevel = member.AverageDifficultyLevel;
                 CanRate = member.CanRate;
                 DateOfEntry = member.DateOfEntry;
@@ -27,14 +28,13 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
                 LastReview = member.LastReview;
                 Mail = member.Mail;
                 Password = isPasswordRequested ? member.Password : "hidden";
-                ReviewCounter = member.ReviewCounter;
                 ReviewFrequency = member.ReviewFrequency;
                 ReviewLanguages = member.ReviewLanguages;
-                ReviewLevel = member.ReviewLevel;
                 Roles = member.Roles;
                 Type = member.Type;
                 UnlockedChallenges = member.UnlockedChallenges;
             }
+
             FirstName = member.FirstName;
             Id = member.Id;
             Name = member.Name;
@@ -49,11 +49,9 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
         public string Uid { get; set; }
         public DateTime DateOfEntry { get; set; }
         public bool IsReviewer { get; set; }
-        public int ReviewCounter { get; set; }
-        public ReviewLevel ReviewLevel { get; set; }
         public int ReviewFrequency { get; set; }
         public DateTime LastReview { get; set; }
-        public string[] ReviewLanguages { get; set; }
+        public Dictionary<string, ReviewLevelAndCounter> ReviewLanguages { get; set; }
         public string FirstName { get; set; }
         public DateTime LastActivity { get; set; }
         public string[] Roles { get; set; }

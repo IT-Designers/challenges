@@ -2,7 +2,7 @@
 {
     public enum SemesterPeriod
     {
-        SS, //Summer Semester
-        WS //Winter Semester
+        Ss, //Summer Semester
+        Ws //Winter Semester
     }
 }

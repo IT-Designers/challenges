@@ -1,9 +1,10 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using SubmissionEvaluation.Contracts.Interfaces;
 using SubmissionEvaluation.Contracts.Providers;
 using SubmissionEvaluation.Providers.CryptographyProvider;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
+using SubmissionEvaluation.Server.Contracts.Interfaces;
 
 namespace SubmissionEvaluation.Server.Classes.Authentication
 {
@@ -22,9 +23,11 @@ namespace SubmissionEvaluation.Server.Classes.Authentication
 
         public Dictionary<string, string> VerifyUser(string username, string password)
         {
-            var member = memberProvider.GetMemberByUid(username) ?? memberProvider.GetMemberByMail(username);
-            if (member != null)
+            try
             {
+                var member = memberProvider.GetMemberByUid(username) ?? memberProvider.GetMemberByMail(username);
+                if (member == null) { return new Dictionary<string, string>(); }
+
                 if (CryptographyProvider.VerifyPassword(password, member.Password))
                 {
                     return new Dictionary<string, string> {{"uid", member.Uid}, {"sn", member.Name}, {"givenName", ""}, {"mail", member.Mail}};
@@ -40,8 +43,10 @@ namespace SubmissionEvaluation.Server.Classes.Authentication
 
                 return new Dictionary<string, string> {{"uid", member.Uid}, {"sn", member.Name}, {"givenName", ""}, {"mail", member.Mail}};
             }
-
-            return new Dictionary<string, string>();
+            catch (Exception)
+            {
+                return new Dictionary<string, string>();
+            }
         }
     }
 }

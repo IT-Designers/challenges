@@ -1,24 +1,21 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using SubmissionEvaluation.Shared.Models.Shared;
 
 namespace SubmissionEvaluation.Client
 {
-    public class InputButtonHelper
+    public static class InputButtonHelper
     {
-        public static string GetNormalColor()
-        {
-            return "color:black;";
-        }
+        public const string GetNormalColor = "color:black;";
 
         private static bool SpecialCharacterInvolved(string name)
         {
-            return name.Contains(Folder.pathSeperator) && name.Contains("|") && name.Contains("/") && name.Contains("\\") && name.Contains("*");
+            return name.Contains(Folder.PathSeperator) && name.Contains("|") && name.Contains("/") && name.Contains("\\") && name.Contains("*");
         }
 
-        public static bool CheckValidity(List<File> files, List<DetailedInputFile> otherFiles, string name, File file)
+        public static bool CheckValidity(IEnumerable<File> files, IEnumerable<DetailedInputFile> otherFiles, string name, File file)
         {
-            return !files.Any(x => x.Name.Equals(name) & !x.Equals(file)) & !otherFiles.Any(x => x.Name.Equals(name) & !x.Equals(file)) &
+            return !files.Any(x => x.Name.Equals(name) && !x.Equals(file)) && !otherFiles.Any(x => x.Name.Equals(name) && !x.Equals(file)) &&
                    !SpecialCharacterInvolved(name);
         }
     }

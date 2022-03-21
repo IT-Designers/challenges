@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using SubmissionEvaluation.Classes.Config;
+using SubmissionEvaluation.Shared.Classes.Config;
 
 namespace SubmissionEvaluation.Shared.Models.Challenge
 {

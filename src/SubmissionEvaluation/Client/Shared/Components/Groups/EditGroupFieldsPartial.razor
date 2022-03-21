@@ -1,11 +1,18 @@
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Models.Admin
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using System.Security.Cryptography
 @using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge
-@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using Group = SubmissionEvaluation.Contracts.ClientPocos.Group
-@inject HelperService helper
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+
+@inject HelperService Helper
+@inject HttpClient HttpClient
+
 <div class="row">
-    <div id="settingsCol" class="col-4">
+    <div id="settingsCol" class="col-12">
         <div id="title-group" class="form-group">
             <h4 class="col-form-label">Titel*</h4>
             <InputText @bind-Value="Model.Title" class="form-control"/>
@@ -20,16 +27,16 @@
         </div>
         <div>
             <h4 class="col-form-label groupEdit">Die Gruppe fasst mehrere Gruppen zusammen.</h4>
-            <InputCheckbox @bind-Value=Model.IsSuperGroup @onchange=base.StateHasChanged/>
+            <InputCheckbox @bind-Value="Model.IsSuperGroup" @onchange="StateHasChanged"/>
         </div>
-        @if(Model.IsSuperGroup)
+        @if (Model.IsSuperGroup)
         {
             <h4 class="col-form-label">Untergruppen</h4>
             <div class="form-group">
                 <select size="6" @bind="Model.SelectedSubGroup" class="form-control">
                     @foreach (var group in Model.SubGroups)
                     {
-                        <option value="@group">@(Model.SelectableSubGroups.FirstOrDefault(x=> x.Id.Equals(group))?.Title ?? group)</option>
+                        <option value="@group">@(Model.SelectableSubGroups.FirstOrDefault(x => x.Id.Equals(group))?.Title ?? group)</option>
                     }
                 </select>
             </div>
@@ -46,19 +53,28 @@
                     {
                         Console.WriteLine(Model.SubGroups.ToString());
                         Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(group));
-                        <option value="@group.Id" title="@group.Id">@group.Title</option>
+                        <option value="@group.Id" title="@group.Title">@group.Title</option>
                     }
                 </select>
             </div>
-        } else
+        }
+        else
         {
-            
             <h4 class="col-form-label">Verfügbare Challenges</h4>
             <div class="form-group">
                 <select size="6" @bind="Model.SelectedAvailableChallenge" class="form-control">
                     @foreach (var challenge in Model.AvailableChallenges)
                     {
-                        <option value="@challenge">@challenge</option>
+                        <option value="@challenge">
+                            @if (ChallengeIdToTitle.ContainsKey(challenge))
+                            {
+                                @ChallengeIdToTitle[challenge] <text> (</text> @challenge <text>)</text>
+                            }
+                            else
+                            {
+                                @challenge
+                            }
+                        </option>
                     }
                 </select>
             </div>
@@ -69,20 +85,30 @@
                 <button id="btnAddAvailableChallenge" @onclick="AddToAvailableChallenges" type="button" class="btn btn-outline-dark ">
                     <span class="oi-plus oi"></span>
                 </button>
-                <select @bind="Model.SelectedAddAvailableChallenge" class="form-control">
-                    <option value="" selected>Bitte wähle eine Challenge, die du hinzufügen möchtest</option>
+                <select class="form-control" @bind="Model.SelectedAddAvailableChallenge">
+                    <option value="" selected>Weitere verfügbare Challenge hinzufügen</option>
                     @foreach (var challenge in Model.SelectableAvailableChallenges.Where(x => !Model.AvailableChallenges.Contains(x.Id)))
                     {
-                        <option value="@challenge.Id" title="@challenge.Id">@challenge.Title</option>
+                        <option value="@challenge.Id" title="@challenge.Title">@challenge.Title (@challenge.Id)</option>
                     }
                 </select>
             </div>
-            <h4 class="col-form-label">In Reihenfolge erzwungene Challenges</h4>
+            <h4 class="col-form-label">Neue Gruppenmitglieder müssen zunächst folgende Aufgaben lösen bevor ihnen weitere verfügbare angezeigt werden!</h4>
+            <p><b>Achtung: Diese Liste sollte in einem laufenden Kurs nicht geändert werden</b></p>
             <div class="form-group">
                 <select size="6" class="form-control" @bind="Model.SelectedForcedChallenge">
                     @foreach (var challenge in Model.ForcedChallenges)
                     {
-                        <option value="@challenge">@challenge</option>
+                        <option value="@challenge">
+                        @if (ChallengeIdToTitle.ContainsKey(challenge))
+                        {
+                            @ChallengeIdToTitle[challenge] <text> (</text> @challenge <text>)</text>
+                        }
+                        else
+                        {
+                            @challenge
+                        }
+                        </option>
                     }
                 </select>
             </div>
@@ -100,57 +126,64 @@
                     <span class="oi-plus oi"></span>
                 </button>
                 <select class="form-control" @bind="Model.SelectedAddForcedChallenge">
-                    <option value="" selected>Bitte wähle eine Challenge, die du hinzufügen möchtest</option>
+                    <option value="" selected>Weitere erzwunge Challenge hinzufügen</option>
                     @foreach (var challenge in  Model.SelectableForcedChallenges.Where(x => !Model.ForcedChallenges.Contains(x.Title)))
                     {
-                        <option value="@challenge.Id" title="@challenge.Title">@challenge.Title</option>
+                        <option value="@challenge.Id" title="@challenge.Title">@challenge.Title (@challenge.Id)</option>
                     }
                 </select>
             </div>
-
             <h4 class="col-form-label">Maximale gleichzeitige Challenges</h4>
             <input type="number" @bind-value="Model.MaxUnlockedChallenges" class="form-control"/>
-        
+
             <h4 class="col-form-label">Benötigte Punkte</h4>
             <input type="number" @bind-value="Model.RequiredPoints" class="form-control"/>
         }
 
-        @*
-            todo> start date of groups needed?
-            <h4 class="col-form-label">Start Datum</h4>
-            @if (Model.StartDate == null)
-            {
-                Model.StartDate = new DateTime();
-            }
-            <input @bind-value="Model.StartDate" type="date" pattern="{0:dd.mm.yy}" class="form-control" placeholder="StartDate" id="datepicker2"/>*@
+        @if (Model.StartDate == null)
+        {
+            Model.StartDate = DateTime.UtcNow.Date;
+        }
+        @if (Model.EndDate == null)
+        {
+            Model.EndDate = DateTime.UtcNow.Date.AddMonths(6);
+        }
+        <h4 class="col-form-label">Ermögliche Selbsteinschreibungen ab</h4>
+        <input @bind-value="Model.StartDate" type="date" pattern="{0:dd.mm.yy}" class="form-control" id="datepicker1"/>
+        <h4 class="col-form-label">Ermögliche Selbsteinschreibungen bis einschließlich</h4>
+        <input @bind-value="Model.EndDate" type="date" pattern="{0:dd.mm.yy}" class="form-control" id="datepicker2"/>
     </div>
 
 </div>
 
 @code {
+
     [Parameter]
     public GroupModel<Challenge, Member, Group> Model { get; set; }
 
     void RemoveFromSubGroups()
     {
-        if(!string.IsNullOrWhiteSpace(Model.SelectedSubGroup))
+        if (!string.IsNullOrWhiteSpace(Model.SelectedSubGroup))
         {
             Model.SubGroups.Remove(Model.SelectedSubGroup);
         }
         StateHasChanged();
     }
+
     void AddToSubGroups()
     {
-        if(!string.IsNullOrWhiteSpace(Model.SelectedAddSubGroup) & !Model.SubGroups.Contains(Model.SelectedAddSubGroup))
+        if (!string.IsNullOrWhiteSpace(Model.SelectedAddSubGroup) & !Model.SubGroups.Contains(Model.SelectedAddSubGroup))
         {
             Model.SubGroups.Add(Model.SelectedAddSubGroup);
         }
     }
+
     void AddToAvailableChallenges()
     {
         if (!string.IsNullOrWhiteSpace(Model.SelectedAddAvailableChallenge) & !Model.AvailableChallenges.Contains(Model.SelectedAddAvailableChallenge))
         {
             Model.AvailableChallenges.Add(Model.SelectedAddAvailableChallenge);
+            Model.SelectedAddAvailableChallenge = string.Empty;
         }
         StateHasChanged();
     }
@@ -160,26 +193,30 @@
         if (!string.IsNullOrWhiteSpace(Model.SelectedAvailableChallenge))
         {
             Model.AvailableChallenges.Remove(Model.SelectedAvailableChallenge);
+            Model.SelectedAvailableChallenge = string.Empty;
         }
         StateHasChanged();
     }
 
     void MoveSelectedForcedChallengeUp()
     {
-        helper.MoveChallengeUp(Model.ForcedChallenges, Model.SelectedForcedChallenge);
+        Helper.MoveChallengeUp(Model.ForcedChallenges, Model.SelectedForcedChallenge);
         StateHasChanged();
     }
 
     void MoveSelectedForcedChallengeDown()
     {
-        helper.MoveChallengeDown(Model.ForcedChallenges, Model.SelectedForcedChallenge);
+        Helper.MoveChallengeDown(Model.ForcedChallenges, Model.SelectedForcedChallenge);
         StateHasChanged();
     }
 
     void RemoveForcedChallenge()
     {
         if (!string.IsNullOrWhiteSpace(Model.SelectedForcedChallenge))
+        {
             Model.ForcedChallenges.Remove(Model.SelectedForcedChallenge);
+            Model.SelectedForcedChallenge = string.Empty;
+        }
         StateHasChanged();
     }
 
@@ -188,6 +225,7 @@
         if (!string.IsNullOrWhiteSpace(Model.SelectedAddForcedChallenge) & !Model.ForcedChallenges.Contains(Model.SelectedAddForcedChallenge))
         {
             Model.ForcedChallenges.Add(Model.SelectedAddForcedChallenge);
+            Model.SelectedAddForcedChallenge = string.Empty;
         }
         StateHasChanged();
     }
@@ -195,6 +233,23 @@
     void AddGroupAdmin()
     {
         Model.GroupAdminsIds.Add(string.Empty);
+        StateHasChanged();
+    }
+
+    public Dictionary<string,string> ChallengeIdToTitle = new Dictionary<string, string>();
+
+    protected override async void OnInitialized()
+    {
+        foreach (var availableChallenges in Model.AvailableChallenges)
+        {
+            var challenge = await HttpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + availableChallenges);
+            ChallengeIdToTitle[challenge.Id] = challenge.Title;
+        }
+        foreach (var forcedChallenges in Model.ForcedChallenges)
+        {
+            var challenge = await HttpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + forcedChallenges);
+            ChallengeIdToTitle[challenge.Id] = challenge.Title;
+        }
         StateHasChanged();
     }
 

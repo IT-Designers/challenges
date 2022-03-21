@@ -1,8 +1,11 @@
-﻿@page "/Challenge/Rename/{Id}"
-@using SubmissionEvaluation.Shared.Classes.Messages
+@page "/Challenge/Rename/{Id}"
+
 @using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
 <div class="post-area">
     <div class="post-header">
         Aufgabe umbenennen
@@ -24,7 +27,7 @@
                     Gibt die neue Challenge-ID an.
                 </p>
             </div>
-            <button id="btnCopy" name="command" type="submit" value="copy" class="btn btn-primary btn-block text-center input-field-padding"><span class="oi oi-book"></span> Challenge umbenennen</button>
+            <button id="btnCopy" name="command" type="submit" value="copy" class="btn btn-outline-dark btn-block text-center input-field-padding"><span class="oi oi-book"></span> Challenge umbenennen</button>
         </EditForm>
     </div>
 </div>
@@ -38,15 +41,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Model = new RenameModel
-        {
-            Name = Id,
-            Referer = $"Challenge/Edit/{Id}"
-        };
-        var userSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Model = new RenameModel {Name = Id, Referer = $"Challenge/Edit/{Id}"};
+        var userSettings = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
         if (!userSettings.Roles.Contains("admin"))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
         StateHasChanged();
     }
@@ -55,7 +54,7 @@
     {
         if (Model.Name != null && (Model.NewName != null) & !Model.Name.Equals(Model.NewName))
         {
-            var responseMessage = await httpClient.PostAsJsonAsync<RenameModel>("api/Challenge/Rename", Model);
+            var responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/Rename", Model);
             if (responseMessage.IsSuccessStatusCode)
             {
                 var success = await responseMessage.Content.ReadFromJsonAsync<bool>();
@@ -66,7 +65,7 @@
                 }
                 else
                 {
-                    navi.NavigateTo($"Challenges/Edit/{Model.NewName}");
+                    Navi.NavigateTo($"Challenges/Edit/{Model.NewName}");
                 }
             }
         }

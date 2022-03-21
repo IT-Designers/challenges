@@ -6,17 +6,20 @@
         <div class="post-area post">
             <h1>Profil</h1>
             <b>Mitglied seit:</b> @Model.DateOfEntry.ToShortDateString()&emsp;
+            <b>Letzte Aktivität am:</b> @Model.LastActivity.ToShortDateString()&emsp;
+            <b>Status:</b> @if (Model.Inactive)
+                            {@($"Aktiv") }
+                            else
+                            { @($"Inaktiv")}
+            &emsp;
             @if (Features.EnableRating)
             {
-                <b>Punkte:</b>
-                @Model.TotalPoints
-                @((MarkupString) "&emsp;")
-            }
+        <b>Punkte:</b>
+                            @Model.TotalPoints @((MarkupString) "&emsp;")}
             @if (Features.EnableReview)
-            { 
-                <b>Sterne (Review):</b> 
-                <img style="box-shadow: none; vertical-align: top; width: 5rem;" src="@($"/images/Rating{Model.Stars}.png")"/>
-            }
+            {
+        <b>Sterne (Review):</b>
+                            <img style="box-shadow: none; vertical-align: top; width: 5rem;" src="@($"/images/Rating{Model.Stars}.png")" />}
         </div>
     </div>
 }

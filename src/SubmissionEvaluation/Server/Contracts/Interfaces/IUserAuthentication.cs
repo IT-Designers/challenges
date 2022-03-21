@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
-namespace SubmissionEvaluation.Contracts.Interfaces
+namespace SubmissionEvaluation.Server.Contracts.Interfaces
 {
     internal interface IUserAuthentication
     {

@@ -1,117 +1,108 @@
-@inject IJSRuntime JSRuntime
-@using SubmissionEvaluation.Shared.Classes 
+@using SubmissionEvaluation.Shared.Classes
+@using Blazored.TextEditor
+
+@inject IJSRuntime JsRuntime
+
 <style>
     .preview {
-        position: absolute;
-        right: 0px;
-        top: 5.5em;
         box-sizing: border-box;
-        line-height: 1.42;
         height: 100%;
+        line-height: 1.42;
         outline: none;
         overflow-y: auto;
         padding: 12px 15px;
+        position: absolute;
+        right: 0px;
         text-align: left;
+        top: 5.5em;
         white-space: pre-wrap;
         word-wrap: break-word;
     }
+
     .preview.fullscreen {
-        position: fixed;
         bottom: 0;
+        height: 100% !important;
+        margin-left: auto;
+        position: fixed;
         right: 0;
         top: 50px;
-        margin-left: auto;
         z-index: 9;
-        height: 100% !important;
     }
 </style>
 
-<div id="toolbar" class="ql-toolbar ql-snow @(fullScreen? "fullscreen": "")">
-    <span class="ql-formats">
-        <button class="ql-bold"></button>
-        <button class="ql-italic"></button>
-        <button class="ql-strike"></button>
-    </span>
-    <select class="ql-header">
-        <option selected=""></option>
-        <option value="1"></option>
-        <option value="2"></option>
-        <option value="3"></option>
-        <option value="4"></option>
-        <option value="5"></option>
-    </select>
-    <span class="ql-formats">
-        <button class="ql-code-block"></button>
-        <button class="ql-blockquote"></button>
-        <button class="ql-list" value="bullet"></button>
-        <button class="ql-list" value="ordered"></button>
-    </span>
-    <span>
-        <button class="ql-link"></button>
-        <button class="ql-image"></button>
-        <button class="ql-table"><span class="oi oi-grid-two-up" title="Add table"></span></button>
-        <button class="ql-horizontal-rule"><span class="oi oi-minus" title="Add horizontal rule"></span></button>
-        <button class="ql-console"><span class="oi oi-terminal" title="Add Console"></span></button>
-    </span>
-    <span>
-        <button class="ql-preview" @onclick="@ConvertMarkdownToHTML"><span class="oi oi-eye"></span></button>
-        <button class="ql-fullscreen" @onclick="@SwitchFullscreen"><span class="oi @(fullScreen? "oi-fullscreen-exit":"oi-fullscreen-enter")"></span></button>
-    </span>
-    <span>
-        <button class="ql-undo"><span class="oi oi-action-undo"></span></button>
-        <button class="ql-redo"><span class="oi oi-action-redo"></span></button>
-    </span>
-</div>
-<div>
-    <div @ref="@QuillElement" style="width: @(preview? "50%;" : "100%;")" class="@(fullScreen? "fullscreen":"")">
-        @((MarkupString)EditorContent)
-    </div>
-    <div hidden="@(!preview)" class="preview @(fullScreen? "fullscreen":"")" style="height: 92.5%; width: @(preview? "50%;" : "100%;")">
-        @((MarkupString)PreviewContent)
-    </div>
-</div>
+<BlazoredTextEditor @ref="@QuillHtml">
+        <ToolbarContent>
+        <select class="ql-header">
+            <option selected=""></option>
+            <option value="1"></option>
+            <option value="2"></option>
+            <option value="3"></option>
+            <option value="4"></option>
+            <option value="5"></option>
+        </select>
+        <span class="ql-formats">
+            <button class="ql-bold"></button>
+            <button class="ql-italic"></button>
+            <button class="ql-underline"></button>
+            <button class="ql-strike"></button>
+        </span>
+        <span class="ql-formats">
+            <select class="ql-color"></select>
+            <select class="ql-background"></select>
+        </span>
+        <span class="ql-formats">
+            <button class="ql-list" value="ordered"></button>
+            <button class="ql-list" value="bullet"></button>
+        </span>
+        <span class="ql-formats">
+            <button class="ql-link"></button>
+        </span>
+    </ToolbarContent>
+    <EditorContent>
+        @((MarkupString) EditorContent)
+    </EditorContent>
+</BlazoredTextEditor>
+
 @code {
+
     [Parameter]
     public string EditorContent { get; set; }
 
-    private ElementReference QuillElement;
-    private bool preview { get; set; } = false;
-    private bool fullScreen { get; set; }
+    BlazoredTextEditor QuillHtml;
+
+    private bool Preview { get; set; } = false;
+    private bool FullScreen { get; set; }
     private string PreviewContent { get; set; }
 
     protected void SwitchFullscreen()
     {
-        fullScreen = !fullScreen;
-        base.StateHasChanged();
+        FullScreen = !FullScreen;
+        StateHasChanged();
     }
-    protected async void ConvertMarkdownToHTML()
+
+    protected async void ConvertMarkdownToHtml()
     {
-        preview = !preview;
-        if(preview) {
-            UpdatePreview();
-            await JSRuntime.InvokeVoidAsync("QuillFunctions.activatePreviewUpdate", DotNetObjectReference.Create(this));
-        } else
+        Preview = !Preview;
+        if (Preview)
         {
-            await JSRuntime.InvokeVoidAsync("QuillFunctions.deactivatePreviewUpdate", DotNetObjectReference.Create(this));
+            UpdatePreview();
+            await JsRuntime.InvokeVoidAsync("QuillFunctions.activatePreviewUpdate", DotNetObjectReference.Create(this));
+        }
+        else
+        {
+            await JsRuntime.InvokeVoidAsync("QuillFunctions.deactivatePreviewUpdate", DotNetObjectReference.Create(this));
         }
     }
+
     [JSInvokable("UpdatePreview")]
     public async void UpdatePreview()
     {
-        PreviewContent = MarkdownToHtml.Convert(await GetHTML());
-        base.StateHasChanged();
+        PreviewContent = MarkdownToHtml.Convert(await GetHtml());
+        StateHasChanged();
     }
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+
+    public async Task<string> GetHtml()
     {
-        if (firstRender)
-        {
-            await JSRuntime.InvokeAsync<string>(
-                "QuillFunctions.createQuill", QuillElement);
-        }
-    }
-    public async Task<string> GetHTML()
-    {
-        return await JSRuntime.InvokeAsync<string>(
-            "QuillFunctions.getQuillHTML");
+        return await this.QuillHtml.GetHTML();
     }
 }

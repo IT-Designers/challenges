@@ -4,9 +4,9 @@ namespace SubmissionEvaluation.Shared.Classes.Config
 {
     public class PermissionSettings
     {
-        public Permissions GlobalAdminPermissions { get; } = new Permissions {isAdmin = true};
-        public Permissions CreatorPermissions { get; } = new Permissions();
-        public Permissions GroupAdminPermissions { get; } = new Permissions();
-        public Permissions GroupReviewerPermissions { get; } = new Permissions();
+        public Permissions GlobalAdminPermissions { get; } = new Permissions {IsAdmin = true};
+        public Permissions Creator { get; } = new Permissions();
+        public Permissions GroupAdmin { get; } = new Permissions();
+        public Permissions GroupReviewer { get; } = new Permissions();
     }
 }

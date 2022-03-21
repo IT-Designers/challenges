@@ -1,11 +1,14 @@
 @page "/Groups"
+
+@using System.Net.Http.Json
 @using Group = SubmissionEvaluation.Contracts.ClientPocos.Group
 @using SubmissionEvaluation.Shared.Models.Admin
-@using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Permissions
-@using SubmissionEvaluation.Shared.Classes 
-@inject HttpClient httpClient
-@inject NavigationManager navi 
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
 
 <div class="row">
     <div class="col-12">
@@ -15,7 +18,8 @@
                 <div class="post-header">
                     <h1>
                         Gruppen verwalten
-                        @if(Permissions.isAdmin) {
+                        @if (Permissions.IsAdmin)
+                        {
                             <a href="Group/Create" title="Neue Gruppe anlegen" class="btn btn-sm">
                                 <span class="oi oi-plus"></span>
                             </a>
@@ -23,13 +27,13 @@
                     </h1>
                 </div>
                 <div id="groups-table_wrapper" class="dataTables_wrapper no-footer">
-                    <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="searchValue" placeholder="Suche nach einer Gruppe"/>
+                    <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="SearchValue" placeholder="Suche nach einer Gruppe"/>
                     <MessageHeader Model="Model"/>
                     <table id="groups-table" class="display table dataTable no-footer" role="grid">
                         <thead>
                         <tr>
                             <th>
-                                <button class="no-styling" @onclick="SortByID">ID</button>
+                                <button class="no-styling" @onclick="SortById">ID</button>
                             </th>
                             <th>
                                 <button class="no-styling" @onclick="SortByTitle">Name</button>
@@ -38,7 +42,7 @@
                         </tr>
                         </thead>
                         <tbody>
-                        @foreach (IGroup group in Model.Groups.Where(x => x.Title.ToLower().Contains(searchValue.ToLower()) || x.Id.ToLower().Contains(searchValue.ToLower())))
+                        @foreach (IGroup group in Model.Groups.Where(x => x.Title.ToLower().Contains(SearchValue.ToLower()) || x.Id.ToLower().Contains(SearchValue.ToLower())))
                         {
                             <tr>
                                 <td>@group.Id</td>
@@ -47,11 +51,14 @@
                                     <a href=@($"Group/Edit/{group.Id}") title="Editieren" class="btn btn-sm">
                                         <span class="oi oi-pencil"></span>
                                     </a>
-                                    @if(Permissions.isAdmin) {
-                                    <a href=@($"Admin/ConfirmAction/{group.Id}/DeleteGroup") title="Löschen" class="btn btn-sm">
-                                        <span class="oi oi-trash"></span>
-                                    </a>
-                                    <a href=@($"Group/Copy/{group.Id}") title="Kopieren" class="btn btn-sm"><span class="oi oi-copywriting"></span></a>
+                                    @if (Permissions.IsAdmin)
+                                    {
+                                        <a href=@($"Admin/ConfirmAction/{group.Id}/DeleteGroup") title="Löschen" class="btn btn-sm">
+                                            <span class="oi oi-trash"></span>
+                                        </a>
+                                        <a href=@($"Group/Copy/{group.Id}") title="Kopieren" class="btn btn-sm">
+                                            <span class="oi oi-copywriting"></span>
+                                        </a>
                                     }
                                 </td>
                             </tr>
@@ -59,6 +66,9 @@
                         </tbody>
                     </table>
                 </div>
+            }
+            else {
+                <Wave />
             }
         </div>
 
@@ -68,21 +78,21 @@
 
 @code {
     AdminGroupsModel<Group> Model { get; set; }
-    string searchValue { get; set; } = string.Empty;
+    string SearchValue { get; set; } = string.Empty;
     Permissions Permissions { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.VIEW, "Groups", Permissions))
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.View, "Groups", Permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await httpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
+        Model = await HttpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
         StateHasChanged();
     }
 
-    void SortByID()
+    void SortById()
     {
         var groups = Model.Groups.ToList();
         groups.Sort((x, y) => x.Id.CompareTo(y.Id));

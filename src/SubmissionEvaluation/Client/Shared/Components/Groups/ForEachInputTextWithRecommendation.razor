@@ -1,20 +1,22 @@
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+
 @if (Parameters != null)
 {
     for (var i = 0; i < Parameters.Count; i++)
     {
         var index = i;
-        var chosen = RecommendationsAvailable.Any(x=> x.Id.Equals(Parameters[index]));
+        var chosen = RecommendationsAvailable.Any(x => x.Id.Equals(Parameters[index]));
         <div class="form-inline">
             <input hidden="@chosen" @onkeyup="e => InputTextIsChanged(e, index)" class="form-control" type="text" @bind-value="Parameters[index]" @bind-value:event="oninput">
-            <input readonly hidden="@(!chosen)" class="form-control" value="@(chosen? RecommendationsAvailable.First(x=> x.Id.Equals(Parameters[index])).Name : string.Empty)" />
-            <button type="button" class="no-styling" @onclick="@(e => removeInputTextArea(index))">
+            <input readonly hidden="@(!chosen)" class="form-control" value="@(chosen ? RecommendationsAvailable.First(x => x.Id.Equals(Parameters[index])).Name : string.Empty)"/>
+            <button type="button" class="no-styling" @onclick="@(e => RemoveInputTextArea(index))">
                 <span class="oi oi-x"></span>
             </button>
         </div>
-        <ul class="recommendations dropdown-menu groupEdit" style=@($"display:{(somethingIsChanged && currentChangedIndex == index ? "block" : "none")};")>
+        <ul class="recommendations dropdown-menu groupEdit" style=@($"display:{(SomethingIsChanged && CurrentChangedIndex == index ? "block" : "none")};")>
             @foreach (var recommend in ShownRecommendations)
             {
-                <div class="member-info dropdown-item" @onclick="e => {chosen = true; ChooseRecommendation(recommend, index);}">
+                <div class="member-info dropdown-item" @onclick="e => { chosen = true;ChooseRecommendation(recommend, index); }">
                     <span class="">
                         @recommend.Name
                     </span>
@@ -35,15 +37,15 @@
     [Parameter]
     public EventCallback<List<string>> ParametersChanged { get; set; }
 
-    int currentChangedIndex { get; set; }
-    bool somethingIsChanged { get; set; } = false;
+    int CurrentChangedIndex { get; set; }
+    bool SomethingIsChanged { get; set; } = false;
 
     [Parameter]
-    public List<Contracts.ClientPocos.Member> RecommendationsAvailable { get; set; }
+    public List<Member> RecommendationsAvailable { get; set; }
 
-    public List<Contracts.ClientPocos.Member> ShownRecommendations { get; set; } = new List<Contracts.ClientPocos.Member>();
+    public List<Member> ShownRecommendations { get; set; } = new List<Member>();
 
-    public async Task removeInputTextArea(int pramindex)
+    public async Task RemoveInputTextArea(int pramindex)
     {
         Parameters[pramindex] = null;
         Parameters = Parameters.Where(x => x != null).ToList();
@@ -53,15 +55,15 @@
 
     public void InputTextIsChanged(KeyboardEventArgs change, int index)
     {
-        somethingIsChanged = true;
-        currentChangedIndex = index;
+        SomethingIsChanged = true;
+        CurrentChangedIndex = index;
         ShownRecommendations = RecommendationsAvailable.Where(x => x.Id.ToLower().Contains(Parameters[index].ToLower()) || x.Name.ToLower().Contains(Parameters[index].ToLower())).Where(x => !Parameters.Where((v, ind) => ind != index).Any(y => y.Equals(x.Id))).ToList();
         StateHasChanged();
     }
 
     public void ChooseRecommendation(IMember chosen, int index)
     {
-        somethingIsChanged = false;
+        SomethingIsChanged = false;
         Parameters[index] = chosen.Id;
     }
 

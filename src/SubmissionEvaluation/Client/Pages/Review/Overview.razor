@@ -1,11 +1,15 @@
 @page "/Review/Overview"
 @page "/Review/Overview/{command}"
-@using SubmissionEvaluation.Shared.Models.Review
+
 @using System.Net.Http.Json
+@using SubmissionEvaluation.Shared.Models.Review
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
-@inject HttpClient httpClient
-@inject NavigationManager navi
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+
 <div class="row">
     <div class="col-12">
         <div class="post-area post">
@@ -39,7 +43,7 @@
                                     <td>@submission.Language</td>
                                     <td>@submission.SubmissionDate</td>
                                     <td class="th_not_name">
-                                        <NavLink href=@($"Review/Tool/{submission.Challenge}/{submission.SubmissionId}") class="btn btn-primary">Review</NavLink>
+                                        <NavLink href=@($"Review/Tool/{submission.Challenge}/{submission.SubmissionId}") class="btn btn-outline-dark">Review</NavLink>
                                     </td>
                                 </tr>
                             }
@@ -47,7 +51,7 @@
                     }
                 </div>
 
-                @if (Permissions.isAdmin)
+                @if (Permissions.IsAdmin)
                 {
                     <div class="input-field-padding" style="margin-top: 20px">
                         @if (Model.RunningReviews?.Any() != true)
@@ -78,6 +82,10 @@
                     </div>
                 }
             }
+            else
+            {
+                <Wave />
+            }
         </div>
     </div>
 </div>
@@ -88,25 +96,25 @@
     SettingsModel UserSettings { get; set; }
 
     [Parameter]
-    public string command { get; set; }
+    public string Command { get; set; }
 
     [Parameter]
-    public string challengeId { get; set; }
+    public string ChallengeId { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if(!PermissionHelper.CheckPermissions(Actions.VIEW, "Review", Permissions))
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.View, "Review", Permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        UserSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
-        Model = await httpClient.GetFromJsonAsync<ReviewOverviewModel>("api/Review/GetSubmissionOverview");
+        UserSettings = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Model = await HttpClient.GetFromJsonAsync<ReviewOverviewModel>("api/Review/GetSubmissionOverview");
         Model.RunningReviews = Model.RunningReviews ?? new List<RunningReviewModel>();
-        if (Model.RunningReviews.Any(x => x.ReviewerName.Equals(UserSettings.Name)) && (command == null || !command.Equals("Canceled")))
+        if (Model.RunningReviews.Any(x => x.ReviewerName.Equals(UserSettings.Name)) && (Command == null || !Command.Equals("Canceled")))
         {
             var runningReview = Model.RunningReviews.Where(x => x.ReviewerName.Equals(UserSettings.Name)).FirstOrDefault();
-            navi.NavigateTo($"Review/Tool/{runningReview.Challenge}/{runningReview.Submission}");
+            Navi.NavigateTo($"Review/Tool/{runningReview.Challenge}/{runningReview.Submission}");
         }
         StateHasChanged();
     }

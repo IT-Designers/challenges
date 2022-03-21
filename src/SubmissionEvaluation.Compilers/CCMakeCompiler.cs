@@ -9,14 +9,14 @@ using SubmissionEvaluation.Contracts.Providers;
 
 namespace SubmissionEvaluation.Compilers
 {
-    public class CCMakeCompiler : CompilerBase
+    public class CcMakeCompiler : CompilerBase
     {
         private readonly string compilerPath;
         private readonly ILog log;
         private readonly string pathToCMake;
         private readonly string pathToCppCheck;
 
-        public CCMakeCompiler(ILog log, string compilerPath, string pathToCppCheck, string pathToCMake)
+        public CcMakeCompiler(ILog log, string compilerPath, string pathToCppCheck, string pathToCMake)
         {
             this.log = log;
             this.compilerPath = compilerPath;

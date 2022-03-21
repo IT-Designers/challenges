@@ -25,7 +25,7 @@ namespace SubmissionEvaluation.Compilers
         }
 
         public override string Name => "Rust";
-        public override string Description => "";
+        public override string Description => "-";
         public override string LatexCodeExtension => ".rs";
 
         public override string ReadVersionDetails(IProcessProvider processProvider, ISyncLock versionlock)

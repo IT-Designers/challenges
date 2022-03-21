@@ -5,18 +5,18 @@
 @* ReSharper disable once RedundantUsingDirective *@
 @using SubmissionEvaluation.Client.Shared.Components.FileExplorer
 
-@inject FileExplorerDomain domain
-@inject ReviewSynchronizer synchronizer
+@inject FileExplorerDomain Domain
+@inject ReviewSynchronizer Synchronizer
 
 <div class="col-sm-2 col-12 side-menu">
     <a id="changeFileShow" class="btn btn-secondary" style="margin-bottom: 10px" @onclick="ChangeFileShow">@((MarkupString) (IsFlat ? "Tiefe Liste zeigen" : "Flache Liste zeigen"))</a>
     <div id="fileTreeContainer" style="height: 520px; overflow: auto;" hidden="@IsFlat">
-        <FolderComponent folder='new Folder {Name = "/", FilesInFolder = domain.ConvertToFolderStructure(SourceFiles, 1), IsExpanded = true}' EditDisabled="true" StyleClasses="darkmode" HandlingFileClick="ChangeFile"/>
+        <FolderComponent Folder='new Folder {Name = "/", FilesInFolder = FileExplorerDomain.ConvertToFolderStructure(SourceFiles, 1), IsExpanded = true}' EditDisabled="true" StyleClasses="darkmode" HandlingFileClick="ChangeFile"/>
     </div>
     <div id="fileContainer" hidden="@(!IsFlat)">
         @foreach (var file in SourceFiles)
         {
-            <a class="btn btn-primary" style="margin-bottom: 1em; min-width: 100%;" @onclick="() => ChangeFile(file)">@file.Name</a>
+            <a class="btn btn-outline-dark" style="margin-bottom: 1em; min-width: 100%;" @onclick="() => ChangeFile(file)">@file.Name</a>
         }
     </div>
 </div>
@@ -35,9 +35,9 @@
 
     void ChangeFile(File file)
     {
-        synchronizer.SetCurrentAssoziation(file.Name);
+        Synchronizer.SetCurrentAssoziation(file.Name);
         StateHasChanged();
-        synchronizer.InvokeFileChangeEvent();
+        Synchronizer.InvokeFileChangeEvent();
     }
 
 }

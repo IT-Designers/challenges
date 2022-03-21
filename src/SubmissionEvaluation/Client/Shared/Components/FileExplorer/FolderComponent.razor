@@ -1,15 +1,15 @@
 ﻿@using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Models.Shared
-@inject FileExplorerDomain domain
-<span @onclick="() => { if (!EditDisabled) { domain.OpenFolderZone(folder); } }">
-    <span class="oi oi-folder"></span>@folder.Name
+@inject FileExplorerDomain Domain
+<span @onclick="() => { if (!EditDisabled) { Domain.OpenFolderZone(Folder); } }">
+    <span class="oi oi-folder"></span>@Folder.Name
 </span>
-@if (folder.IsExpanded)
+@if (Folder.IsExpanded)
 {
-    <span class="oi oi-caret-bottom" @onclick="() => ExpandOrCollapse(folder)"></span>
+    <span class="oi oi-caret-bottom" @onclick="() => ExpandOrCollapse(Folder)"></span>
     <br/>
     <ul class="explorer-structure less-padding">
-        @foreach (var file in folder.FilesInFolder)
+        @foreach (var file in Folder.FilesInFolder)
         {
             @if (file is Folder)
             {
@@ -25,7 +25,7 @@
                 </li>
             }
         }
-        @foreach (var file in folder.NewFilesInFolder)
+        @foreach (var file in Folder.NewFilesInFolder)
         {
             @if (file is Folder)
             {
@@ -45,14 +45,14 @@
 }
 else
 {
-    <span class="oi oi-caret-right" @onclick="() => ExpandOrCollapse(folder)"></span>
+    <span class="oi oi-caret-right" @onclick="() => ExpandOrCollapse(Folder)"></span>
     <br/>
 }
 
 @code {
 
     [Parameter]
-    public Folder folder { get; set; } = new Folder();
+    public Folder Folder { get; set; } = new Folder();
 
     [Parameter]
     public bool EditDisabled { get; set; } = false;
@@ -65,7 +65,7 @@ else
 
     protected override void OnInitialized()
     {
-        domain.DomainEvent += StateHasChanged;
+        Domain.DomainEvent += StateHasChanged;
     }
 
     public void ExpandOrCollapse(Folder folder)

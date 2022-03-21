@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace SubmissionEvaluation.Contracts.Interfaces
+namespace SubmissionEvaluation.Server.Contracts.Interfaces
 {
     internal interface IAuthenticator
     {

@@ -1,8 +1,8 @@
-﻿@if (detail != null)
+﻿@if (Detail != null)
 {
     <div>
         <h4>Details für ersten fehlerhaften Testfall</h4>
-        @foreach (var category in detail)
+        @foreach (var category in Detail)
         {
             @if (category.Hints.Count > 0)
             {
@@ -17,14 +17,14 @@
                         @for (var i = 0; i < category.Hints.Count; i++)
                         {
                             var number = i;
-                            <button class="nav-link @(i == selected ? "active" : "")" selected="@(i == selected)" id="tab_@prefix @i" data-toggle="tab" role="tab" @onclick="() => ChangeSelectedButton(number)">@category.Hints[i].Header</button>
+                            <button class="nav-link @(i == Selected ? "active" : "")" selected="@(i == Selected)" id="tab_@prefix @i" data-toggle="tab" role="tab" @onclick="() => ChangeSelectedButton(number)">@category.Hints[i].Header</button>
                         }
                     </div>
                     <div class="tab-content" id="tab_@prefix Content">
                         @for (var i = 0; i < category.Hints.Count; i++)
                         {
                             var hint = category.Hints[i];
-                            var active = i == selected ? " show active" : "";
+                            var active = i == Selected ? " show active" : "";
                             <div class="tab-pane fade @active" id="tr @prefix @i" role="tabpanel" aria-labelledby="tab @prefix @i">
                                 @if (hint.IsHtml)
                                 {
@@ -61,13 +61,13 @@
 @code {
 
     [Parameter]
-    public List<HintCategory> detail { get; set; }
+    public List<HintCategory> Detail { get; set; }
 
-    int selected { get; set; } = 0;
+    int Selected { get; set; } = 0;
 
     void ChangeSelectedButton(int index)
     {
-        selected = index;
+        Selected = index;
         StateHasChanged();
     }
 

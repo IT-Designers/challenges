@@ -49,9 +49,9 @@ namespace SubmissionEvaluation.Client.Services
         public void OpenFolderZone(Folder folder)
         {
             //Path is missing first segment, cause this is the tests index and not supposed to be seen by the user. 
-            var Path = (folder.Path + folder.Name + Folder.pathSeperator).Substring(folder.Path.Split(Folder.pathSeperator.ToCharArray())[0].Length);
-            Path = Path.Replace(Folder.pathSeperator, "/");
-            this.Path = Path;
+            var path = (folder.Path + folder.Name + Folder.PathSeperator).Substring(folder.Path.Split(Folder.PathSeperator.ToCharArray())[0].Length);
+            path = path.Replace(Folder.PathSeperator, "/");
+            Path = path;
             Files = folder.FilesInFolder;
             NewFiles = folder.NewFilesInFolder;
             InvokeEvent();
@@ -73,8 +73,8 @@ namespace SubmissionEvaluation.Client.Services
                         list.Add(newFile);
                     }
 
-                    file.Name = file.Path + file.Name + Folder.pathSeperator;
-                    file.OriginalName = file.Path + file.OriginalName + Folder.pathSeperator;
+                    file.Name = file.Path + file.Name + Folder.PathSeperator;
+                    file.OriginalName = file.Path + file.OriginalName + Folder.PathSeperator;
                 }
                 else
                 {
@@ -94,13 +94,13 @@ namespace SubmissionEvaluation.Client.Services
          * Files that were hidden or unhidden / deleted.
          * Files thats last modified date was changed.
          */
-        public List<T> UpdateAllChanges<T>(List<File> update, List<T> toBeUpdated) where T : File
+        public static IEnumerable<T> UpdateAllChanges<T>(List<File> update, List<T> toBeUpdated) where T : File
         {
             update.ForEach(x =>
             {
                 if (x.Path.StartsWith("_"))
                 {
-                    foreach (File replaceable in toBeUpdated)
+                    foreach (var replaceable in toBeUpdated)
                     {
                         replaceable.Name = replaceable.Name.Replace(x.Path.Substring(1, x.Path.Length - 2) + x.OriginalName, x.Path + x.Name);
                     }
@@ -109,7 +109,7 @@ namespace SubmissionEvaluation.Client.Services
                 if (x.Name != x.OriginalName)
                     //TODO: Find a better algorithm for this. Not that important due suggesting it´s never gonna be more than 100 files in practice anyway.
                 {
-                    foreach (File replaceable in toBeUpdated)
+                    foreach (var replaceable in toBeUpdated)
                     {
                         replaceable.Name = replaceable.Name.Replace(x.Path + x.OriginalName, x.Path + x.Name);
                     }
@@ -124,13 +124,13 @@ namespace SubmissionEvaluation.Client.Services
 
                 if (x.IsDelete)
                 {
-                    toBeUpdated.Where(y => y.Name.StartsWith(x.Path + x.Name) || y.Name.StartsWith(x.Path + x.Name + Folder.pathSeperator)).ToList()
+                    toBeUpdated.Where(y => y.Name.StartsWith(x.Path + x.Name) || y.Name.StartsWith(x.Path + x.Name + Folder.PathSeperator)).ToList()
                         .ForEach(y => y.IsDelete = true);
                 }
 
                 if (x.LastModified != null)
                 {
-                    toBeUpdated.Where(y => y.Name.Equals(x.Path + x.Name) || y.Name.Equals(x.Path + x.Name + Folder.pathSeperator)).ToList()
+                    toBeUpdated.Where(y => y.Name.Equals(x.Path + x.Name) || y.Name.Equals(x.Path + x.Name + Folder.PathSeperator)).ToList()
                         .ForEach(y => y.LastModified = x.LastModified);
                 }
             });
@@ -140,46 +140,42 @@ namespace SubmissionEvaluation.Client.Services
         //n is the layer you´re in. Start with 1.
         //Changes name only to name of the file without path and moves the path into PATH parameter. 
         //Note: If migrated test, the PATH IS STILL MISSING the testId/Input/ part. Being added in "CheckForDeeperFiles" and "CheckIfMultipleUsedFileOrFolder"
-        public List<File> ConvertToFolderStructure<T>(List<T> ToBeConverted, int n) where T : File
+        // ReSharper disable once MemberCanBePrivate.Global // used in SideMenu.razor
+        public static List<File> ConvertToFolderStructure<T>(IReadOnlyCollection<T> toBeConverted, int n) where T : File
         {
-            ToBeConverted.ForEach(x =>
+            var topLevel = toBeConverted.Select(x => x).Where(x =>
             {
-                var splitted = x.Name.Split(Folder.pathSeperator.ToCharArray());
-            });
-            var topLevel = ToBeConverted.Select(x => x).Where(x =>
-            {
-                var splitted = x.Name.Split(Folder.pathSeperator.ToCharArray());
-                return splitted.Count() == n || splitted.Count() == n + 1 && splitted[n].Equals(string.Empty);
+                var split = x.Name.Split(Folder.PathSeperator.ToCharArray());
+                return split.Count() == n || split.Count() == n + 1 && split[n].Equals(string.Empty);
             });
             var result = new List<File>();
-            foreach (File file in topLevel)
+            foreach (var file in topLevel)
             {
-                var splitted = file.Name.Split(Folder.pathSeperator.ToCharArray());
-                if (file.Name.EndsWith(Folder.pathSeperator))
+                var split = file.Name.Split(Folder.PathSeperator.ToCharArray());
+                if (file.Name.EndsWith(Folder.PathSeperator))
                 {
                     var folder = new Folder
                     {
                         IsFolder = true,
-                        Name = splitted[splitted.Length - 2],
-                        OriginalName = splitted[splitted.Length - 2],
+                        Name = split[split.Length - 2],
+                        OriginalName = split[split.Length - 2],
                         IsDelete = file.IsDelete,
                         IsExpanded = false,
                         //This assigns as the path the full name of the file minus the real name of the file. 
-                        Path = file.Name.Substring(0, file.Name.Length - 1 - splitted[splitted.Length - 2].Length)
+                        Path = file.Name.Substring(0, file.Name.Length - 1 - split[split.Length - 2].Length),
+                        FilesInFolder = ConvertToFolderStructure(
+                            toBeConverted.Select(x => x).Where(y =>
+                                y.Name.StartsWith(file.Name) && !y.Equals(file) || y.Name.StartsWith("_" + file.Name) && !y.Equals(file)).ToList(), n + 1)
                     };
-                    folder.FilesInFolder =
-                        ConvertToFolderStructure(
-                            ToBeConverted.Select(x => x).Where(y =>
-                                y.Name.StartsWith(file.Name) & !y.Equals(file) || y.Name.StartsWith("_" + file.Name) & !y.Equals(file)).ToList(), n + 1);
                     result.Add(folder);
                 }
                 else
                 {
                     var added = new File
                     {
-                        Path = file.Name.Substring(0, file.Name.Length - splitted[splitted.Length - 1].Length),
-                        Name = splitted[splitted.Length - 1],
-                        OriginalName = splitted[splitted.Length - 1]
+                        Path = file.Name.Substring(0, file.Name.Length - split[split.Length - 1].Length),
+                        Name = split[split.Length - 1],
+                        OriginalName = split[split.Length - 1]
                     };
                     result.Add(added);
                 }
@@ -216,7 +212,7 @@ namespace SubmissionEvaluation.Client.Services
                 //The input to this method is actually a list containing all subfolders of the testfolder and the testfolder itself, so it´s return toplevel domain is only the folder itself.
                 folder = (Folder) ConvertToFolderStructure(
                     challengeModel.Files.Where(x =>
-                            x.Name.StartsWith(challengeTest.Id + Folder.pathSeperator) || x.Name.StartsWith("_" + challengeTest.Id + Folder.pathSeperator))
+                            x.Name.StartsWith(challengeTest.Id + Folder.PathSeperator) || x.Name.StartsWith("_" + challengeTest.Id + Folder.PathSeperator))
                         .ToList(), 1).First(x => x is Folder);
             }
             catch (InvalidOperationException)
@@ -241,38 +237,30 @@ namespace SubmissionEvaluation.Client.Services
         public (Folder, Folder) CreateFoldersForTest(ExtendedChallengeModel challengeModel, ChallengeTest challengeTest)
         {
             var folder = new Folder {Name = challengeTest.Id.ToString(), OriginalName = challengeTest.Id.ToString(), IsExpanded = false, Path = string.Empty};
-            var inputFolder = new Folder {Name = "Input", OriginalName = "Input", IsExpanded = false, Path = folder.Path + folder.Name + Folder.pathSeperator};
+            var inputFolder = new Folder {Name = "Input", OriginalName = "Input", IsExpanded = false, Path = folder.Path + folder.Name + Folder.PathSeperator};
             folder.NewFilesInFolder.Add(inputFolder);
             //Now added test-folder to challengemodel.
             challengeModel.NewFiles.Add(folder);
             return (folder, inputFolder);
         }
 
-        public Folder FetchFolder(string wish, Folder testFolder)
+        public static Folder FetchFolder(string wish, Folder testFolder)
         {
-            try
+            if (testFolder.FilesInFolder.Count != 0)
             {
-                if (testFolder.FilesInFolder.Count != 0)
-                {
-                    var fetchedFolder = (Folder) testFolder.FilesInFolder.Where(x => x.Name == wish && x.IsFolder).First();
-                    return fetchedFolder;
-                }
+                return (Folder) testFolder.FilesInFolder.First(x => x.Name == wish && x.IsFolder);
+            }
 
-                return (Folder) testFolder.NewFilesInFolder.Where(x => x.Name == wish && x.IsFolder).First();
-            }
-            catch (InvalidOperationException e)
-            {
-                throw e;
-            }
+            return (Folder) testFolder.NewFilesInFolder.First(x => x.Name == wish && x.IsFolder);
         }
 
         /**
-         * Adds a inputfile in the TestModel for every file in the file explorer, that is not only used for holding the files.
+         * Adds a input file in the TestModel for every file in the file explorer, that is not only used for holding the files.
          */
-        public void MapFilesToTest<T>(List<T> oldFiles, List<File> toBeMapped, string Id) where T : File
+        public void MapFilesToTest<T>(List<T> oldFiles, List<File> toBeMapped, string id) where T : File
         {
-            oldFiles.Where(x => (x.Name.StartsWith(Id) || x.Name.StartsWith("_" + Id)) & !FolderHolder(x.Name, Id)).ToList().ForEach(x => toBeMapped.Add(
-                new File {Name = x.Name.Replace(Folder.pathSeperator, "/"), OriginalName = x.Name, LastModified = x.LastModified, IsDelete = x.IsDelete}));
+            oldFiles.Where(x => (x.Name.StartsWith(id) || x.Name.StartsWith("_" + id)) && !FolderHolder(x.Name, id)).ToList().ForEach(x => toBeMapped.Add(
+                new File {Name = x.Name.Replace(Folder.PathSeperator, "/"), OriginalName = x.Name, LastModified = x.LastModified, IsDelete = x.IsDelete}));
         }
 
         /**
@@ -299,12 +287,12 @@ namespace SubmissionEvaluation.Client.Services
          */
         private void MigrateOldTests(ChallengeTest test, ExtendedChallengeModel challengeModel, Folder inputFolder)
         {
-            test.InputFiles.ForEach(x => x.Name = x.Name.Replace("/", Folder.pathSeperator).Replace("\\\\", Folder.pathSeperator));
+            test.InputFiles.ForEach(x => x.Name = x.Name.Replace("/", Folder.PathSeperator).Replace("\\\\", Folder.PathSeperator));
             var anotherList = test.InputFiles.Select(x => x).ToList();
             var multipleUsedFileNames = new List<string>();
             foreach (var file in test.InputFiles)
             {
-                if (file.Name.Contains(Folder.pathSeperator))
+                if (file.Name.Contains(Folder.PathSeperator))
                 {
                     CreateNeededFoldersForOld(file, anotherList);
                 }
@@ -340,35 +328,35 @@ namespace SubmissionEvaluation.Client.Services
          */
         private void CheckIfMultipleUsedFilesOrFolder(Folder parent, List<string> multipleUsed, string testId)
         {
-            var FutureFilesInFolder = parent.FilesInFolder.Select(x => x).ToList();
+            var futureFilesInFolder = parent.FilesInFolder.Select(x => x).ToList();
             foreach (var file in parent.FilesInFolder)
             {
                 if (multipleUsed.Any(x =>
                 {
-                    var splitted = x.Split(Folder.pathSeperator.ToCharArray());
+                    var splitted = x.Split(Folder.PathSeperator.ToCharArray());
                     //The first two elements of the splitted array are TestIndex and "Input", so they + 2 folder seperators need to be substracted of the name for check.
                     var name = x.Substring(splitted[0].Length + splitted[1].Length + 2);
                     return name.Equals(file.Path + file.Name);
                 }))
                 {
-                    FutureFilesInFolder.Remove(file);
+                    futureFilesInFolder.Remove(file);
                     var newFile = new DetailedInputFile(file)
                     {
-                        Content = Encoding.UTF8.GetBytes("Copy"), Path = testId + Folder.pathSeperator + "Input" + Folder.pathSeperator + file.Path
+                        Content = Encoding.UTF8.GetBytes("Copy"), Path = testId + Folder.PathSeperator + "Input" + Folder.PathSeperator + file.Path
                     };
                     parent.NewFilesInFolder.Add(newFile);
                 }
 
                 if (file is Folder folder)
                 {
-                    FutureFilesInFolder.Remove(file);
+                    futureFilesInFolder.Remove(file);
                     parent.NewFilesInFolder.Add(folder);
-                    file.Path = testId + Folder.pathSeperator + "Input" + Folder.pathSeperator + file.Path;
+                    file.Path = testId + Folder.PathSeperator + "Input" + Folder.PathSeperator + file.Path;
                     CheckIfMultipleUsedFilesOrFolder(folder, multipleUsed, testId);
                 }
             }
 
-            parent.FilesInFolder = FutureFilesInFolder;
+            parent.FilesInFolder = futureFilesInFolder;
         }
 
         //Adds {testId}/Input to the path of all files in Input.FilesInFolder (not Input.NewFilesInFolder!) and 
@@ -383,7 +371,7 @@ namespace SubmissionEvaluation.Client.Services
                     CheckForDeeperFiles(folder.FilesInFolder, challengeModel, id);
                 }
 
-                file.Path = id + Folder.pathSeperator + "Input" + Folder.pathSeperator + file.Path;
+                file.Path = id + Folder.PathSeperator + "Input" + Folder.PathSeperator + file.Path;
                 challengeModel.Files.Where(x => x.Name.Equals(file.Name)).ToList().ForEach(x => x.Name = file.Path + x.Name);
             }
         }
@@ -396,16 +384,17 @@ namespace SubmissionEvaluation.Client.Services
          */
         public void CreateNeededFoldersForOld(File file, List<File> listToBeMappedTo)
         {
-            var files = file.Name.Split(Folder.pathSeperator.ToCharArray());
+            var files = file.Name.Split(Folder.PathSeperator.ToCharArray());
             for (var i = 0; i < files.Length - 1; i++)
             {
                 var folder = new File();
-                var name = string.Empty;
+                var nameBuilder = new StringBuilder();
                 for (var o = 0; o <= i; o++)
                 {
-                    name += files[o] + Folder.pathSeperator;
+                    nameBuilder.Append(files[o] + Folder.PathSeperator);
                 }
 
+                var name = nameBuilder.ToString();
                 folder.Name = name;
                 folder.OriginalName = name;
                 if (!listToBeMappedTo.Any(x => x.Name.Equals(folder.Name)))
@@ -415,10 +404,10 @@ namespace SubmissionEvaluation.Client.Services
             }
         }
 
-        public bool FolderHolder(string fullName, string Id)
+        public bool FolderHolder(string fullName, string id)
         {
-            return fullName.Equals(Id + Folder.pathSeperator + "Input" + Folder.pathSeperator) || fullName.Equals(Id + Folder.pathSeperator) ||
-                   fullName.Equals(Id + Folder.pathSeperator + "Output" + Folder.pathSeperator);
+            return fullName.Equals(id + Folder.PathSeperator + "Input" + Folder.PathSeperator) || fullName.Equals(id + Folder.PathSeperator) ||
+                   fullName.Equals(id + Folder.PathSeperator + "Output" + Folder.PathSeperator);
         }
 
         //TODOS: Implementing type extraction of files when fetching them from server.

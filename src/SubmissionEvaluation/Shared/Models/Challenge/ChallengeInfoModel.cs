@@ -6,15 +6,15 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
 {
     public class ChallengeInfoModel : GenericModel
     {
-        private readonly IDictionary<string, RatingMethod> Converter = new Dictionary<string, RatingMethod>
+        private readonly IDictionary<string, RatingMethod> converter = new Dictionary<string, RatingMethod>
         {
             {"Fixed", RatingMethod.Fixed},
             {"Score", RatingMethod.Score},
-            {"Exec_Time", RatingMethod.Exec_Time},
-            {"Submission_Time", RatingMethod.Submission_Time}
+            {"ExecTime", RatingMethod.ExecTime},
+            {"SubmissionTime", RatingMethod.SubmissionTime}
         };
 
-        private string _ratingMethodInput;
+        private string ratingMethodInput;
 
         [Required(ErrorMessage = "Du musst eine ID angeben!")]
         [RegularExpression("^(?!tn_)[a-zA-Z0-9]*$", ErrorMessage = "Die ID darf nicht mit tn_ beginnen und keine Leer- oder Sonderzeichen enthalten!")]
@@ -22,9 +22,9 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
 
         public string Title { get; set; }
         public string Author { get; set; }
-        public string AuthorID { get; set; }
+        public string AuthorId { get; set; }
         public string LastEditor { get; set; }
-        public string LastEditorID { get; set; }
+        public string LastEditorId { get; set; }
         public string Category { get; set; }
 
         public RatingMethod RatingMethod { get; set; }
@@ -32,11 +32,11 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
         //!! Input has to be set at all times after creation. Not possible to use linq here, sadly. 
         public string RatingMethodInput
         {
-            get => _ratingMethodInput;
+            get => ratingMethodInput;
             set
             {
-                _ratingMethodInput = value;
-                RatingMethod = Converter[value];
+                ratingMethodInput = value;
+                RatingMethod = converter[value];
             }
         }
 

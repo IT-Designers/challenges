@@ -1,9 +1,13 @@
 @page "/Challenge/Create"
+
 @using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Permissions
-@using SubmissionEvaluation.Shared.Classes 
-@inject HttpClient httpClient
-@inject NavigationManager nav
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+
+@inject HttpClient HttpClient
+@inject NavigationManager Nav
+
 <style>
     .consoleblock {
         background: #000 !important;
@@ -17,23 +21,23 @@
 </style>
 <div>
     <div class="post-area">
-        @if (Model != null)
+        @if (model != null)
         {
             <div class="post-header">
                 Neue Aufgabe erstellen
             </div>
             <div class="card-body challenge-creation-panel">
-                <EditForm @ref="Form" OnValidSubmit="@CreateChallenge" Model="@Model" id="challengeform" enctype="multipart/form-data" OnInvalidSubmit="@SaveText">
+                <EditForm @ref="form" OnValidSubmit="@CreateChallenge" Model="@model" id="challengeform" enctype="multipart/form-data" OnInvalidSubmit="@SaveText">
                     <DataAnnotationsValidator/>
                     <div class="card-body challenge-creation-panel">
-                        <MessageHeader Model="@Model"/>
+                        <MessageHeader Model="@model"/>
                         <div id="project-group" class="form-group">
                             <h4 class="col-form-label">ID* (Späteres Ändern nicht möglich!)</h4>
-                            <InputText @bind-Value="@Model.Id" class="form-control"/>
-                            <ValidationMessage For="@(() => Model.Id)"/>
+                            <InputText @bind-Value="@model.Id" class="form-control"/>
+                            <ValidationMessage For="@(() => model.Id)"/>
                         </div>
-                        <EditChallengePartial Model="@Model" @ref="Partial"/>
-                        <button id="create" type="submit" class="btn btn-primary btn-block text-center input-field-padding" value="Aufgabe erstellen!"><span class="oi oi-book"></span> Aufgabe erstellen</button>
+                        <EditChallengePartial Model="@model" @ref="partial"/>
+                        <button id="create" type="submit" class="btn btn-outline-dark btn-block text-center input-field-padding" value="Aufgabe erstellen!"><span class="oi oi-book"></span> Aufgabe erstellen</button>
                     </div>
                 </EditForm>
             </div>
@@ -43,39 +47,41 @@
 </div>
 
 @code {
-    ExtendedChallengeModel Model;
-    EditChallengePartial Partial;
-    EditForm Form;
+    ExtendedChallengeModel model;
+    EditChallengePartial partial;
+    EditForm form;
 
     protected override async void OnInitialized()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Challenges", Permissions))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Create, "Challenges", permissions))
         {
-            nav.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Nav.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>("api/Challenge/getDraftForUser");
+        model = await HttpClient.GetFromJsonAsync<ExtendedChallengeModel>("api/Challenge/getDraftForUser");
         StateHasChanged();
     }
+
     public async void SaveText()
     {
-        await Partial.SaveEditor();
+        await partial.SaveEditor();
     }
+
     public async void CreateChallenge()
     {
-        await Partial.SaveEditor();
-        var responseMessage = await httpClient.PostAsJsonAsync<ExtendedChallengeModel>("api/Challenge/CreateChallenge", Model);
+        await partial.SaveEditor();
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/CreateChallenge", model);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
             if (result.HasSuccess)
             {
-                nav.NavigateTo($"/Challenge/Edit/{Model.Id}");
+                Nav.NavigateTo($"/Challenge/Edit/{model.Id}");
             }
             else
             {
-                Model.Message = result.Message;
-                Model.HasError = result.HasError;
+                model.Message = result.Message;
+                model.HasError = result.HasError;
             }
         }
         StateHasChanged();

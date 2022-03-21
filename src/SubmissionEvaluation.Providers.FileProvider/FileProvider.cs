@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime.Caching;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -16,11 +17,13 @@ namespace SubmissionEvaluation.Providers.FileProvider
 {
     public class FileProvider : IFileProvider
     {
-        private const string statusChangesLogFile = "challenge_results.csv";
+        private const string StatusChangesLogFile = "challenge_results.csv";
         private readonly string challengesDir;
         private readonly ILog log;
         private readonly bool logStatusChanges;
         private readonly YamlProvider yamlProvider;
+        private IEnumerable<IChallenge> chachedChallenges;
+        private bool dirtyFlag;
 
         public FileProvider(ILog log, string challengesDir, string wwwrootDir, bool logStatusChanges)
         {
@@ -28,9 +31,10 @@ namespace SubmissionEvaluation.Providers.FileProvider
             this.log = log;
             yamlProvider = new CachedYamlProvider(log);
             this.logStatusChanges = logStatusChanges;
+            dirtyFlag = true;
             if (logStatusChanges)
             {
-                File.WriteAllText(statusChangesLogFile, $"Challenge;Lang;ID;Old;New{Environment.NewLine}");
+                File.WriteAllText(StatusChangesLogFile, $"Challenge;Lang;ID;Old;New{Environment.NewLine}");
             }
         }
 
@@ -50,15 +54,8 @@ namespace SubmissionEvaluation.Providers.FileProvider
             var file = Path.Combine(submissionPath, "failed_report.yml");
             var fileZip = Path.Combine(submissionPath, "failed_report.zip");
 
-            if (File.Exists(file))
-            {
-                File.Delete(file);
-            }
-
-            if (File.Exists(fileZip))
-            {
-                File.Delete(fileZip);
-            }
+            Delete(file);
+            Delete(fileZip);
 
             if (evaluationParameters.IsPassed)
             {
@@ -74,7 +71,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public void DeleteSubmission(Result result)
         {
-            using var writeLock = (WriteLock)GetLock();
+            using var writeLock = (WriteLock) GetLock();
             writeLock.Add(result.SubmissionPath);
             DeleteDirectory(result.SubmissionPath);
         }
@@ -91,7 +88,15 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public IEnumerable<IChallenge> LoadChallenges()
         {
-            return GetChallengeIds().Select(x => LoadChallenge(x));
+            if (!dirtyFlag)
+            {
+                return chachedChallenges;
+            }
+
+            chachedChallenges = GetChallengeIds().Select(x => LoadChallenge(x));
+            dirtyFlag = false;
+
+            return chachedChallenges;
         }
 
         public IEnumerable<ISubmission> GetSubmissionsWithoutResult(IChallenge challenge)
@@ -114,10 +119,11 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public void DeleteChallenge(IChallenge challenge)
         {
-            using var writeLock = (WriteLock)GetLock();
+            using var writeLock = (WriteLock) GetLock();
             var path = GetPathToChallenge(challenge.Id);
             writeLock.Add(path);
             DeleteDirectory(path);
+            dirtyFlag = true;
         }
 
         public bool UpdateEvaluationResult(ISubmission submission, EvaluationParameters evaluationParameters, bool resetStats = false)
@@ -134,7 +140,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
                     if (logStatusChanges)
                     {
-                        File.AppendAllText(statusChangesLogFile,
+                        File.AppendAllText(StatusChangesLogFile,
                             $"{submission.Challenge};{submission.Language};{submission.SubmissionId};{result.EvaluationResult};{evaluationParameters.State}{Environment.NewLine}");
                     }
 
@@ -169,6 +175,11 @@ namespace SubmissionEvaluation.Providers.FileProvider
                     }
 
                     result.ReportFailing = false;
+                }
+
+                if (evaluationParameters.State == EvaluationResult.CompilationError && evaluationParameters.ErrorDetails.Count == 1)
+                {
+                    result.CompileError = evaluationParameters.ErrorDetails[0].ErrorMessage;
                 }
 
                 if (result.IsPassed != evaluationParameters.IsPassed)
@@ -255,7 +266,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             using var writeLock = GetLock();
             var result = LoadResult(submission.Challenge, submission.SubmissionId, writeLock);
-            result.Reviewer = Member.REMOVED_ENTRY_ID;
+            result.Reviewer = Member.RemovedEntryId;
             if (result.ReviewState == ReviewStateType.InProgress)
             {
                 result.ReviewState = ReviewStateType.NotReviewed;
@@ -292,7 +303,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public List<HintCategory> LoadFailedSubmissionReport(ISubmission submission)
         {
-            var file = Path.Combine(((Result)submission).SubmissionPath, "failed_report.yml");
+            var file = Path.Combine(((Result) submission).SubmissionPath, "failed_report.yml");
             if (File.Exists(file))
             {
                 return yamlProvider.DeserializeErrorDetails(file);
@@ -357,7 +368,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             var pathToChallenge = GetPathToChallenge(challenge.Id);
             var path = Path.Combine(pathToChallenge, Path.GetFileName(filename));
-            File.Delete(path);
+            Delete(path);
 
             PruneEmptyDirs(pathToChallenge);
         }
@@ -476,11 +487,11 @@ namespace SubmissionEvaluation.Providers.FileProvider
             SerializeHelpPage(helpPage, writeLock);
         }
 
-
         public (string name, byte[] data, string type, DateTime lastMod) GetHelpAdditionalFile(string path)
         {
             return LoadFile(Path.Combine(GetPathToHelpPages(), path));
         }
+
 
         public IEnumerable<string> GetSubmissionFilesRelativePath(ISubmission submission)
         {
@@ -513,7 +524,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
             }
 
             var path = Path.Combine(pathToSource, relativeFilePath);
-            return File.ReadAllText(path);
+            return ReadAllText(path);
         }
 
         public bool HasReviewFile(ISubmission submission)
@@ -563,7 +574,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
             {
                 if (file.Name != "members.yml")
                 {
-                    file.Delete();
+                    Delete(file.FullName);
                 }
             }
         }
@@ -671,7 +682,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
                 w.Add(pathToMember);
             }
 
-            var member = yamlProvider.Deserialize<Member>(pathToMember, force: writeLock != null);
+            var member = yamlProvider.Deserialize<Member>(pathToMember, forceLoad: writeLock != null);
             member.Id = id;
             return member;
         }
@@ -711,12 +722,14 @@ namespace SubmissionEvaluation.Providers.FileProvider
             return DeserializeResult(file);
         }
 
+
         public IEnumerable<Result> LoadAllSubmissions(bool includeDead = false)
         {
             var results = Directory.EnumerateDirectories(GetPathToSubmissions()).SelectMany(Directory.EnumerateDirectories)
                 .Select(x => Path.Combine(x, "result.yml")).Where(File.Exists).Select(DeserializeResult);
             return !includeDead ? results.Where(x => x.EvaluationState != EvaluationState.Dead) : results;
         }
+
 
         public IEnumerable<Result> LoadAllSubmissionsFor(IChallenge challenge, bool includeDead = false)
         {
@@ -729,6 +742,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
             var results = Directory.EnumerateDirectories(path).Select(GetSubmissionResultFile).Where(File.Exists).Select(DeserializeResult);
             return !includeDead ? results.Where(x => x.EvaluationState != EvaluationState.Dead) : results;
         }
+
 
         public IEnumerable<Result> LoadAllSubmissionsFor(IMember member, bool includeDead = false)
         {
@@ -760,7 +774,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public ReviewTemplate LoadReviewTemplate(IChallenge challenge)
         {
-            var path = GetReviewTemplatePath(((Challenge)challenge).ReviewTemplate);
+            var path = GetReviewTemplatePath(((Challenge) challenge).ReviewTemplate);
             return yamlProvider.Deserialize<ReviewTemplate>(path);
         }
 
@@ -791,7 +805,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public void SaveSemesterRankingList(GlobalRanklist ranklist)
         {
-            var semesterPeriod = ranklist.CurrentSemester.Period == SemesterPeriod.SS ? "SS" : "WS";
+            var semesterPeriod = ranklist.CurrentSemester.Period == SemesterPeriod.Ss ? "SS" : "WS";
             var semester = ranklist.CurrentSemester.Years.Replace("/", "_"); //Paths dont allow /
             var filename = $"semesterRanking_{semesterPeriod}_{semester}.yml";
             var path = Path.Combine(GetSemesterRankingPath(), filename);
@@ -827,7 +841,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public void CreateChallenge(IChallenge challenge)
         {
-            using var writeLock = (WriteLock)GetLock();
+            using var writeLock = (WriteLock) GetLock();
             var path = GetPathToChallenge(challenge.Id);
             writeLock.Add(path);
             if (!Directory.Exists(path))
@@ -839,14 +853,15 @@ namespace SubmissionEvaluation.Providers.FileProvider
                 throw new IOException($"Eine Aufgabe mit dem Namen {challenge.Id} existiert bereits!");
             }
 
-            ((Challenge)challenge).IsDraft = true;
-            ((Challenge)challenge).Date = DateTime.Now;
+            ((Challenge) challenge).IsDraft = true;
+            ((Challenge) challenge).Date = DateTime.Now;
             SaveChallenge(challenge, writeLock);
+            dirtyFlag = true;
         }
 
         public void SaveChallenge(IChallenge challenge, IWriteLock writeLock)
         {
-            var props = (Challenge)challenge;
+            var props = (Challenge) challenge;
             var path = GetPathToChallenge(challenge.Id);
             writeLock.EnsureWriteLock(path);
             if (!Directory.Exists(path))
@@ -856,13 +871,12 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
             var filePath = Path.Combine(path, "challenge.md");
             yamlProvider.SerializeWithDescription(filePath, props);
+            dirtyFlag = true;
         }
 
         public ISubmission StoreNewSubmission(IMember member, DateTime date, string challengeName, byte[] zipData, IEnumerable<string> compilableFiles)
         {
-            var filesData = ExtractFilesFromZip(zipData, compilableFiles);
-            var data = filesData.SelectMany(x => x).ToArray();
-            var hash = GetHash(data);
+            var hash = GetHash(zipData);
             var challenge = LoadChallenge(challengeName);
             var submission = LoadAllSubmissionsFor(challenge).FirstOrDefault(x => x.MemberId == member.Id && x.Hash == hash);
             string submissionPath;
@@ -879,7 +893,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
             var resultFile = GetSubmissionResultFile(submissionPath);
             if (!File.Exists(resultFile))
             {
-                using var writeLock = (WriteLock)GetLock();
+                using var writeLock = (WriteLock) GetLock();
                 writeLock.Add(submissionPath);
                 var result = new Result
                 {
@@ -919,7 +933,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
 
         public (string name, byte[] data, string type, DateTime lastMod) GetChallengeZip(IChallenge challenge)
         {
-            using var zip = CreateZipInMemory(new[] { (GetPathToChallenge(challenge.Id), "") }, new[] { ("id.txt", Encoding.Default.GetBytes(challenge.Id)) });
+            using var zip = CreateZipInMemory(new[] {(GetPathToChallenge(challenge.Id), "")}, new[] {("id.txt", Encoding.Default.GetBytes(challenge.Id))});
             zip.Flush();
             return (challenge.Id + ".zip", zip.ToArray(), GetMimeTypeForFile("a.zip"), challenge.LastEdit);
         }
@@ -934,7 +948,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
         public string GetChallengeAdditionalFileContentAsText(string challengeName, string fileName)
         {
             var pathToFile = Path.Combine(GetPathToChallenge(challengeName), fileName);
-            return File.ReadAllText(pathToFile);
+            return ReadAllText(pathToFile);
         }
 
         public void WriteChallengeAdditionalFileContent(string challengeName, string fileName, string content)
@@ -947,14 +961,10 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             return MimeTypeMap.GetMimeType(Path.GetExtension(fileName));
         }
+
         public string GetLastVersionHash()
         {
-            if (File.Exists(GetPathForLastVersion()))
-            {
-                return File.ReadAllText(GetPathForLastVersion());
-            }
-
-            return "";
+            return File.Exists(GetPathForLastVersion()) ? ReadAllText(GetPathForLastVersion()) : "";
         }
 
         public void SaveLastVersionHash(string version)
@@ -980,9 +990,15 @@ namespace SubmissionEvaluation.Providers.FileProvider
                 w.Add(path);
             }
 
-            var group = yamlProvider.Deserialize<Group>(path);
-            group.Id = id;
-            return group;
+            if (File.Exists(path))
+            {
+                var group = yamlProvider.Deserialize<Group>(path);
+
+                group.Id = id;
+                return group;
+            }
+
+            return null;
         }
 
         public void SaveGroup(Group group, IWriteLock writeLock)
@@ -995,7 +1011,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
         public void CreateMember(Member member)
         {
             var file = GetPathToMember(member.Id);
-            using var writeLock = (WriteLock)GetLock();
+            using var writeLock = (WriteLock) GetLock();
             writeLock.Add(file);
             if (File.Exists(file))
             {
@@ -1014,16 +1030,181 @@ namespace SubmissionEvaluation.Providers.FileProvider
         public void DeleteMember(IMember member, IWriteLock writeLock)
         {
             var path = GetPathToMember(member.Id);
-            ((WriteLock)writeLock).Add(path);
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            ((WriteLock) writeLock).Add(path);
+            Delete(path);
         }
 
         public IWriteLock GetLock()
         {
             return new WriteLock();
+        }
+
+
+        public IEnumerable<Bundle> LoadAllBundles()
+        {
+            return Directory.EnumerateFiles(GetPathToBundles(), "*.md").Select(file => LoadBundle(Path.GetFileNameWithoutExtension(file)));
+        }
+
+
+        public void CreateBundle(string id, string title, string description, string authorId, string category, IEnumerable<string> challenges)
+        {
+            var bundle = new Bundle
+            {
+                Id = id,
+                Title = title,
+                Description = description,
+                Author = authorId,
+                Category = category,
+                IsDraft = true,
+                Challenges = challenges.ToList()
+            };
+
+            using var writeLock = (WriteLock) GetLock();
+            var file = Path.Combine(GetPathToBundles(), bundle.Id + ".md");
+            writeLock.Add(file);
+            SaveBundle(bundle, writeLock);
+        }
+
+
+        public Bundle LoadBundle(string id, IWriteLock writeLock = null)
+        {
+            var file = Path.Combine(GetPathToBundles(), id + ".md");
+            if (writeLock is WriteLock w)
+            {
+                w.Add(file);
+            }
+
+            var bundle = yamlProvider.DeserializeWithDescription<Bundle>(file);
+
+            bundle.Id = id;
+            if (bundle.Challenges == null)
+            {
+                bundle.Challenges = new List<string>();
+            }
+
+            return bundle;
+        }
+
+        public void SaveBundle(Bundle bundle, IWriteLock writeLock)
+        {
+            var file = Path.Combine(GetPathToBundles(), bundle.Id + ".md");
+            writeLock.EnsureWriteLock(file);
+            yamlProvider.SerializeWithDescription(file, bundle);
+        }
+
+        public void ChangeChallengeId(IChallenge challenge, string newId)
+        {
+            using var writeLock = (WriteLock) GetLock();
+            var path = GetPathToChallenge(challenge.Id);
+            writeLock.Add(path);
+            var newpath = GetPathToChallenge(newId);
+            //Due the API is case-insensitive in some cases you need to rename the folder first to something else,
+            //before you can actually rename it to the same name with other case, preventing an exception.
+            //TODO: Find out, if this is actually a challenge-Id no one will choose.
+            if (challenge.Id.ToLower().Equals(newId.ToLower()) && !challenge.Id.Equals(newId))
+            {
+                var tempPath = GetPathToChallenge("$renameTemp");
+                Directory.Move(path, tempPath);
+                Directory.Move(tempPath, newpath);
+            }
+            else
+            {
+                Directory.Move(path, newpath);
+            }
+        }
+
+        public void ChangeGroupId(IGroup group, string newId)
+        {
+            using var writeLock = (WriteLock) GetLock();
+            var path = GetPathToGroup(group.Id);
+            writeLock.Add(path);
+            var newpath = GetPathToGroup(newId);
+            //Due the API is case-insensitive in some cases you need to rename the file first to something else,
+            //before you can actually rename it to the same name with other case, preventing an exception.
+            //TODO: Find out, if this is actually a challenge-Id no one will choose.
+            if (group.Id.ToLower().Equals(newId.ToLower()) && !group.Id.Equals(newId))
+            {
+                var tempPath = GetPathToGroup("$renameTemp");
+                File.Move(path, tempPath);
+                File.Move(tempPath, newpath);
+            }
+            else
+            {
+                File.Move(path, newpath);
+            }
+        }
+
+        public void MoveChallengeSubmissionTo(IChallenge challenge, string newId)
+        {
+            if (Directory.Exists(challenge.Id))
+            {
+                Directory.Move(GetPathToSubmissionsFor(challenge.Id), GetPathToSubmissionsFor(newId));
+            }
+        }
+
+        public void CreateGroup(string id, string title, List<string> groupAdminIds, bool isSuperGroup, string[] subGroups, string[] forcedChallenges,
+            string[] availableChallenges, int maxUnlockedChallenges, int? requiredPoints, DateTime? startDate, DateTime? endDate)
+        {
+            using var writeLock = (WriteLock) GetLock();
+            var group = new Group
+            {
+                Id = id,
+                Title = title,
+                GroupAdminIds = groupAdminIds,
+                ForcedChallenges = forcedChallenges,
+                AvailableChallenges = availableChallenges,
+                MaxUnlockedChallenges = maxUnlockedChallenges,
+                RequiredPoints = requiredPoints,
+                StartDate = startDate,
+                EndDate = endDate,
+                IsSuperGroup = isSuperGroup,
+                SubGroups = subGroups
+            };
+            writeLock.Add(Path.Combine(GetPathToGroups(), group.Id + ".yml"));
+            SaveGroup(group, writeLock);
+        }
+
+        public void DeleteGroup(string id)
+        {
+            using var writeLock = (WriteLock) GetLock();
+            var path = Path.Combine(GetPathToGroups(), id + ".yml");
+            writeLock.Add(path);
+            Delete(path);
+        }
+
+        public bool IsMaintenanceMode { get => WriteLock.IsMaintenanceMode; set => WriteLock.IsMaintenanceMode = value; }
+
+        public IEnumerable<(string name, byte[] data)> GetZipFiles(byte[] data)
+        {
+            using var archive = new ZipArchive(new MemoryStream(data));
+            foreach (var entry in archive.Entries)
+            {
+                using var dataStream = entry.Open();
+                var fileData = new byte[entry.Length];
+                dataStream.Read(fileData, 0, fileData.Length);
+                yield return (entry.FullName, fileData);
+            }
+        }
+
+        public (Challenge, IEnumerable<TestParameters>, IEnumerable<(string name, byte[] data)>) LoadChallengeFromZip(byte[] data)
+        {
+            var files = GetZipFiles(data).ToDictionary(x => Path.GetFileName(x.name), x => (x.name, x.data));
+
+            var id = ReadString(files["id.txt"].data);
+
+            var challenge = yamlProvider.DeserializeFromTextWithDescription<Challenge>(ReadString(files["challenge.md"].data));
+            challenge.Id = id;
+
+            var tests = yamlProvider.DeserializeTestsFromText("", ReadString(files["_testParameters.yml"].data));
+
+            var additionalFiles = files.Where(x => x.Key != "id.txt" && x.Key != "challenge.md" && x.Key != "_testParameters.yml").Select(x => x.Value)
+                .ToList();
+            return (challenge, tests, additionalFiles);
+        }
+
+        public bool ChallengeExists(string challengeId)
+        {
+            return File.Exists(GetPathToChallengeProperties(challengeId));
         }
 
         private string GetPathToChallenges()
@@ -1081,6 +1262,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             return Path.Combine(challengesDir, "_groups");
         }
+
         private string GetRelativePath(string path, string folder)
         {
             if (!folder.EndsWith(Path.DirectorySeparatorChar.ToString()))
@@ -1132,7 +1314,7 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             foreach (var file in Directory.EnumerateFiles(submissionPath, "Source.*", SearchOption.TopDirectoryOnly))
             {
-                File.Delete(file);
+                Delete(file);
             }
 
             var sourcePathForSubmission = GetSourceZipPath(submissionPath);
@@ -1226,26 +1408,9 @@ namespace SubmissionEvaluation.Providers.FileProvider
             return Path.Combine(GetPathToJekyllData(), "awards.yml");
         }
 
-        private IEnumerable<byte[]> ExtractFilesFromZip(byte[] data, IEnumerable<string> files)
-        {
-            using var stream = new MemoryStream(data);
-            using var archive = new ZipArchive(stream);
-            foreach (var file in files)
-            {
-                var entry = archive.GetEntry(file);
-                var raw = new byte[entry.Length];
-                using (var reader = entry.Open())
-                {
-                    reader.Read(raw, 0, raw.Length);
-                }
-
-                yield return raw;
-            }
-        }
-
         private string GetSubmissionPath(ISubmission submission)
         {
-            return ((Result)submission).SubmissionPath;
+            return ((Result) submission).SubmissionPath;
         }
 
         private void PruneEmptyDirs(string path)
@@ -1310,7 +1475,6 @@ namespace SubmissionEvaluation.Providers.FileProvider
             }
         }
 
-
         private Result DeserializeResult(string path)
         {
             var result = yamlProvider.Deserialize<Result>(path);
@@ -1326,19 +1490,17 @@ namespace SubmissionEvaluation.Providers.FileProvider
         {
             writeLock.EnsureWriteLock(result.SubmissionPath);
             var resultFile = GetSubmissionResultFile(result.SubmissionPath);
-            var oldFile = resultFile[0..^4] + ".old";
-            var newFile = resultFile[0..^4] + ".new";
+            var oldFile = resultFile[..^4] + ".old";
+            var newFile = resultFile[..^4] + ".new";
             yamlProvider.Serialize(newFile, result, false);
             if (File.Exists(oldFile))
             {
-                File.Delete(oldFile);
+                Delete(oldFile);
             }
-
             if (File.Exists(resultFile))
             {
-                File.Move(resultFile, oldFile);
+                Delete(resultFile);
             }
-
             File.Move(newFile, resultFile);
         }
 
@@ -1347,10 +1509,21 @@ namespace SubmissionEvaluation.Providers.FileProvider
             return (Path.GetFileName(pathToFile), File.ReadAllBytes(pathToFile), GetMimeTypeForFile(pathToFile), File.GetLastWriteTime(pathToFile));
         }
 
-
         private string GetPathForLastVersion()
         {
             return Path.Combine(GetPathToJekyllData(), "version.txt");
+        }
+
+        private string GetPathToGroup(string id)
+        {
+            var path = GetPathToGroups();
+            return Path.Combine(path, id + ".yml");
+        }
+
+        private string ReadString(byte[] data)
+        {
+            using var ms = new StreamReader(new MemoryStream(data));
+            return ms.ReadToEnd();
         }
 
         private class WriteLock : IWriteLock
@@ -1454,187 +1627,36 @@ namespace SubmissionEvaluation.Providers.FileProvider
                 }
             }
         }
-        public IEnumerable<Bundle> LoadAllBundles()
+
+        #region fileCache
+
+        private static readonly MemoryCache fileCache = new MemoryCache("fileCache");
+
+        private static string ReadAllText(string path)
         {
-            foreach (var file in Directory.EnumerateFiles(GetPathToBundles(), "*.md"))
+            if (fileCache.Contains(path))
             {
-                yield return LoadBundle(Path.GetFileNameWithoutExtension(file));
+                return fileCache.Get(path) as string;
+            }
+
+            var fileContent = File.ReadAllText(path);
+            fileCache.Add(path, fileContent, DateTimeOffset.Now.AddSeconds(15));
+            return fileContent;
+        }
+
+        private static void Delete(string path)
+        {
+            if (fileCache.Contains(path))
+            {
+                fileCache.Remove(path);
+            }
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
             }
         }
 
-        public void CreateBundle(string id, string title, string description, string authorId, string category, IEnumerable<string> challenges)
-        {
-            var bundle = new Bundle
-            {
-                Id = id,
-                Title = title,
-                Description = description,
-                Author = authorId,
-                Category = category,
-                IsDraft = true,
-                Challenges = challenges.ToList()
-            };
-
-            using var writeLock = (WriteLock)GetLock();
-            var file = Path.Combine(GetPathToBundles(), bundle.Id + ".md");
-            writeLock.Add(file);
-            SaveBundle(bundle, writeLock);
-        }
-
-        public Bundle LoadBundle(string id, IWriteLock writeLock = null)
-        {
-            var file = Path.Combine(GetPathToBundles(), id + ".md");
-            if (writeLock is WriteLock w)
-            {
-                w.Add(file);
-            }
-
-            var bundle = yamlProvider.DeserializeWithDescription<Bundle>(file);
-
-            bundle.Id = id;
-            if (bundle.Challenges == null)
-            {
-                bundle.Challenges = new List<string>();
-            }
-
-            return bundle;
-        }
-
-        public void SaveBundle(Bundle bundle, IWriteLock writeLock)
-        {
-            var file = Path.Combine(GetPathToBundles(), bundle.Id + ".md");
-            writeLock.EnsureWriteLock(file);
-            yamlProvider.SerializeWithDescription(file, bundle);
-        }
-
-        public void ChangeChallengeId(IChallenge challenge, string newId)
-        {
-            using var writeLock = (WriteLock)GetLock();
-            var path = GetPathToChallenge(challenge.Id);
-            writeLock.Add(path);
-            var newpath = GetPathToChallenge(newId);
-            //Due the API is case-insensitive in some cases you need to rename the folder first to something else,
-            //before you can actually rename it to the same name with other case, preventing an exception.
-            //TODO: Find out, if this is actually a challenge-Id no one will choose.
-            if (challenge.Id.ToLower().Equals(newId.ToLower()) && !challenge.Id.Equals(newId))
-            {
-                var tempPath = GetPathToChallenge("$renameTemp");
-                Directory.Move(path, tempPath);
-                Directory.Move(tempPath, newpath);
-            }
-            else
-            {
-                Directory.Move(path, newpath);
-            }
-        }
-
-        private string GetPathToGroup(string id)
-        {
-            var path = GetPathToGroups();
-            return Path.Combine(path, id + ".yml");
-        }
-
-        public void ChangeGroupId(IGroup group, string newId)
-        {
-            using var writeLock = (WriteLock)GetLock();
-            var path = GetPathToGroup(@group.Id);
-            writeLock.Add(path);
-            var newpath = GetPathToGroup(newId);
-            //Due the API is case-insensitive in some cases you need to rename the file first to something else,
-            //before you can actually rename it to the same name with other case, preventing an exception.
-            //TODO: Find out, if this is actually a challenge-Id no one will choose.
-            if (@group.Id.ToLower().Equals(newId.ToLower()) && !@group.Id.Equals(newId))
-            {
-                var tempPath = GetPathToGroup("$renameTemp");
-                File.Move(path, tempPath);
-                File.Move(tempPath, newpath);
-            }
-            else
-            {
-                File.Move(path, newpath);
-            }
-        }
-
-        public void MoveChallengeSubmissionTo(IChallenge challenge, string newId)
-        {
-            if (Directory.Exists(challenge.Id))
-            {
-                Directory.Move(GetPathToSubmissionsFor(challenge.Id), GetPathToSubmissionsFor(newId));
-            }
-        }
-
-        public void CreateGroup(string id, string title, List<string> groupAdminIds, bool isSuperGroup, string[] subGroups, string[] forcedChallenges, string[] availableChallenges,
-            int maxUnlockedChallenges, int? requiredPoints, DateTime? startDate)
-        {
-            using var writeLock = (WriteLock)GetLock();
-            var group = new Group
-            {
-                Id = id,
-                Title = title,
-                GroupAdminIds = groupAdminIds,
-                ForcedChallenges = forcedChallenges,
-                AvailableChallenges = availableChallenges,
-                MaxUnlockedChallenges = maxUnlockedChallenges,
-                RequiredPoints = requiredPoints,
-                StartDate = startDate,
-                IsSuperGroup = isSuperGroup,
-                SubGroups = subGroups
-            };
-            writeLock.Add(Path.Combine(GetPathToGroups(), group.Id + ".yml"));
-            SaveGroup(group, writeLock);
-        }
-
-        public void DeleteGroup(string id)
-        {
-            using var writeLock = (WriteLock)GetLock();
-            var path = Path.Combine(GetPathToGroups(), id + ".yml");
-            writeLock.Add(path);
-            File.Delete(path);
-        }
-
-        public bool IsMaintenanceMode
-        {
-            get => WriteLock.IsMaintenanceMode;
-            set => WriteLock.IsMaintenanceMode = value;
-        }
-
-        public IEnumerable<(string name, byte[] data)> GetZipFiles(byte[] data)
-        {
-            using var archive = new ZipArchive(new MemoryStream(data));
-            foreach (var entry in archive.Entries)
-            {
-                using var dataStream = entry.Open();
-                var fileData = new byte[entry.Length];
-                dataStream.Read(fileData, 0, fileData.Length);
-                yield return (entry.FullName, fileData);
-            }
-        }
-
-        public (Challenge, IEnumerable<TestParameters>, IEnumerable<(string name, byte[] data)>) LoadChallengeFromZip(byte[] data)
-        {
-            var files = GetZipFiles(data).ToDictionary(x => Path.GetFileName(x.name), x => (x.name, x.data));
-
-            var id = ReadString(files["id.txt"].data);
-
-            var challenge = yamlProvider.DeserializeFromTextWithDescription<Challenge>(ReadString(files["challenge.md"].data));
-            challenge.Id = id;
-
-            var tests = yamlProvider.DeserializeTestsFromText("", ReadString(files["_testParameters.yml"].data));
-
-            var additionalFiles = files.Where(x => x.Key != "id.txt" && x.Key != "challenge.md" && x.Key != "_testParameters.yml").Select(x => x.Value)
-                .ToList();
-            return (challenge, tests, additionalFiles);
-        }
-
-        private string ReadString(byte[] data)
-        {
-            using var ms = new StreamReader(new MemoryStream(data));
-            return ms.ReadToEnd();
-        }
-
-        public bool ChallengeExists(string challengeId)
-        {
-            return File.Exists(GetPathToChallengeProperties(challengeId));
-        }
+        #endregion
     }
 }

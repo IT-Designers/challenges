@@ -1,13 +1,16 @@
-﻿@page "/Challenge/UploadChallenge" 
-@using System.IO
+@page "/Challenge/UploadChallenge"
+
 @using System.Net.Http.Json
-@using SubmissionEvaluation.Shared.Models.Shared
-@using SubmissionEvaluation.Shared.Classes.Messages
 @using SubmissionEvaluation.Shared.Models.Permissions
-@using SubmissionEvaluation.Shared.Classes 
-@inject HttpClient httpClient
-@inject IToastService toaster
-@inject NavigationManager navi 
+@using SubmissionEvaluation.Shared.Models.Shared
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using System.IO
+
+@inject HttpClient HttpClient
+@inject IToastService Toaster
+@inject NavigationManager Navi
+
 <div>
     <div class="post-area">
         <div class="post-header">
@@ -35,22 +38,23 @@
 
     protected override async void OnInitialized()
     {
-        var Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Challenges", Permissions))
+        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        if (!PermissionHelper.CheckPermissions(Actions.Create, "Challenges", permissions))
         {
-            navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
     }
+
     async void ChallengeUpload()
     {
-
-        var res = await httpClient.PostAsJsonAsync<List<DetailedInputFile>>("api/Challenge/UploadChallenge", Model.UploadedFiles);
-        if(res.IsSuccessStatusCode)
+        var res = await HttpClient.PostAsJsonAsync("api/Challenge/UploadChallenge", Model.UploadedFiles);
+        if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadAsStringAsync();
-            if(result.Equals(SuccessMessages.EditChallenge)) {
-                toaster.ShowSuccess("Challenge wurde erfolgreich hochgeladen.");
-                navi.NavigateTo("Challenges");
+            if (result.Equals(SuccessMessages.EditChallenge))
+            {
+                Toaster.ShowSuccess("Challenge wurde erfolgreich hochgeladen.");
+                Navi.NavigateTo("Challenges");
             }
         }
     }

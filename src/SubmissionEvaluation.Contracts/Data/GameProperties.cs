@@ -13,14 +13,10 @@ namespace SubmissionEvaluation.Contracts.Data
 
         [YamlIgnore] [JsonIgnore] public bool IsAvailable => !(HasError || IsDraft);
 
-        [YamlMember(Alias = "Author")] public string AuthorID { get; set; }
+        [YamlMember(Alias = "Author")] public string AuthorId { get; set; }
 
         [YamlMember(Alias = "LastEditor")]
-        public string LastEditorID
-        {
-            get => string.IsNullOrEmpty(lastEditor) ? AuthorID : lastEditor;
-            set => lastEditor = value;
-        }
+        public string LastEditorId { get => string.IsNullOrEmpty(lastEditor) ? AuthorId : lastEditor; set => lastEditor = value; }
 
         [YamlIgnore] [JsonIgnore] public string Name { get; set; }
 

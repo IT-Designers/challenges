@@ -1,26 +1,24 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace SubmissionEvaluation.Client.Services
 {
     public class PasswordRequirementsService
     {
-        readonly int passwordLength = 12;
-        readonly bool gotUpperCase = true;
-        readonly bool gotLowerCase = true;
-        readonly bool gotDigit = true;
-        List<string> requirementsStringsList = new List<string>();
+        private const bool GotDigit = true;
+        private const bool GotLowerCase = true;
+        private const bool GotUpperCase = true;
+        private const int PasswordLength = 12;
+        private readonly List<string> requirementsStringsList = new List<string>();
 
-        public List<string> GetRequirementsString()
+        public IEnumerable<string> GetRequirementsString()
         {
             return requirementsStringsList;
         }
 
         public bool CheckRequirements(string password)
         {
-            bool result = true;
+            var result = true;
             requirementsStringsList.Clear();
 
             result &= CheckPasswordLength(password);
@@ -33,9 +31,9 @@ namespace SubmissionEvaluation.Client.Services
 
         private bool CheckPasswordLength(string password)
         {
-            bool result = true;
+            var result = true;
 
-            if(password.Length < passwordLength || password.Length >= 128)
+            if (password.Length < PasswordLength || password.Length >= 128)
             {
                 requirementsStringsList.Add("lengthFalse");
                 result = false;
@@ -43,11 +41,12 @@ namespace SubmissionEvaluation.Client.Services
 
             return result;
         }
+
         private bool CheckUpperCase(string password)
         {
-            bool result = true;
+            var result = true;
 
-            if (password.Any(char.IsUpper) != (gotUpperCase || true))
+            if (password.Any(char.IsUpper) != (GotUpperCase || true))
             {
                 requirementsStringsList.Add("upperFalse");
                 result = false;
@@ -55,11 +54,12 @@ namespace SubmissionEvaluation.Client.Services
 
             return result;
         }
+
         private bool CheckLowerCase(string password)
         {
-            bool result = true;
+            var result = true;
 
-            if (password.Any(char.IsLower) != (gotLowerCase || true))
+            if (password.Any(char.IsLower) != (GotLowerCase || true))
             {
                 requirementsStringsList.Add("lowerFalse");
                 result = false;
@@ -67,11 +67,12 @@ namespace SubmissionEvaluation.Client.Services
 
             return result;
         }
+
         private bool CheckDigit(string password)
         {
-            bool result = true;
+            var result = true;
 
-            if (password.Any(char.IsDigit) != (gotDigit || true))
+            if (password.Any(char.IsDigit) != (GotDigit || true))
             {
                 requirementsStringsList.Add("digitFalse");
                 result = false;

@@ -1,31 +1,21 @@
 ﻿@using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Contracts.Data.Review
-@inject IJSRuntime runtime
-@inject ReviewSynchronizer synchronizer
-@if (Categories != null && AllComments != null)
+@using BlazorMonaco
+
+@inject IJSRuntime Runtime
+@inject ReviewSynchronizer Synchronizer
+@if (Editor != null && AllComments != null)
 {
     <div class="comments border">
-        @foreach (var comment in synchronizer.CurrentAssoziation.Comments.Comments)
+        @foreach (var comment in Synchronizer.CurrentAssociation.Comments.Comments)
         {
-            <div class="comment row" style="margin-right: 0px" @onmouseover="() => HoverIn(comment.Offset, comment.Length)" @onmouseover:stopPropagation="true" @onmouseout="HoverOut" @onmouseout:stopPropagation="true">
-                @if (!isReadOnly)
-                {
-                    <select @bind="comment.Id" class="form-input col-9">
-                        @foreach (var kvp in Categories)
-                        {
-                            <option value="@kvp.Id">@kvp.Title</option>
-                        }
-                    </select>
-                }
-                else
-                {
-                    <p style="color: white">@Categories?.Where(x => x.Id.Equals(comment.Id)).Select(x => x.Title).FirstOrDefault()</p>
-                }
-                @if (!isReadOnly)
+            <div class="comment row" style="margin-right: 0px" @onmouseover="() => HoverIn(comment.Selections)" @onmouseover:stopPropagation="true" @onmouseout="HoverOut" @onmouseout:stopPropagation="true">
+                <p style="color: white">@comment.Title</p>
+                @if (!IsReadOnly)
                 {
                     <a @onclick="() => DeleteComment(comment)" class="btn btn-danger col-3">X</a>
                 }
-                <textarea @bind="@comment.Text" readonly="@isReadOnly"></textarea>
+                <textarea @bind="@comment.Text" readonly="@IsReadOnly"></textarea>
             </div>
         }
     </div>
@@ -35,30 +25,45 @@
 @code {
 
     [Parameter]
-    public bool isReadOnly { get; set; }
+    public bool IsReadOnly { get; set; }
 
     [Parameter]
-    public IEnumerable<(string Id, string Title)> Categories { get; set; }
+    public MonacoEditor Editor { get; set; }
 
     [Parameter]
     public HashSet<ReviewComments> AllComments { get; set; }
 
-    void HoverIn(int offset, int length)
+    private string[] decorations = new string[1]{""};
+
+    async void HoverIn(List<ReviewComments.Selection> selections)
     {
-        runtime.InvokeVoidAsync("addVisualMarker", offset, length);
+        var editor_sel = new ModelDeltaDecoration[selections.Count];
+
+        int count = 0;
+        foreach (var item in selections)
+        {
+            editor_sel[count++] = new ModelDeltaDecoration{
+                Range = new BlazorMonaco.Range{StartColumn = item.start_col, StartLineNumber = item.start_row, EndLineNumber = item.end_row, EndColumn = item.end_col},
+                Options = new ModelDecorationOptions{InlineClassName = "myInlineDecoration"}
+            };
+        }
+        decorations = await Editor.DeltaDecorations(decorations, editor_sel);
     }
 
-    void HoverOut()
+    async void HoverOut()
     {
-        runtime.InvokeVoidAsync("removeVisualMarker");
+        decorations = await Editor.DeltaDecorations(decorations, new ModelDeltaDecoration[1]{ new ModelDeltaDecoration{
+                Range = new BlazorMonaco.Range{StartColumn = 1, StartLineNumber = 1, EndLineNumber = 1, EndColumn = 1},
+                Options = new ModelDecorationOptions{InlineClassName = ""}
+            }});
     }
 
     void DeleteComment(ReviewComments comment)
     {
-        synchronizer.CurrentAssoziation.Comments.Comments.Remove(comment);
-        runtime.InvokeVoidAsync("removeVisualMarker");
+        Synchronizer.CurrentAssociation.Comments.Comments.Remove(comment);
+        Runtime.InvokeVoidAsync("removeVisualMarker");
         AllComments.Remove(comment);
-        synchronizer.InvokeEvent();
+        Synchronizer.InvokeEvent();
     }
 
 }

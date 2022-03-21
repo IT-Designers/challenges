@@ -1,12 +1,14 @@
 @page "/Challenge/View/{challengeId}"
-@using SubmissionEvaluation.Shared.Models.Members
-@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+
 @using System.Net.Http.Json
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
-@inject HttpClient httpClient
-@inject NavigationManager navi
-@inject IJSRuntime runtime
+@using SubmissionEvaluation.Shared.Models.Members
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+@inject IJSRuntime Runtime
 
 @if (Model != null)
 {
@@ -20,13 +22,15 @@
                         {
                             @("PREVIEW/BETA")
                         }
-                        @if (PermissionHelper.CheckPermissions(Actions.EDIT, "Challenges", Permissions, Restriction.CHALLENGES, ChallengeId))
+                        @if (PermissionHelper.CheckPermissions(Actions.Edit, "Challenges", Permissions, Restriction.Challenges, ChallengeId))
                         {
-                            <a class="btn btn-sm" href="@("Challenges/Edit/" + Model.Name)" style="padding: 2px">
+                            <a class="btn btn-sm" href="@("Challenge/Edit/" + Model.Id)" style="padding: 2px">
                                 <span class="oi oi-pencil"></span>
                             </a>
-                        }@if(PermissionHelper.CheckPermissions(Actions.VIEW, "Submissions", Permissions, Restriction.CHALLENGES, ChallengeId)) { 
-                            <a class="btn btn-sm" href="@($"Submission/Task/{Model.Name}")"style="padding: 2px">
+                        }
+                        @if (PermissionHelper.CheckPermissions(Actions.View, "Submissions", Permissions, Restriction.Challenges, ChallengeId))
+                        {
+                            <a class="btn btn-sm" href="@($"Submission/Task/{Model.Id}")"style="padding: 2px">
                                 <span class="oi oi-list"></span>
                             </a>
                         }
@@ -53,19 +57,23 @@
                             @("Keine Angabe zur Quelle")
                         }
                     </p>
+                    <p>
+                        @if (Model?.PartOfGroups.Count > 1)
+                        {
+                            @("Bestandteil der Gruppen: ")
+                            @string.Join(" und ", Model?.PartOfGroups)
+                        }
+                        else
+                        {
+                            @("Bestandteil der Gruppe: ")
+                            @Model?.PartOfGroups.FirstOrDefault()
+                        }
+                    </p>
 
                     @if (!string.IsNullOrWhiteSpace(Model.Bundle))
                     {
                         <p>
                             @("Diese Aufgabe ist Teil der Aufgabenserie: ")<a href="@("Bundle/View/" + Model.Bundle)">@Model.BundleTitle</a>
-                            @if (Model.LastChallenge != null)
-                            {
-                                <NavLink href="@("Challenge/View/" + Model.LastChallenge)">[&laquo;]</NavLink>
-                            }
-                            @if (Model.NextChallenge != null)
-                            {
-                                <span>&nbsp;<a href="@("/Challenge/View/" + Model.NextChallenge)">&raquo;</a></span>
-                            }
                         </p>
                     }
                 </div>
@@ -100,7 +108,7 @@
                     </div>
                 }
                 <div class="post">
-                    @((MarkupString) MarkdownToHtml.Convert(Model.Description))
+                    @((MarkupString) MarkdownToHtml.Convert(Model.Description, fixStatic: true, id: ChallengeId))
                 </div>
             </div>
         </div>
@@ -142,7 +150,7 @@
                             </td>
                         </tr>
                     }
-                    @if (Features.EnableEffortEstamination)
+                    @if (Features.EnableEffortEstimation)
                     {
                         <tr>
                             <th class="d-lg-none d-xl-table-cell">Geschätzter Aufwand:</th>
@@ -156,7 +164,7 @@
                     <tr>
                         <th class="d-lg-none d-xl-table-cell">Kategorie:</th>
                         <td>
-                            <a href="@("Category/" + Model.Category)">@Model.Category</a>
+                            <a href="@("Challenge/Category/" + Model.Category)">@Model.Category</a>
                         </td>
                     </tr>
                     <tr>
@@ -195,7 +203,7 @@
                     }
                 </table>
                 <div class="content-text" style="text-align: center;">
-                    <a class="btn btn-outline-dark btn-margin" href="@($"Submission/Add/{Model.Name}")">Lösung einreichen</a>
+                    <a class="btn btn-outline-dark btn-margin" href="@($"Submission/Add/{Model.Id}")">Lösung einreichen</a>
                 </div>
             </div>
         </div>
@@ -212,22 +220,14 @@
                         <table class="ranking_table">
                             <thead>
                             <tr class="ranking_head">
-                                @if (Model.RatingMethod.Type == RatingMethod.Fixed)
-                                {
-                                    <th>Platz</th>
-                                }
                                 <th>Name</th>
-                                @if (Model.RatingMethod.Type == RatingMethod.Fixed)
-                                {
-                                    <th>Bewertung</th>
-                                }
                                 <th>Punkte</th>
                                 <th>Sprache</th>
-                                @if (Model.RatingMethod.Type == RatingMethod.Exec_Time)
+                                @if (Model.RatingMethod.Type == RatingMethod.ExecTime)
                                 {
                                     <th>Zeit</th>
                                 }
-                                @if (Model.RatingMethod.Type == RatingMethod.Submission_Time)
+                                @if (Model.RatingMethod.Type == RatingMethod.SubmissionTime)
                                 {
                                     <th>Datum</th>
                                 }
@@ -240,35 +240,9 @@
                             @foreach (var submitter in Model.Ranklist.Submitters)
                             {
                                 <tr>
-                                    @if (Model.RatingMethod.Type == RatingMethod.Fixed)
-                                    {
-                                        <td>
-                                            @if (submitter.Rank > 0)
-                                            {
-                                                @submitter.Rank
-                                            }
-                                            else
-                                            {
-                                                @("-")
-                                            }
-                                        </td>
-                                    }
                                     <td>
-                                        <a href="@("Members/Member/" + submitter.Id)">@(httpClient.GetFromJsonAsync<MemberModel<Result, Member>>("api/Members/Get/" + submitter.Id).Result.Name)</a>
+                                        <a href="@("Members/Member/" + submitter.Id)">@(Model.SubmitterIdToSubmitterName[submitter.Id])</a>
                                     </td>
-                                    @if (Model.RatingMethod.Type == RatingMethod.Fixed)
-                                    {
-                                        <td>
-                                            @if (submitter.Rating > 0)
-                                            {
-                                                <img style="box-shadow: unset" src="/images/Rating@(submitter.Rating).png" width="48"/>
-                                            }
-                                            else
-                                            {
-                                                <img style="box-shadow: unset" title="Bewertung noch ausstehend" src="/images/Rating0.png" width="48"/>
-                                            }
-                                        </td>
-                                    }
                                     <td>
                                         @if (submitter.Points > 0)
                                         {
@@ -288,11 +262,11 @@
                                             </small>
                                         }
                                     </td>
-                                    @if (Model.RatingMethod.Type == RatingMethod.Exec_Time)
+                                    @if (Model.RatingMethod.Type == RatingMethod.ExecTime)
                                     {
                                         <td>@submitter.Exectime ms</td>
                                     }
-                                    @if (Model.RatingMethod.Type == RatingMethod.Submission_Time)
+                                    @if (Model.RatingMethod.Type == RatingMethod.SubmissionTime)
                                     {
                                         <td>@submitter.Date</td>
                                     }
@@ -327,9 +301,9 @@
                                 <tr>
                                     <td>@count.Key</td>
                                     <td>
-                                        @if (PermissionHelper.CheckPermissions(Actions.VIEW, "Submissions", Permissions, Restriction.CHALLENGES, ChallengeId))
+                                        @if (PermissionHelper.CheckPermissions(Actions.View, "Submissions", Permissions, Restriction.Challenges, ChallengeId))
                                         {
-                                            <a href=@($"Submission/Task/{Model.Name}")>@count.Value</a>
+                                            <a href=@($"Submission/Task/{Model.Id}")>@count.Value</a>
                                         }
                                         else
                                         {
@@ -345,6 +319,10 @@
         }
     </div>
 }
+else
+{
+    <Wave />
+}
 
 @code {
 
@@ -357,18 +335,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Model = await httpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + ChallengeId);
+        Model = await HttpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + ChallengeId);
         if (Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
-        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
     }
 
     async void RateChallenge(RatingType rating)
     {
-        await httpClient.PostAsJsonAsync<RatingType>($"api/Challenge/RateChallenge/{Model.Name}", rating);
+        await HttpClient.PostAsJsonAsync($"api/Challenge/RateChallenge/{Model.Id}", rating);
         Model.CanRate = false;
         StateHasChanged();
     }

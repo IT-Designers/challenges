@@ -9,7 +9,7 @@
 
         public File(File file)
         {
-            Name = file.Name.Replace("/", Folder.pathSeperator).Replace("\\\\", Folder.pathSeperator);
+            Name = file.Name.Replace("/", Folder.PathSeperator).Replace("\\\\", Folder.PathSeperator);
             OriginalName = file.Name;
             IsFolder = file.IsFolder;
             IsDelete = file.IsDelete;

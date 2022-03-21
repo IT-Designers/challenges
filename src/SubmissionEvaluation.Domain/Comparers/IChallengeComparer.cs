@@ -3,7 +3,7 @@ using SubmissionEvaluation.Contracts.Data;
 
 namespace SubmissionEvaluation.Domain.Comparers
 {
-    public class IChallengeComparer : EqualityComparer<IChallenge>
+    public class ChallengeComparer : EqualityComparer<IChallenge>
     {
         public override bool Equals(IChallenge x, IChallenge y)
         {

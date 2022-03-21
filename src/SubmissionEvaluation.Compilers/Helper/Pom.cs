@@ -4,13 +4,13 @@ namespace SubmissionEvaluation.Compilers.Helper
 {
     internal class Pom
     {
-        protected XDocument document;
-        protected XNamespace ns;
+        protected XDocument Document;
+        protected XNamespace Ns;
 
         public Pom(string content)
         {
-            document = XDocument.Parse(content);
-            ns = document.Root.Attribute("xmlns").Value;
+            Document = XDocument.Parse(content);
+            Ns = Document.Root.Attribute("xmlns").Value;
         }
 
         public string ArtifactId { get => GetArtifactId(); set => SetArtifactId(value); }
@@ -21,7 +21,7 @@ namespace SubmissionEvaluation.Compilers.Helper
 
         protected XElement GetArtifactIdNode()
         {
-            var artifactIdNode = document.Root.Element(ns + "artifactId");
+            var artifactIdNode = Document.Root.Element(Ns + "artifactId");
             return artifactIdNode;
         }
 
@@ -39,24 +39,24 @@ namespace SubmissionEvaluation.Compilers.Helper
 
         protected XElement GetBuildDirectoryNode()
         {
-            var buildNode = document.Root.Element(ns + "build");
-            var directoryNode = buildNode?.Element(ns + "directory");
+            var buildNode = Document.Root.Element(Ns + "build");
+            var directoryNode = buildNode?.Element(Ns + "directory");
             return directoryNode;
         }
 
         protected XElement CreateBuildDirectoryNode()
         {
-            var buildNode = document.Root.Element(ns + "build");
+            var buildNode = Document.Root.Element(Ns + "build");
             if (buildNode == null)
             {
-                buildNode = new XElement(ns + "build");
-                document.Root.Add(buildNode);
+                buildNode = new XElement(Ns + "build");
+                Document.Root.Add(buildNode);
             }
 
-            var directoryNode = buildNode.Element(ns + "directory");
+            var directoryNode = buildNode.Element(Ns + "directory");
             if (directoryNode == null)
             {
-                directoryNode = new XElement(ns + "directory");
+                directoryNode = new XElement(Ns + "directory");
                 buildNode.Add(directoryNode);
             }
 
@@ -82,7 +82,7 @@ namespace SubmissionEvaluation.Compilers.Helper
 
         protected XElement GetVersionNode()
         {
-            var versionNode = document.Root.Element(ns + "version");
+            var versionNode = Document.Root.Element(Ns + "version");
             return versionNode;
         }
 
@@ -98,9 +98,9 @@ namespace SubmissionEvaluation.Compilers.Helper
             return versionNode.Value;
         }
 
-        public string GetXMLString()
+        public string GetXmlString()
         {
-            return document.ToString();
+            return Document.ToString();
         }
 
         public static Pom GetDefaultPom(string mainClass)

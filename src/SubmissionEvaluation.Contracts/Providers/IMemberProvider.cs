@@ -13,12 +13,15 @@ namespace SubmissionEvaluation.Contracts.Providers
         IMember GetMemberByUid(string uid);
         IMember AddMember(string name, string email, string uid = null, bool temporaryUser = false);
         void DeleteMember(IMember member);
+        void DeleteAllSubmissionsByMember(IMember member);
         void IncreaseReviewFrequency(IMember member);
         void LogLastActivity(IMember member);
         void DecreaseReviewFrequency(IMember member);
         void UpdateLastReviewDate(IMember member);
-        void UpdateReviewLevel(IMember member, ReviewLevel level);
-        void IncreaseReviewCounter(IMember member);
+        void ResetMemberAvailableChallenges(IMember member);
+        void UpdateReviewLevel(IMember member, string language, ReviewLevelType level);
+        void UpdateAllReviewLevelsAndCounters(IMember member, Dictionary<string, ReviewLevelAndCounter> model);
+        void IncreaseReviewCounter(IMember member, string language);
         void AddReviewLanguage(IMember member, string language);
         void SetInactive(IMember member, bool inactive);
         void UpdateUid(IMember member, string uid);

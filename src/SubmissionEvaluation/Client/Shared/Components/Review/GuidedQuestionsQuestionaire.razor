@@ -1,7 +1,7 @@
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Contracts.Data.Review
-@inject IToastService toastService
-@inject ReviewSynchronizer synchronizer
+@inject IToastService ToastService
+@inject ReviewSynchronizer Synchronizer
 <div class="fullscreen-hidden">
     @if (CurrentQuestion != null)
     {
@@ -9,11 +9,11 @@
             <div class="col-3">
                 @if (!CurrentQuestion.Equals(GuidedQuestions[0]))
                 {
-                    <button class="btn btn-primary" @onclick="PreviousQuestion">Vorherige Frage</button>
+                    <button class="btn btn-outline-dark" @onclick="PreviousQuestion">Vorherige Frage</button>
                 }
             </div>
             <div class="col-3 d-flex flex-row-reverse ml-auto">
-                <button class="btn btn-primary pull-right" @onclick="NextQuestion">Nächste Frage</button>
+                <button class="btn btn-outline-dark pull-right" @onclick="NextQuestion">Nächste Frage</button>
             </div>
             <div class="guidedQuestion col-12">
                 <div class="form-group ">
@@ -49,7 +49,7 @@
                 <h3>Der Fragebogen wurde ausgefüllt. Sende das Review ab.</h3>
             </div>
             <div class="col-sm-3 col-12 pull-right">
-                <button type="button" class="btn btn-primary btn-block" @onclick="@InvokeParentSubmit">Review einreichen</button>
+                <button type="button" class="btn btn-outline-dark btn-block" @onclick="@InvokeParentSubmit">Review einreichen</button>
             </div>
         </div>
     }
@@ -77,7 +77,7 @@
     protected override void OnInitialized()
     {
         CurrentQuestion = GuidedQuestions.ToList().Where(x => x.Rating == null).FirstOrDefault();
-        synchronizer.SomeDataChanged += StateHasChanged;
+        Synchronizer.SomeDataChanged += StateHasChanged;
     }
 
     void InvokeParentSubmit()
@@ -101,7 +101,7 @@
                 }
                 else
                 {
-                    toastService.ShowError("Keine vorherige Frage.", "Error");
+                    ToastService.ShowError("Keine vorherige Frage.", "Error");
                     return;
                 }
             }
@@ -115,7 +115,7 @@
         {
             return;
         } //2 stands for "Current submission should be improved", so it quits the reviewing.
-        if (CurrentQuestion.Rating != null && CurrentQuestion.Rating == GuidedQuestion.submissionShouldBeImproved)
+        if (CurrentQuestion.Rating != null && CurrentQuestion.Rating == GuidedQuestion.SubmissionShouldBeImproved)
         {
             EndQuestions();
             return;
@@ -141,23 +141,23 @@
     {
         if (AnyCommentsEmpty())
         {
-            toastService.ShowWarning("Nicht alle Kommentare ausgefüllt", "Warning");
+            ToastService.ShowWarning("Nicht alle Kommentare ausgefüllt", "Warning");
             return false;
         }
         if (CurrentQuestion.Rating == null)
         {
-            toastService.ShowWarning("Bitte wähle eine Bewertung", "Warning");
+            ToastService.ShowWarning("Bitte wähle eine Bewertung", "Warning");
             return false;
         }
-        var IssueCount = CurrentQuestion.Issues.Select(x => CalculateIssueCount(x)).Aggregate(0, (total, currentValue) => total + currentValue);
-        if ((CurrentQuestion.Rating == GuidedQuestion.minimalProblems || CurrentQuestion.Rating == GuidedQuestion.submissionShouldBeImproved) && IssueCount < 1)
+        var issueCount = CurrentQuestion.Issues.Select(x => CalculateIssueCount(x)).Aggregate(0, (total, currentValue) => total + currentValue);
+        if ((CurrentQuestion.Rating == GuidedQuestion.MinimalProblems || CurrentQuestion.Rating == GuidedQuestion.SubmissionShouldBeImproved) && issueCount < 1)
         {
-            toastService.ShowWarning("Bitte markiere mindestens ein Problem", "Warning");
+            ToastService.ShowWarning("Bitte markiere mindestens ein Problem", "Warning");
             return false;
         }
-        if (CurrentQuestion.Rating == GuidedQuestion.noProblems && IssueCount > 0)
+        if (CurrentQuestion.Rating == GuidedQuestion.NoProblems && issueCount > 0)
         {
-            toastService.ShowWarning("Problem vorhanden, bitte passe die Bewertung an", "Warning");
+            ToastService.ShowWarning("Problem vorhanden, bitte passe die Bewertung an", "Warning");
             return false;
         }
         return true;
@@ -165,6 +165,9 @@
 
     bool AnyCommentsEmpty()
     {
+        if (AllComments == null || AllComments.Count == 0)
+            return false;
+
         return AllComments.Any(element =>
         {
             var text = element.Text;
@@ -214,6 +217,8 @@
     void ChangeCurrentIssue(Issue issue)
     {
         CurrentIssue = issue;
+        Synchronizer.CurrentIssueId = issue.Id;
+        Synchronizer.CurrentIssueTitle = issue.Text;
         CurrentIssueChanged.InvokeAsync(issue);
         StateHasChanged();
     }

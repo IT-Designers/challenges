@@ -1,10 +1,10 @@
 @page "/Account/Activities"
+@using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using SubmissionEvaluation.Shared.Models.Members
-@using System.Net.Http.Json
 
 @inject HttpClient HttpClient
-@inject NavigationManager Navi
+@inject NavigationManager NavigationManager
 
 <div class="row">
     <ProfileHeader Model="Model" Features="Features"/>
@@ -39,7 +39,7 @@
                                         @entry.Date.ToShortDateString()
                                     </td>
                                     <td>
-                                        <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
+                                        <a href=@($"Challenge/View/{entry.Challenge}")>@entry.Challenge</a>
                                     </td>
                                     <td>
                                         @if (entry.Language != null)
@@ -58,7 +58,12 @@
                                     <td>
                                         <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
                                     </td>
-                                    <td></td>
+                                    <td>
+                                        @if (entry.Language != null)
+                                        {
+                                            <a href="Help/ViewPage/Compilers">@entry.Language</a>
+                                        }
+                                    </td>
                                     <td>Reviewergebnis verfügbar</td>
                                 </tr>
                                 break;
@@ -87,6 +92,10 @@
                         }
                     }
                 }
+                else
+                {
+                    <Wave />
+                }
             </table>
         </div>
     </div>
@@ -102,7 +111,7 @@
         Model = await HttpClient.GetFromJsonAsync<MemberModel<Result, Member>>("api/Account/Activities");
         if (Model.HasError)
         {
-            Navi.NavigateTo($"Home/Error/{Model.Message}");
+            NavigationManager.NavigateTo($"Home/Error/{Model.Message}");
         }
         CustomSettings = await HttpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
         Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");

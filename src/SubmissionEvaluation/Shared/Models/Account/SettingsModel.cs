@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using SubmissionEvaluation.Contracts.Data;
 using Group = SubmissionEvaluation.Contracts.ClientPocos.Group;
+using SubmissionEvaluation.Contracts.Data.Review;
 
 namespace SubmissionEvaluation.Shared.Models.Account
 {
@@ -17,8 +18,7 @@ namespace SubmissionEvaluation.Shared.Models.Account
 
         [EmailAddress] public string Mail { get; set; }
 
-        public int ReviewCounter { get; set; }
-        public List<string> ReviewLanguages { get; set; }
+        public Dictionary<string, ReviewLevelAndCounter> ReviewLanguages { get; set; }
         public List<string> Roles { get; set; } = new List<string>();
         public Dictionary<string, Award> Achievements { get; set; } = new Dictionary<string, Award>();
         public List<Group> Groups { get; set; } = new List<Group>();

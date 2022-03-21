@@ -3,11 +3,11 @@
 
 @if (Note != null)
 {
-    <li class="dropdown nav-item @navItem">
-        <button id="notificationButton" class="dropdown-toggle navdroptext nav-link" data-toggle="dropdown" type="button" aria-haspopup="true" aria-expanded="@expanded" @onclick="ShowOrHide">
+    <li class="dropdown nav-item @NavItem">
+        <button id="notificationButton" class="dropdown-toggle navdroptext nav-link" data-toggle="dropdown" type="button" aria-haspopup="true" aria-expanded="@Expanded" @onclick="ShowOrHide">
             <span class="oi oi-bell"></span><span id="txtNewNotifications">@Note.Count</span>
         </button>
-        <div id="pnlNotification" class="dropdown-menu notification-entries @navItem" aria-labelledby="notificationButton">
+        <div id="pnlNotification" class="dropdown-menu notification-entries @NavItem" aria-labelledby="notificationButton">
             <div class="">
                 @if (Note != null && Note.Notifications.Any())
                 {
@@ -41,10 +41,10 @@
     public NotificationModel Note { get; set; }
 
     [Parameter]
-    public string navItem { get; set; }
+    public string NavItem { get; set; }
 
     [Parameter]
-    public bool expanded { get; set; }
+    public bool Expanded { get; set; }
 
     private bool isLoggedIn;
 
@@ -60,32 +60,32 @@
 
     public string CheckNotificationImportance(SubmissionEvaluation.Shared.Models.Notification notification)
     {
-        var Res = "";
+        var res = "";
         if (notification.IsNew)
         {
-            Res += "<b>";
+            res += "<b>";
         }
-        Res += notification.Header + "<br />";
-        Res += "<InputText @bind-Value=\" @notification.Id\" hidden />";
-        Res += notification.Content;
+        res += notification.Header + "<br />";
+        res += "<InputText @bind-Value=\" @notification.Id\" hidden />";
+        res += notification.Content;
         if (notification.IsNew)
         {
-            Res += "</ b > ";
+            res += "</ b > ";
         }
-        return Res;
+        return res;
     }
 
     public async void ShowOrHide()
     {
-        if (expanded)
+        if (Expanded)
         {
-            navItem = "";
-            expanded = false;
+            NavItem = "";
+            Expanded = false;
         }
         else
         {
-            navItem = "show";
-            expanded = true;
+            NavItem = "show";
+            Expanded = true;
             Note.Count = "";
             var res = await HttpClient.PutAsync("api/Account/setLastNotifCheck", null);
     // TODO> why is the result (boolean) not checked?

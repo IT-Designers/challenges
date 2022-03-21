@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -136,12 +136,9 @@ namespace SubmissionEvaluation.Compilers.Helper
         public string GetEncoding()
         {
             var match = Regex.Match(GetContent(), "-fexec-charset\\s*=\\s*(?<encoding>\\w+)");
-            if (match.Success)
+            if (match.Success && match.Groups["encoding"].Value == "Latin1")
             {
-                if (match.Groups["encoding"].Value == "Latin1")
-                {
-                    return "1252";
-                }
+                return "1252";
             }
 
             return "UTF8";

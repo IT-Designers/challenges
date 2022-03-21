@@ -26,33 +26,35 @@ namespace SubmissionEvaluation.Server.Classes.JekyllHandling
 
         public static void Initialize(bool logStatusChanges)
         {
-            Log = new Logger(Settings.Application.PathToLogger);
+            Log = new Logger();
             Log.Information("Programm wurde gestartet");
             SmtpProvider = new SmtpProvider(Log, Settings.Features.EnableSendMail, Settings.Mail.Username, Settings.Mail.Password, Settings.Mail.SmtpServer,
-                Settings.Mail.SendMailAddress);
+                Settings.Mail.SendMailAddress, Settings.Mail.Port);
             var fileProvider = new FileProvider(Log, Settings.Application.PathToData, Settings.Application.PathToServerWwwRoot, logStatusChanges);
-            MemberProvider = new MemberProvider(Log, fileProvider, Settings.Features.EnableLdap ? MemberType.LDAP : MemberType.Local,
+            MemberProvider = new MemberProvider(Log, fileProvider, Settings.Features.EnableLdap ? MemberType.Ldap : MemberType.Local,
                 Settings.Features.RequiresMemberActivation);
             var processProvider = new ProcessProvider();
             var sandboxedProcessProvider = new DockerProcessProvider(Log);
             var challengeEstimator = new ChallengeEstimator.ChallengeEstimator();
             var compilers = new List<ICompiler>
             {
-                new KotlinCompiler(Log, Settings.Paths.Java, Settings.Paths.KotlinCompiler),
-                new JavaMavenCompiler(Log, Settings.Paths.Java, Settings.Paths.Maven),
-                new CsCompiler(Log, Settings.Paths.DotNet),
-                new FsCompiler(Log, Settings.Paths.DotNet),
-                new HaskellCompiler(Log, Settings.Paths.HaskellCompiler),
-                new ScalaCompiler(Log, Settings.Paths.Scala, Settings.Paths.ScalaCompiler),
-                new JavaScriptCompiler(Log, Settings.Paths.NodeJS, Settings.Paths.Npm),
-                new PerlCompiler(Log, Settings.Paths.Perl),
-                new PythonCompiler(Log, Settings.Paths.Python),
-                new CCMakeCompiler(Log, Settings.Paths.CCompiler, Settings.Paths.CppCheck, Settings.Paths.CMake),
-                new CppCMakeCompiler(Log, Settings.Paths.CppCompiler, Settings.Paths.CppCheck, Settings.Paths.CMake),
-                new GoCompiler(Log, Settings.Paths.Go),
-                new RustCargoCompiler(Log, Settings.Paths.RustCargo, Settings.Paths.Rust),
-                new TypeScriptCompiler(Log, Settings.Paths.TypeScriptCompiler, Settings.Paths.NodeJS, Settings.Paths.Npm),
-                new JuliaCompiler(Log, Settings.Paths.Julia)
+                new KotlinCompiler(Log, Settings.ToolPaths.Java, Settings.ToolPaths.KotlinCompiler),
+                new JavaMavenCompiler(Log, Settings.ToolPaths.Java, Settings.ToolPaths.Maven),
+                new CsCompiler(Log, Settings.ToolPaths.DotNet),
+                new FsCompiler(Log, Settings.ToolPaths.DotNet),
+                new HaskellCompiler(Log, Settings.ToolPaths.HaskellCompiler),
+                new ScalaCompiler(Log, Settings.ToolPaths.Scala, Settings.ToolPaths.ScalaCompiler),
+                new JavaScriptCompiler(Log, Settings.ToolPaths.Node, Settings.ToolPaths.Npm),
+                new PerlCompiler(Log, Settings.ToolPaths.Perl),
+                new PythonCompiler(Log, Settings.ToolPaths.Python),
+                new TuCompiler(Log, Settings.ToolPaths.Tu),
+                new CcMakeCompiler(Log, Settings.ToolPaths.CCompiler, Settings.ToolPaths.CppCheck, Settings.ToolPaths.CMake),
+                new CppCMakeCompiler(Log, Settings.ToolPaths.CppCompiler, Settings.ToolPaths.CppCheck, Settings.ToolPaths.CMake),
+                new GoCompiler(Log, Settings.ToolPaths.Go),
+                new DartCompiler(Log, Settings.ToolPaths.Dart),
+                new RustCargoCompiler(Log, Settings.ToolPaths.RustCargo, Settings.ToolPaths.Rust),
+                new TypeScriptCompiler(Log, Settings.ToolPaths.TypeScriptCompiler, Settings.ToolPaths.Node, Settings.ToolPaths.Npm),
+                new JuliaCompiler(Log, Settings.ToolPaths.Julia),
             };
 
             ((Logger) Log).ReportMails = MemberProvider.GetMembers().Where(x => x.IsAdmin).Select(x => x.Mail).ToList();
@@ -69,6 +71,11 @@ namespace SubmissionEvaluation.Server.Classes.JekyllHandling
             return MemberProvider.GetMemberByUid(uid);
         }
 
+        public static IMember GetMemberById(string uid)
+        {
+            return MemberProvider.GetMemberById(uid);
+        }
+
         public static string GetVersionHash()
         {
             return Environment.GetEnvironmentVariable("CURRENT_HASH");
@@ -80,34 +87,40 @@ namespace SubmissionEvaluation.Server.Classes.JekyllHandling
             return MemberProvider.GetMemberById(id);
         }
 
+        public static List<string> GetIgnoreFileList()
+        {
+            return Settings.Customization.IgnoreFiles;
+        }
+
         public static Permissions GetPermissionsForMember(IMember member)
         {
             var permissions = new Permissions();
             if (member.IsAdmin)
             {
-                permissions.isAdmin = true;
+                permissions.IsAdmin = true;
                 return permissions;
             }
 
             if (member.IsCreator)
             {
-                permissions.ViewPermissions.AddRange(Settings.Permissions.CreatorPermissions.ViewPermissions);
-                permissions.CreatePermissions.AddRange(Settings.Permissions.CreatorPermissions.CreatePermissions);
-                permissions.EditPermissions.AddRange(Settings.Permissions.CreatorPermissions.EditPermissions);
+                permissions.ViewPermissions.AddRange(Settings.Permissions.Creator.ViewPermissions);
+                permissions.CreatePermissions.AddRange(Settings.Permissions.Creator.CreatePermissions);
+                permissions.EditPermissions.AddRange(Settings.Permissions.Creator.EditPermissions);
                 var challenges = Domain.Query.GetAllChallenges(member);
-                permissions.ChallengesAccessible.AddRange(challenges.Where(x => x.AuthorID.Equals(member.Id)).Select(x => x.Id));
+                permissions.ChallengesAccessible.AddRange(challenges.Where(x => x.AuthorId.Equals(member.Id)).Select(x => x.Id));
                 var bundles = Domain.Query.GetAllBundles(member, true);
                 permissions.BundlesAccessible.AddRange(bundles.Where(x => x.Author.Equals(member.Id)).Select(x => x.Id));
             }
 
             if (member.IsGroupAdmin)
             {
-                permissions.ViewPermissions.AddRange(Settings.Permissions.GroupAdminPermissions.ViewPermissions);
-                permissions.CreatePermissions.AddRange(Settings.Permissions.GroupAdminPermissions.CreatePermissions);
-                permissions.EditPermissions.AddRange(Settings.Permissions.GroupAdminPermissions.EditPermissions);
+                permissions.ViewPermissions.AddRange(Settings.Permissions.GroupAdmin.ViewPermissions);
+                permissions.CreatePermissions.AddRange(Settings.Permissions.GroupAdmin.CreatePermissions);
+                permissions.EditPermissions.AddRange(Settings.Permissions.GroupAdmin.EditPermissions);
                 var groups = Domain.Query.GetAllGroups();
                 permissions.GroupsAccessible.AddRange(groups.Where(x => (x.GroupAdminIds ?? new List<string>()).Contains(member.Id)).Select(x => x.Id));
-                permissions.GroupsAccessible.AddRange(groups.Where(x => (x.GroupAdminIds ?? new List<string>()).Contains(member.Id) && x.IsSuperGroup).SelectMany(x => x.SubGroups));
+                permissions.GroupsAccessible.AddRange(groups.Where(x => (x.GroupAdminIds ?? new List<string>()).Contains(member.Id) && x.IsSuperGroup)
+                    .SelectMany(x => x.SubGroups));
                 var members = MemberProvider.GetMembers();
                 permissions.MembersAccessible.AddRange(members.Where(x => x.Groups.Intersect(permissions.GroupsAccessible).Any()).Select(x => x.Id));
                 permissions.ChallengesAccessible.AddRange(groups.SelectMany(x => x.AvailableChallenges));
@@ -116,16 +129,16 @@ namespace SubmissionEvaluation.Server.Classes.JekyllHandling
 
             if (member.IsReviewer)
             {
-                permissions.ViewPermissions.AddRange(Settings.Permissions.GroupReviewerPermissions.ViewPermissions);
-                permissions.CreatePermissions.AddRange(Settings.Permissions.GroupReviewerPermissions.CreatePermissions);
-                permissions.EditPermissions.AddRange(Settings.Permissions.GroupReviewerPermissions.EditPermissions);
+                permissions.ViewPermissions.AddRange(Settings.Permissions.GroupReviewer.ViewPermissions);
+                permissions.CreatePermissions.AddRange(Settings.Permissions.GroupReviewer.CreatePermissions);
+                permissions.EditPermissions.AddRange(Settings.Permissions.GroupReviewer.EditPermissions);
                 //TODO: When some day a reviewer list is added to group, add accessible groups here.
             }
 
             return permissions;
         }
 
-        public static bool CheckPermissions(Actions action, string area, IMember member, Restriction accessibles = Restriction.NONE, string id = null)
+        public static bool CheckPermissions(Actions action, string area, IMember member, Restriction accessibles = Restriction.None, string id = null)
         {
             var permissions = GetPermissionsForMember(member);
             return PermissionHelper.CheckPermissions(action, area, permissions, accessibles, id);

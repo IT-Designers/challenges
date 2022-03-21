@@ -21,17 +21,21 @@ Functional Requirements
 - Creators should define challenges and screen submissions for them
 - Reviewers should evaluate submissions for their programming language expertise, but restricted to those challenges, they have solved by their own
 
-Non-Functional Requirements
+Non-Functional Requirements (ISO 25010)
 ---------------------
 
-> Please restrict yourself to non-functional requirements which cover the aspects of the quality goals of the ISO 25010.
-
 - Security
-  - Users must be authenticated to use the platform.
-  - Compilation and execution of the source code must be performed in a sandboxed en environment.
-  - Authorization must be realized by whitelisting.
+  - The challenge-platform should be extensible to use different authentication providers. At least LDAP and Shibboleth should be supported. Authentication should be done with ASP.NET Core if none of those providers is available.
+  - There are views and endpoints which should be restricted by authenticated roles. On top, there are entities like the submitted source code which require access control.
+  - Compilation and execution e.g. interpretation of third-party source code must be performed in a sandboxed environment.
 - Portability
-  - The challenge platform must be build and run via docker.
+  - The challenge platform should be portable to different server hardware architectures like ARMv8 and AMD64.
+  - The challenge platform should be deployed with minimal host system dependencies.
+- Performance
+  - The initial web page load time as well as the navigation between pages should not take longer than 2 seconds.
+- Integrity
+  - The maintenance should not lead to lost or inconsistent data (submission, rankings, ...).
+  - The system should enable backups.
 
 <!-- styling section -->
 <style>

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using SubmissionEvaluation.Client.Shared.Models;
 using SubmissionEvaluation.Contracts.Data.Review;
@@ -8,16 +8,20 @@ namespace SubmissionEvaluation.Client.Services
 {
     public class ReviewSynchronizer
     {
-        public delegate void dataChanged();
+        public delegate void DataChanged();
 
-        public delegate void fileChanged();
+        public delegate void FileChanged();
 
-        public FileReviewCommentsAssoziater CurrentAssoziation { get; set; }
+        public string CurrentIssueId { get; set; }
+
+        public string CurrentIssueTitle { get; set; }
+
+        public FileReviewCommentsAssoziater CurrentAssociation { get; set; }
 
         public List<FileReviewCommentsAssoziater> AllFilesWithComments { get; set; } = new List<FileReviewCommentsAssoziater>();
 
-        public event dataChanged SomeDataChanged;
-        public event fileChanged FileHasChanged;
+        public event DataChanged SomeDataChanged;
+        public event FileChanged FileHasChanged;
 
         public void InvokeEvent()
         {
@@ -29,16 +33,22 @@ namespace SubmissionEvaluation.Client.Services
             FileHasChanged?.Invoke();
         }
 
+        public void clear()
+        {
+            AllFilesWithComments = new List<FileReviewCommentsAssoziater>();
+            CurrentAssociation =  null;
+        }
+
         public void SetCurrentAssoziation(string name)
         {
-            CurrentAssoziation = AllFilesWithComments.Where(x => x.SourceFile.Name.Equals(name)).FirstOrDefault();
+            CurrentAssociation = AllFilesWithComments.FirstOrDefault(x => x.SourceFile.Name.Equals(name));
         }
 
         public void SetAllFilesWithComments(List<ReviewCodeComments> comments, List<ReviewFile> files)
         {
             foreach (var file in files)
             {
-                AllFilesWithComments.Add(new FileReviewCommentsAssoziater(comments.Where(x => x.FileName.Equals(file.Name)).FirstOrDefault(), file));
+                AllFilesWithComments.Add(new FileReviewCommentsAssoziater(comments.FirstOrDefault(x => x.FileName.Equals(file.Name)), file));
             }
         }
     }

@@ -1,19 +1,22 @@
 @page "/Test/CreateWithGenerator/{challengeid}"
+
+@using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Services
+@using SubmissionEvaluation.Shared.Classes
+@using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Models.Shared
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-@using SubmissionEvaluation.Shared.Models.Permissions
-@using SubmissionEvaluation.Shared.Classes 
-@using System.Net.Http.Json
-@inject HttpClient httpClient
-@inject NavigationManager navi
-@inject FileExplorerDomain domain
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+@inject FileExplorerDomain Domain
 
 <div class="post-area">
-    <TestGeneratorInput Model="Model" action="CreateTest" hidden="!hidden"/>
+    <TestGeneratorInput Model="Model" Action="CreateTest" Hidden="!Hidden"/>
     @if (TestFolder != null && TestFolder.NewFilesInFolder.Count != 0)
     {
-        <TestGeneratorConfirmation Model="Model" @bind-hidden="hidden" Input='domain.FetchFolder("Input", TestFolder)' ChallengeModel="ChallengeModel"/>
+        <TestGeneratorConfirmation Model="Model" @bind-hidden="Hidden" Input='FileExplorerDomain.FetchFolder("Input", TestFolder)' ChallengeModel="ChallengeModel"/>
     }
 </div>
 
@@ -25,46 +28,45 @@
 
     private Folder TestFolder { get; set; }
     private ExtendedChallengeModel ChallengeModel { get; set; }
-    private bool hidden { get; set; } = true;
+    private bool Hidden { get; set; } = true;
 
     protected override async Task OnInitializedAsync()
     {
-        if (ChallengeId == null)
-            navi.NavigateTo("/Challenges");
+        if (ChallengeId == null) Navi.NavigateTo("/Challenges");
         else
         {
-            var Permissions = await httpClient.GetFromJsonAsync<Permissions>($"api/Members/Permissions");
-            if (!PermissionHelper.CheckPermissions(Actions.CREATE, "Test", Permissions, Restriction.CHALLENGES, ChallengeId))
+            var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+            if (!PermissionHelper.CheckPermissions(Actions.Create, "Test", permissions, Restriction.Challenges, ChallengeId))
             {
-                navi.NavigateTo($"Home/Error/{SubmissionEvaluation.Shared.Classes.Messages.ErrorMessages.NoPermission}");
+                Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
             }
-            Model = await httpClient.GetFromJsonAsync<TestGeneratorModel<Result, Member>>($"/api/Test/GetTestGeneratorModel/{ChallengeId}");
+            Model = await HttpClient.GetFromJsonAsync<TestGeneratorModel<Result, Member>>($"/api/Test/GetTestGeneratorModel/{ChallengeId}");
         }
 
-        ChallengeModel = await httpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Model.ChallengeId}");
+        ChallengeModel = await HttpClient.GetFromJsonAsync<ExtendedChallengeModel>($"api/challenge/getmodel/{Model.ChallengeId}");
         if (ChallengeModel == null)
         {
-            navi.NavigateTo("Challenges");
+            Navi.NavigateTo("Challenges");
         }
         else if (Model.HasError)
         {
-            navi.NavigateTo($"Home/Error/{Model.Message}");
+            Navi.NavigateTo($"Home/Error/{Model.Message}");
         }
-        var Id = 1;
-        while (ChallengeModel.Tests.Any(x => x.Id == Id))
+        var id = 1;
+        while (ChallengeModel.Tests.Any(x => x.Id == id))
         {
-            Id++;
+            id++;
         }
         Model.Test.Index = ChallengeModel.Tests.Count.ToString();
-        Model.Test.Id = Id;
-        TestFolder = domain.CreateFoldersForTest(ChallengeModel, Model.Test).Item1;
-        domain.FlatFiles = Model.Test.InputFiles;
-        Model.SubmissionChanged += StateHasChanged;
+        Model.Test.Id = id;
+        TestFolder = Domain.CreateFoldersForTest(ChallengeModel, Model.Test).Item1;
+        Domain.FlatFiles = Model.Test.InputFiles;
+        Model.SubmissionChangedEvent += StateHasChanged;
     }
 
     private async void CreateTest()
     {
-        var responseMessage = await httpClient.PostAsJsonAsync<TestGeneratorModel<Result, Member>>("api/Test/CreateTestWithTestGeneratorResult", Model);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Test/CreateTestWithTestGeneratorResult", Model);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<TestGeneratorModel<Result, Member>>();
@@ -78,7 +80,7 @@
 
     private void UnHideConfirm()
     {
-        hidden = false;
+        Hidden = false;
         StateHasChanged();
     }
 

@@ -1,5 +1,5 @@
-﻿<div hidden="@(!hidden)" class="infoDiv">
-    <button type="button" class="closeButton" @onclick="() => { hidden = !hidden;hiddenChanged.InvokeAsync(hidden); }">x</button>
+﻿<div hidden="@(!Hidden)" class="infoDiv">
+    <button type="button" class="closeButton" @onclick="() => { Hidden = !Hidden;HiddenChanged.InvokeAsync(Hidden); }">x</button>
     <h4>Willkommen im File-Explorer!</h4>
 
     <p>
@@ -16,9 +16,9 @@
 @code {
 
     [Parameter]
-    public bool hidden { get; set; }
+    public bool Hidden { get; set; }
 
     [Parameter]
-    public EventCallback<bool> hiddenChanged { get; set; }
+    public EventCallback<bool> HiddenChanged { get; set; }
 
 }

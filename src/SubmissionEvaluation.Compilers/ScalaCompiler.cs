@@ -23,7 +23,7 @@ namespace SubmissionEvaluation.Compilers
         }
 
         public override string Name => "Scala";
-        public override string Description => "";
+        public override string Description => "-";
         public override string LatexCodeExtension => ".scala";
 
         public override string ReadVersionDetails(IProcessProvider processProvider, ISyncLock versionlock)

@@ -16,12 +16,12 @@ using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Providers;
 using static System.IO.Path;
 
-namespace SubmissionEvaluation.Providers
+namespace SubmissionEvaluation.Providers.ProcessProvider
 {
     public class DockerProcessProvider : IProcessProvider
     {
         private readonly ILog log;
-        private readonly ProcessProvider.ProcessProvider processProvider;
+        private readonly ProcessProvider processProvider;
         private string dockerUrl;
 
         public DockerProcessProvider(ILog log)
@@ -30,7 +30,7 @@ namespace SubmissionEvaluation.Providers
             dockerUrl = isWindows ? "npipe://./pipe/docker_engine" : "unix:///var/run/docker.sock";
 
             this.log = log;
-            processProvider = new ProcessProvider.ProcessProvider();
+            processProvider = new ProcessProvider();
         }
 
         public async Task<ProcessResult> Execute(string path, string[] arguments, string input = null, string workingDir = null, int timeout = 60000,
@@ -189,19 +189,17 @@ namespace SubmissionEvaluation.Providers
                 {
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
-                        var _dockerurl = Environment.GetEnvironmentVariable("DOCKER_HOST");
+                        var dockerurl = Environment.GetEnvironmentVariable("DOCKER_HOST");
 
-                        if (_dockerurl != string.Empty)
+                        if (dockerurl != string.Empty)
                         {
-                            dockerUrl = _dockerurl;
+                            dockerUrl = dockerurl;
                             dockerClient.Dispose();
                             dockerClient = new DockerClientConfiguration(new Uri(dockerUrl)).CreateClient();
 
                             var createTask = dockerClient.Containers.CreateContainerAsync(new CreateContainerParameters
                             {
-                                Image = "test",
-                                Cmd = new[] {"timeout", "60m", "tail", "-f", "/dev/null"},
-                                HostConfig = new HostConfig {AutoRemove = true}
+                                Image = "test", Cmd = new[] {"timeout", "60m", "tail", "-f", "/dev/null"}, HostConfig = new HostConfig {AutoRemove = true}
                             });
                             container = createTask.Result; // TODO: Should add timeout handling!
                             isRetrySuccess = true;
@@ -247,10 +245,7 @@ namespace SubmissionEvaluation.Providers
 
             return new DockerLock(this)
             {
-                LockActive = true,
-                DockerId = container.ID,
-                Folders = finalFolders.ToArray(),
-                Changes = changes?.ToArray() ?? new InteresstedFileChanges[0]
+                LockActive = true, DockerId = container.ID, Folders = finalFolders.ToArray(), Changes = changes?.ToArray() ?? new InteresstedFileChanges[0]
             };
         }
 
@@ -278,7 +273,7 @@ namespace SubmissionEvaluation.Providers
             dockerlock.LockActive = false;
         }
 
-        private void CopyToDockerImage(IDockerClient client, string id, FolderMapping folder)
+        private static void CopyToDockerImage(IDockerClient client, string id, FolderMapping folder)
         {
             try
             {
@@ -342,8 +337,8 @@ namespace SubmissionEvaluation.Providers
             archive.SaveTo(ms, CompressionType.None);
             ms.Flush();
             ms.Seek(0, SeekOrigin.Begin);
-            var result = client.Containers.ExtractArchiveToContainerAsync(id,
-                new ContainerPathStatParameters {AllowOverwriteDirWithFile = true, Path = "/"}, ms);
+            var result = client.Containers.ExtractArchiveToContainerAsync(id, new ContainerPathStatParameters {AllowOverwriteDirWithFile = true, Path = "/"},
+                ms);
             if (!result.Wait(60000))
             {
                 throw new Exception("Docker copy failed!");
@@ -366,8 +361,8 @@ namespace SubmissionEvaluation.Providers
             archive.SaveTo(ms, CompressionType.None);
             ms.Flush();
             ms.Seek(0, SeekOrigin.Begin);
-            var result = client.Containers.ExtractArchiveToContainerAsync(id,
-                new ContainerPathStatParameters {AllowOverwriteDirWithFile = true, Path = "/"}, ms);
+            var result = client.Containers.ExtractArchiveToContainerAsync(id, new ContainerPathStatParameters {AllowOverwriteDirWithFile = true, Path = "/"},
+                ms);
             if (!result.Wait(60000))
             {
                 throw new Exception("Docker copy failed!");

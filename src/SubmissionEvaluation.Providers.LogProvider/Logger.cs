@@ -13,30 +13,17 @@ namespace SubmissionEvaluation.Providers.LogProvider
     {
         private readonly MailLogger mailLogger;
 
-        public Logger(string pathToLog)
+        public Logger()
         {
             mailLogger = new MailLogger();
-            var logConfig = new LoggerConfiguration().MinimumLevel.Override("Microsoft", LogEventLevel.Warning).WriteTo.Console(
+            var logConfig = new LoggerConfiguration().MinimumLevel.Override("Microsoft", LogEventLevel.Error).WriteTo.Console(
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] {Message}{NewLine}{Exception}", theme: SystemConsoleTheme.Literate);
-            if (pathToLog != null)
-            {
-                logConfig = logConfig.WriteTo.RollingFileAlternate(pathToLog, fileSizeLimitBytes: 1024 * 1024 * 100); // 100MB
-            }
-
-            logConfig = logConfig.WriteTo.Observers(x => x.Subscribe(mailLogger));
-
             Log.Logger = logConfig.CreateLogger();
         }
 
-        public ISmtpProvider SmtpProvider
-        {
-            set => mailLogger.SmtpProvider = value;
-        }
+        public ISmtpProvider SmtpProvider { set => mailLogger.SmtpProvider = value; }
 
-        public List<string> ReportMails
-        {
-            set => mailLogger.ReportMails = value;
-        }
+        public List<string> ReportMails { set => mailLogger.ReportMails = value; }
 
         public void Information(string msg, params object[] args)
         {

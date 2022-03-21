@@ -4,10 +4,10 @@ namespace SubmissionEvaluation.Contracts.Data.Review
 {
     public class GuidedQuestion
     {
-        public const int noProblems = 0;
-        public const int minimalProblems = 1;
-        public const int submissionShouldBeImproved = 2;
-        public const int noEvaluation = 3;
+        public const int NoProblems = 0;
+        public const int MinimalProblems = 1;
+        public const int SubmissionShouldBeImproved = 2;
+        public const int NoEvaluation = 3;
 
         public GuidedQuestion()
         {

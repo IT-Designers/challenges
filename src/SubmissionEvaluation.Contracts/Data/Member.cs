@@ -3,15 +3,18 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using SubmissionEvaluation.Contracts.Data.Review;
 using YamlDotNet.Serialization;
+using System.Collections.Generic;
 
 namespace SubmissionEvaluation.Contracts.Data
 {
     public class Member : IMember
     {
-        public static string REMOVED_ENTRY_ID = "MEMBER_REMOVED";
+
+
+        public static readonly string RemovedEntryId = "MEMBER_REMOVED";
         private string[] canRate;
         private string[] groups;
-        private string[] reviewLanguages;
+        private Dictionary<string, ReviewLevelAndCounter> reviewLanguages;
 
         private string[] roles;
         private string[] solvedChallenges;
@@ -25,49 +28,33 @@ namespace SubmissionEvaluation.Contracts.Data
 
         [YamlIgnore]
         [JsonIgnore]
-        public bool IsReviewer =>
-            ReviewLevel != ReviewLevel.Inactive && ReviewLevel != ReviewLevel.Deactivated && ReviewLanguages != null && ReviewLanguages.Length > 0;
+        public bool IsReviewer
+        {
+            get {
+                if (roles == null) return false;
+                else return roles.Any("reviewer".Contains);
+            }
+        }
 
-        public int ReviewCounter { get; set; }
-        public ReviewLevel ReviewLevel { get; set; } = ReviewLevel.Inactive;
+        /*[YamlIgnore]
+        [JsonIgnore]
+        public bool IsReviewerForLanguage(string language) =>
+        */
+
         public int ReviewFrequency { get; set; } = 14;
         public DateTime LastReview { get; set; }
 
-        public string[] ReviewLanguages
-        {
-            get => reviewLanguages ?? new string[0];
-            set => reviewLanguages = value;
-        }
+        public Dictionary<string, ReviewLevelAndCounter> ReviewLanguages { get => reviewLanguages ?? null; set => reviewLanguages = value; }
 
-        public string[] Roles
-        {
-            get => roles ?? new string[0];
-            set => roles = value;
-        }
+        public string[] Roles { get => roles ?? new string[0]; set => roles = value; }
 
-        public string[] Groups
-        {
-            get => groups ?? new string[0];
-            set => groups = value;
-        }
+        public string[] Groups { get => groups ?? new string[0]; set => groups = value; }
 
-        public string[] UnlockedChallenges
-        {
-            get => unlockedChallenges ?? new string[0];
-            set => unlockedChallenges = value;
-        }
+        public string[] UnlockedChallenges { get => unlockedChallenges ?? new string[0]; set => unlockedChallenges = value; }
 
-        public string[] SolvedChallenges
-        {
-            get => solvedChallenges ?? new string[0];
-            set => solvedChallenges = value;
-        }
+        public string[] SolvedChallenges { get => solvedChallenges ?? new string[0]; set => solvedChallenges = value; }
 
-        public string[] CanRate
-        {
-            get => canRate ?? new string[0];
-            set => canRate = value;
-        }
+        public string[] CanRate { get => canRate ?? new string[0]; set => canRate = value; }
 
         public string Password { get; set; }
         public DateTime? LastNotificationCheck { get; set; }

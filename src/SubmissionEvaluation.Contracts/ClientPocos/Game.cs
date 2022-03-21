@@ -6,8 +6,8 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
 {
     public class Game : IGame
     {
-        public string AuthorID { get; set; }
-        public string LastEditorID { get; set; }
+        public string AuthorId { get; set; }
+        public string LastEditorId { get; set; }
         public string Name { get; set; }
         public string Title { get; set; }
         public bool IsDraft { get; set; }

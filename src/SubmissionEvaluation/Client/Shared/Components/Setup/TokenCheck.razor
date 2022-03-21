@@ -1,12 +1,12 @@
-﻿@using System.Net.Http.Json
-@inject IToastService toaster
-@inject HttpClient httpClient
+@using System.Net.Http.Json
+@inject IToastService Toaster
+@inject HttpClient HttpClient
 <div hidden="@(Step != 0)" class="shadow text-center loginbox">
     <div class="card post-area">
         <div class="card-body">
             <div class="form-group has-feedback">
                 <p>Willkommen zum initialen Setup. Bitte gib das Security-Token ein, um zu zeigen, dass du zum Setup berechtigt bist.</p>
-                <textarea @bind="securityToken" class="form-control" />
+                <textarea @bind="SecurityToken" class="form-control" />
             </div>
             <div>
                 <button type="submit" @onclick="CheckSecurityToken" class="btn btn-info">Check</button>
@@ -24,21 +24,21 @@
     public EventCallback<int> StepChanged { get; set; }
 
     [Parameter]
-    public string securityToken { get; set; } = "";
+    public string SecurityToken { get; set; } = "";
 
     [Parameter]
-    public EventCallback<string> securityTokenChanged { get; set; }
+    public EventCallback<string> SecurityTokenChanged { get; set; }
 
     async void CheckSecurityToken()
     {
-        await securityTokenChanged.InvokeAsync(securityToken);
-        var responseMessage = await httpClient.PostAsJsonAsync<string>("api/Setup/TokenValid", securityToken);
+        await SecurityTokenChanged.InvokeAsync(SecurityToken);
+        var responseMessage = await HttpClient.PostAsJsonAsync("api/Setup/TokenValid", SecurityToken);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<bool>();
             if (!result)
             {
-                toaster.ShowError("Invalid token.");
+                Toaster.ShowError("Invalid token.");
             }
             else
             {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Novell.Directory.Ldap;
-using SubmissionEvaluation.Contracts.Interfaces;
+using SubmissionEvaluation.Server.Contracts.Interfaces;
 using SubmissionEvaluation.Shared.Classes.Config;
 
 namespace SubmissionEvaluation.Server.Classes.Authentication
@@ -10,6 +10,11 @@ namespace SubmissionEvaluation.Server.Classes.Authentication
     public class LdapAuthentication : IUserAuthentication
     {
         private ILogger logger;
+
+        public LdapAuthentication()
+        {
+            logger = null;
+        }
 
         public LdapAuthentication(ILogger logger)
         {

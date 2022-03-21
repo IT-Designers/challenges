@@ -1,7 +1,8 @@
-﻿using System;
-using SubmissionEvaluation.Classes.Config;
+using System;
+using System.Collections.Generic;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Contracts.Data.Ranklist;
+using SubmissionEvaluation.Shared.Classes.Config;
 using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
 
 namespace SubmissionEvaluation.Shared.Models.Challenge
@@ -9,8 +10,8 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
     public class ChallengeViewModel : GenericModel
     {
         public string Title { get; set; }
+        public string Id { get; set; }
         public bool IsDraft { get; set; }
-        public string Name { get; set; }
         public string Source { get; set; }
         public string Bundle { get; set; }
         public string BundleTitle { get; set; }
@@ -33,5 +34,7 @@ namespace SubmissionEvaluation.Shared.Models.Challenge
         public bool Solved { get; set; }
         public bool CanRate { get; set; }
         public string LearningFocus { get; set; }
+        public List<string> PartOfGroups { get; set; }
+        public Dictionary<string, string> SubmitterIdToSubmitterName { get; set; }
     }
 }

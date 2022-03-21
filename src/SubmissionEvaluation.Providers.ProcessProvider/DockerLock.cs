@@ -1,7 +1,7 @@
 ﻿using System;
 using SubmissionEvaluation.Contracts.Providers;
 
-namespace SubmissionEvaluation.Providers
+namespace SubmissionEvaluation.Providers.ProcessProvider
 {
     public class DockerLock : ISyncLock
     {

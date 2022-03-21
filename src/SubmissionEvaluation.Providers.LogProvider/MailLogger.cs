@@ -56,13 +56,10 @@ namespace SubmissionEvaluation.Providers.LogProvider
                     lastLogEntries.RemoveAt(0);
                 }
 
-                if (reportEntry)
+                if (reportEntry && (value.Level == LogEventLevel.Error && lastSendMail.AddHours(6) < DateTime.Now ||
+                                    value.Level == LogEventLevel.Fatal && lastSendMail.AddHours(2) < DateTime.Now))
                 {
-                    if (value.Level == LogEventLevel.Error && lastSendMail.AddHours(6) < DateTime.Now ||
-                        value.Level == LogEventLevel.Fatal && lastSendMail.AddHours(2) < DateTime.Now)
-                    {
-                        SendReportMail();
-                    }
+                    SendReportMail();
                 }
             }
         }

@@ -4,6 +4,7 @@ using Hangfire;
 using SubmissionEvaluation.Contracts.Data;
 using SubmissionEvaluation.Providers.LogProvider;
 using SubmissionEvaluation.Server.Classes.JekyllHandling;
+using SubmissionEvaluation.Shared.Classes.Config;
 
 namespace SubmissionEvaluation.Server
 {
@@ -26,10 +27,18 @@ namespace SubmissionEvaluation.Server
             JekyllHandler.Domain.Interactions.UpdateCategoryPages();
         }
 
+        public static void Schedule_Cleanup()
+        {
+            JekyllHandler.Domain.Interactions.IdentifyActivityStatusForMembers();
+            if (Settings.Application.DeleteAfterMoreThenOneYearInactivity)
+            {
+                JekyllHandler.Domain.Interactions.Cleanup();
+            }
+        }
+
         public static void Schedule_PromotionsAndMails()
         {
             JekyllHandler.Domain.Interactions.PromoteNewReviewers();
-            JekyllHandler.Domain.Interactions.IdentifyInactiveMembers();
             ((Logger) JekyllHandler.Log).SendDelayedErrorReports();
         }
 
@@ -42,16 +51,17 @@ namespace SubmissionEvaluation.Server
 
         public static void EnqueueUnprocessedSubmission(ISubmission x)
         {
+            Console.WriteLine("Processing submission " + x.Challenge + " from " + x.MemberName);
             BackgroundJob.Enqueue(() => Task_ProcessSubmission(x.SubmissionId, x.Challenge));
         }
 
-        [DisableMultipleQueuedItemsFilter]
+        [QueueUniqueItemFilter]
         public static void Task_ProcessSubmission(string id, string challenge)
         {
             JekyllHandler.Domain.Interactions.ProcessSubmission(id, challenge);
         }
 
-        [DisableMultipleQueuedItemsFilter]
+        [QueueUniqueItemFilter]
         public static void Task_ProcessReview(string id, string challenge)
         {
             JekyllHandler.Domain.Interactions.ProcessReview(id, challenge);
