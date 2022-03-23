@@ -53,9 +53,15 @@ RUN apt-get update && \
     java --version
 
 # Maven
-ENV PATH=$PATH:/usr/lib/apache-maven/bin
-RUN apt-get install -y maven && \
-    mvn -v
+ARG MAVEN_VERSION=3.8.5
+ARG SHA=89ab8ece99292476447ef6a6800d9842bbb60787b9b8a45c103aa61d2f205a971d8c3ddfb8b03e514455b4173602bd015e82958c0b3ddc1728a57126f773c743
+ARG BASE_URL=https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/
+RUN mkdir -p /usr/share/maven \
+  && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
+  && echo "${SHA} /tmp/apache-maven.tar.gz" | sha512sum -c - \
+  && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
+  && rm -f /tmp/apache-maven.tar.gz
+ENV PATH=$PATH:/usr/share/maven/bin
 
 # Setup Maven for Proxy
 RUN if [[ -z $proxy ]]; then \
@@ -187,7 +193,7 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 ENV LANG de_DE.UTF-8
 ENV LANGUAGE de_DE:de
 ENV LC_ALL de_DE.UTF-8
-ENV PATH=$PATH:/root/.cargo/bin:/usr/lib/julia/bin:/usr/lib/kotlinc/bin:/usr/lib/apache-maven/bin:/usr/lib/cmake/bin:/usr/bin/processing
+ENV PATH=$PATH:/root/.cargo/bin:/usr/lib/julia/bin:/usr/lib/kotlinc/bin:/usr/share/maven/bin:/usr/lib/cmake/bin:/usr/bin/processing
 ENV RUSTUP_HOME=/usr/lib/rust
 
 ARG proxy
@@ -205,11 +211,11 @@ RUN mkdir dotnettest && \
 
 #Run Maven once, else it will download alot with each build
 ADD TestProjectMaven.zip /tmp/
-RUN apt-get install -y unzip && \
-    unzip -q /tmp/TestProjectMaven.zip -d /tmp/testprojectmaven/ && rm /tmp/TestProjectMaven.zip && \
-    cd /tmp/testprojectmaven && \
-    mvn package  && \
-    cd /tmp/ && \
-    rm /tmp/testprojectmaven -rf && \
-    apt-get -y remove unzip && \
-    apt-get clean
+RUN apt-get update \
+ && apt-get install -y \
+    unzip \
+ && rm -rf /var/lib/apt/lists/*
+RUN unzip -q /tmp/TestProjectMaven.zip -d /tmp/testprojectmaven/
+RUN apt-get -y remove unzip && apt-get clean
+RUN mvn --file /tmp/testprojectmaven/pom.xml package
+RUN rm /tmp/TestProjectMaven.zip /tmp/testprojectmaven -rf
