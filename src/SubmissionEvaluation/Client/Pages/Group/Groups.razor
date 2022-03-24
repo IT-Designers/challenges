@@ -38,7 +38,7 @@
                             <th>
                                 <button class="no-styling" @onclick="SortByTitle">Name</button>
                             </th>
-                            <th>Bearbeiten</th>
+                            <th>Aktionen</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -48,6 +48,12 @@
                                 <td>@group.Id</td>
                                 <td>@group.Title</td>
                                 <td>
+                                    @if (PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
+                                    {
+                                        <a href=@($"Group/{group.Id}/Users") title="Gruppenmitglieder" class="btn btn-sm">
+                                            <span class="oi oi-people"></span>
+                                        </a>
+                                    }
                                     <a href=@($"Group/Edit/{group.Id}") title="Editieren" class="btn btn-sm">
                                         <span class="oi oi-pencil"></span>
                                     </a>
@@ -67,8 +73,9 @@
                     </table>
                 </div>
             }
-            else {
-                <Wave />
+            else
+            {
+                <Wave/>
             }
         </div>
 

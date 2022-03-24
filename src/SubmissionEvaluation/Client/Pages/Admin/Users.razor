@@ -2,21 +2,23 @@
 
 @using Submission = SubmissionEvaluation.Contracts.Data.Result
 @using System.Net.Http.Json
-@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-@using SubmissionEvaluation.Shared.Models.Admin
-@using SubmissionEvaluation.Shared.Models.Permissions
-@using Group = SubmissionEvaluation.Contracts.ClientPocos.Group
+@using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
-@using SubmissionEvaluation.Client.Pages.Members
-@using SubmissionEvaluation.Client.Shared.Components.Users
+@using SubmissionEvaluation.Shared.Models.Admin
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
-@inject IJSRuntime Runtime
+@inject HttpClient httpClient
+@inject LoginService loginService
+@inject NavigationManager navi
+@inject IJSRuntime runtime
+@inject IToastService toaster
 
 <style>
-    a:hover { cursor: pointer; }
+    a:hover, .sort { cursor: pointer; }
+    .oi { float: right; }
+    .dataTables_wrapper { margin-top: 2em }
 </style>
 <div class="row">
     <div class="col-12">
@@ -25,33 +27,102 @@
 
                 <h1>
                     Benutzer verwalten
-                    @if (Permissions.IsAdmin)
-                    {
-                        <a href="Admin/AddUser" title="Neuen User anlegen" class="btn btn-sm">
-                            <span class="oi oi-plus"></span>
-                        </a>
-                    }
+                    <a href="Admin/AddUser" title="Neuen User anlegen" class="btn btn-sm">
+                        <span class="oi oi-plus"></span>
+                    </a>
                 </h1>
 
             </div>
-            @if (Model != null)
+
+            @if (Model is null)
             {
-                if (Permissions.IsAdmin)
-                {
-                    var memberships = Model.GroupMemberships.First();
-                    <AdminView @bind-memberships="memberships"/>
-                }
-                else
-                {
-                    @foreach (var memberships in Model.GroupMemberships.OrderByDescending(x => x.GroupName))
-                    {
-                        <GroupAdminView Memberships="memberships" Groups="Groups" PointsForRelevantMembers="PointsForRelevantMembers"/>
-                    }
-                }
+                <Wave/>
             }
             else
             {
-                <Wave />
+                <div id="users-table_wrapper" class="dataTables_wrapper no-footer">
+                    <label for="searchInput">Suche: </label>
+                    <input type="search" id="searchInput" aria-controls="users-table" @bind="SearchValue" @bind:event="oninput" placeholder="Suche nach einem Benutzer"/>
+
+                    <table id="users-table" class="display table dataTable no-footer" role="grid" aria-describedby="users-table_info">
+                        <thead>
+                        <tr>
+                            <th class="sort" @onclick="@(() => Sort("UID"))">
+                                Uid
+                                <span class="oi @(GetSortIcon("UID"))"></span>
+                            </th>
+                            <th class="sort" @onclick="@(() => Sort("Name"))">
+                                Name
+                                <span class="oi @(GetSortIcon("Name"))"></span>
+                            </th>
+                            <th class="sort" @onclick="@(() => Sort("Status"))">
+                                Status
+                                <span class="oi @(GetSortIcon("Status"))"></span>
+                            </th>
+                            <th class="sort" @onclick="@(() => Sort("Rollen"))">
+                                Rollen
+                                <span class="oi @(GetSortIcon("Rollen"))"></span>
+                            </th>
+                            <th class="sort" @onclick="@(() => Sort("Gruppen"))">
+                                Gruppen
+                                <span class="oi @(GetSortIcon("Gruppen"))"></span>
+                            </th>
+                            <th>Bearbeiten</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var member in Model.Members.Where(x => x.Name.ToLower().Contains(SearchValue.ToLower())))
+                        {
+                            <tr>
+                                <td>
+                                    <a class="no-link-coloring" href=@($"Members/Member/{member.Id}")>@(member.Uid != null ? member.Uid.Length > 8 ? member.Uid.Substring(0, 7) + ".." : member.Uid : "")</a>
+                                </td>
+                                <td>
+                                    <a class="no-link-coloring" href=@($"Members/Member/{member.Id}")>@member.Name</a>
+                                </td>
+                                <td>@member.State</td>
+                                <td>@string.Join(", ", member.Roles)</td>
+                                <td>@string.Join(", ", member.Groups)</td>
+                                <td>
+                                    @if (member.State == MemberState.Pending)
+                                    {
+                                        <a @onclick="() => ActivatePendingMember(member.Id)" title="Freischalten" class="btn btn-sm">
+                                            <span class="oi oi-lock-unlocked"></span>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a @onclick="() => ImpersonateMember(member.Id)" title="Impersonieren" class="btn btn-sm">
+                                            <span class="oi oi-person"></span>
+                                        </a>
+                                        <a href=@($"Admin/ManageMemberRoles/{member.Id}") title="Rollen verwalten" class="btn btn-sm">
+                                            <span class="oi oi-people"></span>
+                                        </a>
+                                        <a href=@($"Admin/ManageMemberGroups/{member.Id}") title="Gruppen verwalten" class="btn btn-sm">
+                                            <span class="oi oi-tags"></span>
+                                        </a>
+                                        <a href=@($"Admin/ManageMemberReviewLevel/{member.Id}") title="Reviewlevel bearbeiten" class="btn btn-sm">
+                                            <span class="oi oi-arrow-circle-top"></span>
+                                        </a>
+                                        @if (member.Type != MemberType.Ldap)
+                                        {
+                                            <a href=@($"Admin/ConfirmAction/{member.Id}/ResetMemberPassword") title="Passwort zurücksetzen" class="btn btn-sm">
+                                                <span class="oi-key oi"></span>
+                                            </a>
+                                        }
+                                        <a href=@($"Admin/ConfirmAction/{member.Id}/DeleteMember") title="Löschen" class="btn btn-sm">
+                                            <span class="oi-trash oi"></span>
+                                        </a>
+                                        <a href=@($"Admin/ConfirmAction/{member.Id}/ResetMemberAvailableChallenges") title="Reset der verfügbaren Aufgaben" class="btn btn-sm">
+                                            <span class="oi-action-undo oi"></span>
+                                        </a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
             }
         </div>
     </div>
@@ -60,36 +131,120 @@
 @code {
     AdminUserModel<Member> Model { get; set; }
 
+    string SearchValue { get; set; } = string.Empty;
+
     Permissions Permissions { get; set; } = new Permissions();
-    AdminGroupsModel<Group> Groups { get; set; } = new AdminGroupsModel<Group>();
-    Dictionary<string, List<PointsHoldTupel<Submission, Member>>> PointsForRelevantMembers { get; set; } = new Dictionary<string, List<PointsHoldTupel<Submission, Member>>>();
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
         if (!PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
         {
-            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
+            navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        if (Permissions.IsAdmin)
+        Model = await httpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Admin/Users");
+
+        Sort("UID");
+
+        StateHasChanged();
+    }
+
+    private bool isSortAscending = true;
+    private string currentSortColumn;
+
+    void Sort(string column)
+    {
+        switch (column)
         {
-            Model = await HttpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Admin/Users");
+            case "UID":
+                Model.Members.Sort((x, y) => x.Uid.CompareTo(y.Uid));
+                break;
+            case "Name":
+                Model.Members.Sort((x, y) => x.Name.CompareTo(y.Name));
+                break;
+            case "Status":
+                Model.Members.Sort((x, y) => x.State.CompareTo(y.State));
+                break;
+            case "Rollen":
+                Model.Members.Sort((x, y) =>
+                {
+                    if (x.Roles.Length == y.Roles.Length)
+                    {
+                        return x.Roles.Length == 0 ? 0 : x.Roles.First().CompareTo(y.Roles.First());
+                    }
+                    return x.Roles.Length > y.Roles.Length ? -1 : 1;
+                });
+                break;
+            case "Gruppen":
+                Model.Members.Sort((x, y) =>
+                {
+                    if (x.Groups.Length == y.Groups.Length)
+                    {
+                        return x.Groups.Length == 0 ? 0 : x.Groups.First().CompareTo(y.Groups.First());
+                    }
+                    return x.Groups.Length > y.Groups.Length ? -1 : 1;
+                });
+                break;
+        }
+
+        if (currentSortColumn == column)
+        {
+            if (isSortAscending)
+            {
+                Model.Members.Reverse();
+            }
+            isSortAscending = !isSortAscending;
         }
         else
         {
-            Model = await HttpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Group/Users");
-            Groups = await HttpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
-            var res = await HttpClient.PostAsJsonAsync("api/Members/PointsList", Model.GroupMemberships.SelectMany(x => x.Members).Select(x => x.Id).Distinct());
-            if (res.IsSuccessStatusCode)
-            {
-                var pointLists = await res.Content.ReadFromJsonAsync<List<Tuple<string, List<PointsHoldTupel<Submission, Member>>>>>();
-                foreach (var (memberId, pointList) in pointLists)
-                {
-                    PointsForRelevantMembers[memberId] = pointList;
-                }
-            }
+            isSortAscending = true;
         }
+
+        currentSortColumn = column;
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (currentSortColumn != column)
+        {
+            return string.Empty;
+        }
+        return isSortAscending ? "oi-sort-ascending" : "oi-sort-descending";
+    }
+
+    async void ActivatePendingMember(string id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/ActivatePendingMember", id);
+        var model = new AdminUserModel<Member>();
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+        }
+        if (!model.HasSuccess)
+        {
+            return;
+        }
+
+        Model.Members = model.Members;
+        toaster.ShowSuccess("Pending member was successfully activated.");
         StateHasChanged();
+    }
+
+    async void ImpersonateMember(string id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/ImpersonateMember", id);
+        var model = new AdminUserModel<Member>();
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+        }
+        if (!model.HasSuccess)
+        {
+            return;
+        }
+
+        loginService.InvokeEvent();
+        navi.NavigateTo("Account/View");
     }
 
 }

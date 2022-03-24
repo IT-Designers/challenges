@@ -1,0 +1,146 @@
+@page "/Group/{groupId}/Users"
+
+@using Submission = SubmissionEvaluation.Contracts.Data.Result
+@using System.Net.Http.Json
+
+@inject HttpClient HttpClient
+@inject NavigationManager Navi
+@inject IJSRuntime Runtime
+
+<style>
+    a:hover, .sort { cursor: pointer; }
+    .oi { float: right; }
+    .dataTables_wrapper { margin-top: 2em }
+</style>
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+            <div class="post-header">
+
+                <h1>
+                    @Model?.GroupName
+                </h1>
+
+            </div>
+
+            @if (Model is null)
+            {
+                <Wave/>
+            }
+            else
+            {
+                <div id="users-table_wrapper" class="dataTables_wrapper no-footer">
+                    <label for="searchInput">Suche: </label>
+                    <input type="search" id="searchInput" aria-controls="users-table" @bind="SearchValue" @bind:event="oninput" placeholder="Suche nach einem Benutzer"/>
+                    <table id="users-table" class="display table">
+                        <thead class="ranking_table">
+                        <tr class="ranking_head">
+                            <th class="sort" @onclick="@(() => Sort("UID"))">Id<span class="oi @(GetSortIcon("UID"))"></span></th>
+                            <th class="sort" @onclick="@(() => Sort("Name"))">Name<span class="oi @(GetSortIcon("Name"))"></span></th>
+                            <th class="sort" @onclick="@(() => Sort("Mail"))">E-Mail<span class="oi @(GetSortIcon("Mail"))"></span></th>
+                            <th class="sort" @onclick="@(() => Sort("Points"))">Fortschritt<span class="oi @(GetSortIcon("Points"))"></span></th>
+                            <th class="sort" @onclick="@(() => Sort("Duplicates"))">Duplikate (%)<span class="oi @(GetSortIcon("Duplicates"))"></span></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var member in Model.Members.Where(x => x.Name.ToLower().Contains(SearchValue.ToLower())))
+                        {
+                            <tr>
+                                <td>
+                                    <a class="no-link-coloring" href="@($"Members/Member/{member.Id}")">@member.Uid</a>
+                                </td>
+                                <td>
+                                    <a class="no-link-coloring" href="@($"Members/Member/{member.Id}")">@member.Name</a>
+                                </td>
+                                <td>
+                                    @member.Mail
+                                </td>
+                                <td>
+                                    @{
+                                        var requiredChallenges = member.Points == 0 ? Model.RequiredPoints : (int)Math.Ceiling(Model.RequiredPoints.Value / (member.Points / (double)member.SolvedCount));
+                                        <span class="oi @(member.Points < Model.RequiredPoints ? "oi-circle-x" : "oi-circle-check") "></span>
+                                        <progress style="height: 0.8em;" value="@member.Points" max="@Model.RequiredPoints"></progress>
+                                        @($"[{member.SolvedCount} von ~{requiredChallenges} Aufgaben]")
+                                    }
+                                </td>
+                                <td>
+                                    avg: @member.AverageDuplicate | min: @member.MinDuplicate | max: @member.MaxDuplicate
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string GroupId { get; set; }
+
+    GroupMembers Model { get; set; }
+
+    string SearchValue { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await HttpClient.GetFromJsonAsync<GroupMembers>($"api/Group/{GroupId}/Users");
+
+        Sort("Points");
+
+        StateHasChanged();
+    }
+
+    private bool isSortAscending = true;
+    private string currentSortColumn = "Points";
+
+    void Sort(string column)
+    {
+        switch (column)
+        {
+            case "UID":
+                Model.Members.Sort((x, y) => x.Uid.CompareTo(y.Uid));
+                break;
+            case "Name":
+                Model.Members.Sort((x, y) => x.Name.CompareTo(y.Name));
+                break;
+            case "Mail":
+                Model.Members.Sort((x, y) => x.Mail.CompareTo(y.Mail));
+                break;
+            case "Points":
+                Model.Members.Sort((x, y) => x.Points.CompareTo(y.Points));
+                break;
+            case "Duplicates":
+                Model.Members.Sort((x, y) => x.AverageDuplicate.CompareTo(y.AverageDuplicate));
+                break;
+        }
+
+        if (currentSortColumn == column)
+        {
+            if (isSortAscending)
+            {
+                Model.Members.Reverse();
+            }
+            isSortAscending = !isSortAscending;
+        }
+        else
+        {
+            isSortAscending = true;
+        }
+
+        currentSortColumn = column;
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (currentSortColumn != column)
+        {
+            return string.Empty;
+        }
+        return isSortAscending ? "oi-sort-ascending" : "oi-sort-descending";
+    }
+
+}

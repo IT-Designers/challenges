@@ -44,11 +44,7 @@ namespace SubmissionEvaluation.Server.Controllers
         private AdminUserModel<Member> FetchBasicModel()
         {
             var members = JekyllHandler.MemberProvider.GetMembers();
-            var memberShips = new List<GroupMemberships<Member>>
-            {
-                new GroupMemberships<Member> {Members = members.Select(x => new Member(x)).ToList(), GroupName = string.Empty}
-            };
-            var model = new AdminUserModel<Member> {GroupMemberships = memberShips};
+            var model = new AdminUserModel<Member> { Members = members.Select(x => new Member(x)).ToList() };
             return model;
         }
 

@@ -5,7 +5,7 @@ namespace SubmissionEvaluation.Shared.Models.Admin
 {
     public class AdminUserModel<T> : GenericModel where T : IMember
     {
-        public List<GroupMemberships<T>> GroupMemberships { get; set; }
+        public List<T> Members { get; set; }
     }
 
     public class AdminGroupsModel<T> : GenericModel where T : IGroup
