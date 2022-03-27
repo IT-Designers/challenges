@@ -28,25 +28,32 @@
                         }
                     </h1>
                 </div>
-                <MessageHeader Model="Model"/>
-                <Table TEntry="Group" Entries="Model.Groups" SearchEnabled="true" >
-                    <Column TEntry="Group" Header="Id" StringValue="@(context => context.Id)"/>
-                    <Column TEntry="Group" Header="Name" StringValue="@(context => context.Title)" SortDirection="ListSortDirection.Ascending"/>
-                    <Column TEntry="Group" Header="Aktionen">
-                        <a href=@($"Group/Edit/{context.Id}") title="Editieren" class="btn btn-sm">
-                            <span class="oi oi-pencil"></span>
-                        </a>
-                        @if (Permissions.IsAdmin)
-                        {
-                            <a href=@($"Admin/ConfirmAction/{context.Id}/DeleteGroup") title="Löschen" class="btn btn-sm">
-                                <span class="oi oi-trash"></span>
+                if (ActionToConfirm != null)
+                {
+                    <ConfirmAction ActionMessage="@ActionMessage" OnConfirmed="ActionToConfirm" OnCanceled="CancelAction"></ConfirmAction>
+                }
+                else
+                {
+                    <MessageHeader Model="Model"/>
+                    <Table TEntry="Group" Entries="Model.Groups" SearchEnabled="true">
+                        <Column TEntry="Group" Header="Id" StringValue="@(context => context.Id)"/>
+                        <Column TEntry="Group" Header="Name" StringValue="@(context => context.Title)" SortDirection="ListSortDirection.Ascending"/>
+                        <Column TEntry="Group" Header="Aktionen">
+                            <a href=@($"Group/Edit/{context.Id}") title="Editieren" class="btn btn-sm">
+                                <span class="oi oi-pencil"></span>
                             </a>
-                            <a href=@($"Group/Copy/{context.Id}") title="Kopieren" class="btn btn-sm">
-                                <span class="oi oi-copywriting"></span>
-                            </a>
-                        }
-                    </Column>
-                </Table>
+                            @if (Permissions.IsAdmin)
+                            {
+                                <button type="button" class="btn btn-sm btn-link" @onclick="@(() => DeleteGroup(context))" title="Löschen">
+                                    <span class="oi oi-trash"></span>
+                                </button>
+                                <a href=@($"Group/Copy/{context.Id}") title="Kopieren" class="btn btn-sm">
+                                    <span class="oi oi-copywriting"></span>
+                                </a>
+                            }
+                        </Column>
+                    </Table>
+                }
             }
             else
             {
@@ -62,6 +69,9 @@
     AdminGroupsModel<Group> Model { get; set; }
     Permissions Permissions { get; set; }
 
+    string ActionMessage { get; set; } = string.Empty;
+    Func<Task> ActionToConfirm { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
@@ -72,6 +82,22 @@
         Model = await httpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
 
         StateHasChanged();
+    }
+
+    private void DeleteGroup(IGroup group)
+    {
+        ActionMessage = $"Wollen sie die Gruppe {group.Title} wirklich löschen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.DeleteAsync($"api/Group/{group.Id}");
+            Model.Groups = Model.Groups.Where(x => x.Id != group.Id);
+        };
+    }
+
+    private void CancelAction()
+    {
+        ActionToConfirm = null;
     }
 
 }

@@ -17,7 +17,6 @@ using SubmissionEvaluation.Shared.Classes;
 using SubmissionEvaluation.Shared.Classes.Config;
 using SubmissionEvaluation.Shared.Classes.Messages;
 using SubmissionEvaluation.Shared.Models;
-using SubmissionEvaluation.Shared.Models.Admin;
 using SubmissionEvaluation.Shared.Models.Challenge;
 using SubmissionEvaluation.Shared.Models.Permissions;
 using SubmissionEvaluation.Shared.Models.Shared;
@@ -69,7 +68,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 })).OrderBy(x => x.Title).OrderBy(x => x.DifficultyRating > 0 ? x.DifficultyRating : 1000)
                 .OrderByDescending(x => member.SolvedChallenges?.Contains(x.Id)).ToList();
 
-            return Ok(new CategoryListModel<Member> {Category = Settings.Customization.Categories[id], Entries = category, Member = new Member(member)});
+            return Ok(new CategoryListModel<Member> { Category = Settings.Customization.Categories[id], Entries = category, Member = new Member(member) });
         }
 
         [HttpGet("GetAllChallengesToDoByMemberId/{id}")]
@@ -85,7 +84,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 var groups = JekyllHandler.Domain.Query.GetAllGroups().ToList();
                 IReadOnlyList<ChallengeModel> challenge = challenges.Select(x => ConvertChallengesToChallengeModel(x, bundles, groups)).ToList();
 
-                model = new ChallengeOverviewModel {Challenges = challenge.ToList(), Categories = null, RatingMethods = null};
+                model = new ChallengeOverviewModel { Challenges = challenge.ToList(), Categories = null, RatingMethods = null };
             }
             catch (NullReferenceException e)
             {
@@ -105,7 +104,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 var member = JekyllHandler.GetMemberForUser(User);
                 if (!JekyllHandler.CheckPermissions(Actions.View, "Challenges", member))
                 {
-                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+                    return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
                 }
 
                 var challenges = JekyllHandler.Domain.Query.GetAllChallenges(member, true);
@@ -118,7 +117,7 @@ namespace SubmissionEvaluation.Server.Controllers
                     Challenges = challenge.ToList(),
                     Categories = Settings.Customization.Categories,
                     RatingMethods = WasmHelper.Helper.RatingMethodsConverted ??
-                                    new Dictionary<string, RatingMethodConfig> {{string.Empty, new RatingMethodConfig()}}
+                                    new Dictionary<string, RatingMethodConfig> { { string.Empty, new RatingMethodConfig() } }
                 };
                 if (task != null && !string.IsNullOrEmpty(task))
                 {
@@ -169,7 +168,7 @@ namespace SubmissionEvaluation.Server.Controllers
 
             var r = difficultyRating <= 50 ? 13 * difficultyRating / 50.0f : 13;
             var g = difficultyRating <= 50 ? 13 : 13 - 13 * (difficultyRating - 50) / 50.0f;
-            var color = $"#{(int) r + 2:X}{(int) g + 2:X}0";
+            var color = $"#{(int)r + 2:X}{(int)g + 2:X}0";
             return color;
         }
 
@@ -178,9 +177,9 @@ namespace SubmissionEvaluation.Server.Controllers
         {
             //Sanitize the string a little
             filename = filename.Replace("/", "").Replace("\\", "");
-            id = id.Replace("/", "").Replace("\\", "").Replace(".","");
-            var filenameOnDisk = Settings.Application.PathToData + Path.DirectorySeparatorChar + "_challenges"
-                + Path.DirectorySeparatorChar + id + Path.DirectorySeparatorChar + filename;
+            id = id.Replace("/", "").Replace("\\", "").Replace(".", "");
+            var filenameOnDisk = Settings.Application.PathToData + Path.DirectorySeparatorChar + "_challenges" + Path.DirectorySeparatorChar + id +
+                                 Path.DirectorySeparatorChar + filename;
             string contentType;
             byte[] data;
 
@@ -188,12 +187,13 @@ namespace SubmissionEvaluation.Server.Controllers
             {
                 contentType = "text/text";
             }
+
             //Hide internal files
-            if (filename == "challenge.md" ||  filename.StartsWith("_"))
+            if (filename == "challenge.md" || filename.StartsWith("_"))
             {
                 data = Encoding.ASCII.GetBytes(new String("Nope, that won't happen!"));
             }
-            else if(!System.IO.File.Exists(filenameOnDisk))
+            else if (!System.IO.File.Exists(filenameOnDisk))
             {
                 return NotFound();
             }
@@ -201,6 +201,7 @@ namespace SubmissionEvaluation.Server.Controllers
             {
                 data = System.IO.File.ReadAllBytes(filenameOnDisk);
             }
+
             var cd = new System.Net.Mime.ContentDisposition
             {
                 FileName = filename,
@@ -225,20 +226,20 @@ namespace SubmissionEvaluation.Server.Controllers
             }
             catch (IOException)
             {
-                return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
             }
             catch (DeserializationException)
             {
-                return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
             }
             catch (ChallengeLockedForUserException)
             {
-                return Ok(new GenericModel {HasError = true, Message = ErrorMessages.ChallengeLockedForUser});
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.ChallengeLockedForUser });
             }
 
             if (!HasUserPermissionToView(challenge))
             {
-                return Ok(new GenericModel {HasError = true, Message = ErrorMessages.PreviousChallengesNotSolved});
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.PreviousChallengesNotSolved });
             }
 
             var ranklist = JekyllHandler.Domain.Query.GetChallengeRanklist(challenge);
@@ -317,7 +318,7 @@ namespace SubmissionEvaluation.Server.Controllers
             var member = JekyllHandler.GetMemberForUser(User);
             if (JekyllHandler.CheckPermissions(Actions.View, "ChallengeOverview", member))
             {
-                var categoryStats = JekyllHandler.Domain.Query.GetCategoryStats(new Member {IsAdmin = true, Id = "_-=42=-_"});
+                var categoryStats = JekyllHandler.Domain.Query.GetCategoryStats(new Member { IsAdmin = true, Id = "_-=42=-_" });
                 var elements = categoryStats.ToDictionary(x => x.Key,
                     x => x.Value.Select(element => new CategoryListEntryExtendedModel
                     {
@@ -415,7 +416,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -456,7 +457,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -479,7 +480,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
                 catch (IOException)
                 {
-                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
                 }
 
                 try
@@ -497,7 +498,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [HttpGet("GetModel/{id}")]
@@ -519,13 +520,13 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
                 catch (IOException)
                 {
-                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
                 }
 
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [HttpGet]
@@ -549,7 +550,7 @@ namespace SubmissionEvaluation.Server.Controllers
         {
             ModelState.Clear();
             //Fix BlazorEdit
-            model.Description = model.Description.Replace("<p>","").Replace("</p>","\n");
+            model.Description = model.Description.Replace("<p>", "").Replace("</p>", "\n");
             PopulateDropdowns(model);
             var member = JekyllHandler.GetMemberForUser(User);
             if (JekyllHandler.CheckPermissions(Actions.Edit, "Challenges", member, Restriction.Challenges, model.Id))
@@ -598,14 +599,14 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [Authorize(Roles = "admin")]
         [HttpGet]
         public ActionResult<RenameModel> Rename(string id)
         {
-            return Ok(new RenameModel {Name = id});
+            return Ok(new RenameModel { Name = id });
         }
 
         [Authorize(Roles = "admin")]
@@ -632,17 +633,6 @@ namespace SubmissionEvaluation.Server.Controllers
             }
 
             return Ok(ErrorMessages.NoPermission);
-        }
-
-        [Authorize(Roles = "admin, creator")]
-        [HttpGet("GetConfirmActionModel/{id}/{activity}")]
-        public ActionResult<ConfirmChallengeActionModel> ConfirmAction(string id, string activity)
-        {
-            var model = new ConfirmChallengeActionModel
-            {
-                Challenge = id, Activity = activity, ActivityMessage = activity == "Delete" ? $"Wollen sie die Challenge {id} wirklich löschen?" : ""
-            };
-            return Ok(model);
         }
 
         [Authorize(Roles = "admin,creator")]
@@ -714,7 +704,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(SuccessMessages.EditChallenge);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
 
@@ -727,7 +717,7 @@ namespace SubmissionEvaluation.Server.Controllers
             {
                 Author = JekyllHandler.MemberProvider.GetMemberById(challenge.AuthorId).Name,
                 LastEditor = JekyllHandler.MemberProvider.GetMemberById(challenge.LastEditorId).Name,
-                Files = challenge.AdditionalFiles.Select(x => new File {Name = x, OriginalName = x}).ToList(),
+                Files = challenge.AdditionalFiles.Select(x => new File { Name = x, OriginalName = x }).ToList(),
                 Languages = challenge.Languages,
                 IncludeTests = string.Join(Environment.NewLine, challenge.IncludeTests),
                 DependsOn = string.Join(Environment.NewLine, challenge.DependsOn),
@@ -755,7 +745,8 @@ namespace SubmissionEvaluation.Server.Controllers
 
         private void PopulateDropdowns(ChallengeModel model)
         {
-            model.SourceTypes = new Dictionary<string, string> {{"own", "Eigene Idee"}, {"other", "Idee basiert auf anderer Quelle"}, {"\"\"", "!<empty>!"}};
+            model.SourceTypes =
+                new Dictionary<string, string> { { "own", "Eigene Idee" }, { "other", "Idee basiert auf anderer Quelle" }, { "\"\"", "!<empty>!" } };
 
             model.KnownLanguages = JekyllHandler.Domain.Query.GetCompilerNames().ToList();
 

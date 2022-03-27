@@ -10,17 +10,23 @@
 @inject NavigationManager navi
 @inject LoginService loginService
 
-<Table TEntry="Member" Entries="Memberships?.Members" TableClass="table table-sm table-responsive" SearchEnabled="true">
-    <Column TEntry="Member" Header="Uid" StringValue="@(context => context.Uid)">
+@if (ActionToConfirm != null)
+{
+    <ConfirmAction ActionMessage="@ActionMessage" OnConfirmed="ActionToConfirm" OnCanceled="CancelAction"></ConfirmAction>
+}
+else
+{
+    <Table TEntry="Member" Entries="Memberships?.Members" TableClass="table table-sm table-responsive" SearchEnabled="true">
+        <Column TEntry="Member" Header="Uid" StringValue="@(context => context.Uid)">
             <a class="no-link-coloring" href=@($"Members/Member/{context.Id}")>@(context.Uid != null ? context.Uid.Length > 8 ? context.Uid.Substring(0, 7) + ".." : context.Uid : "")</a>
-    </Column>
-    <Column TEntry="Member" Header="Name" StringValue="@(context => context.Name)" SortDirection="ListSortDirection.Ascending">
+        </Column>
+        <Column TEntry="Member" Header="Name" StringValue="@(context => context.Name)" SortDirection="ListSortDirection.Ascending">
             <a class="no-link-coloring" href=@($"Members/Member/{context.Id}")>@context.Name</a>
-    </Column>
-    <Column TEntry="Member" Header="Status" StringValue="@(context => context.State.ToString())"/>
-    <Column TEntry="Member" Header="Rollen" StringValue="@(context => string.Join(", ", context.Roles))"/>
-    <Column TEntry="Member" Header="Gruppen" StringValue="@(context => string.Join(", ", context.Groups))"/>
-    <Column TEntry="Member" Header="Aktionen">
+        </Column>
+        <Column TEntry="Member" Header="Status" StringValue="@(context => context.State.ToString())"/>
+        <Column TEntry="Member" Header="Rollen" StringValue="@(context => string.Join(", ", context.Roles))"/>
+        <Column TEntry="Member" Header="Gruppen" StringValue="@(context => string.Join(", ", context.Groups))"/>
+        <Column TEntry="Member" Header="Aktionen">
             @if (context.State == MemberState.Pending)
             {
                 <a @onclick="() => ActivatePendingMember(context.Id)" title="Freischalten" class="btn btn-sm">
@@ -43,19 +49,20 @@
                 </a>
                 @if (context.Type != MemberType.Ldap)
                 {
-                    <a href=@($"Admin/ConfirmAction/{context.Id}/ResetMemberPassword") title="Passwort zurücksetzen" class="btn btn-sm">
-                        <span class="oi-key oi"></span>
-                    </a>
+                    <button type="button" class="btn btn-sm btn-link" @onclick="@(() => ResetPassword(context))" title="Passwort zurücksetzen">
+                        <span class="oi oi-key"></span>
+                    </button>
                 }
-                <a href=@($"Admin/ConfirmAction/{context.Id}/DeleteMember") title="Löschen" class="btn btn-sm">
-                    <span class="oi-trash oi"></span>
-                </a>
-                <a href=@($"Admin/ConfirmAction/{context.Id}/ResetMemberAvailableChallenges") title="Reset der verfügbaren Aufgaben" class="btn btn-sm">
-                    <span class="oi-action-undo oi"></span>
-                </a>
+                <button type="button" class="btn btn-sm btn-link" @onclick="@(() => DeleteMember(context))" title="Löschen">
+                    <span class="oi oi-trash"></span>
+                </button>
+                <button type="button" class="btn btn-sm btn-link" @onclick="@(() => ResetAvailableChallenges(context))" title="Reset der verfügbaren Aufgaben">
+                    <span class="oi oi-action-undo"></span>
+                </button>
             }
-    </Column>
-</Table>
+        </Column>
+    </Table>
+}
 
 @code {
 
@@ -64,6 +71,9 @@
 
     [Parameter]
     public EventCallback<GroupMemberships<Member>> MembershipsChanged { get; set; }
+
+    string ActionMessage { get; set; } = string.Empty;
+    Func<Task> ActionToConfirm { get; set; }
 
     protected override Task OnInitializedAsync()
     {
@@ -112,6 +122,43 @@
             await MembershipsChanged.InvokeAsync(Memberships);
         }
         StateHasChanged();
+    }
+
+    private void ResetPassword(IMember member)
+    {
+        ActionMessage = $"Wollen sie das Password für {member.Name} wirklich zurücksetzen?";
+        ActionToConfirm = () =>
+        {
+            ActionToConfirm = null;
+            navi.NavigateTo($"Admin/ResetMemberPassword/{member.Id}");
+            return Task.CompletedTask;
+        };
+    }
+
+    private void ResetAvailableChallenges(IMember member)
+    {
+        ActionMessage = $"Wollen sie die Liste der bearbeitbaren Challenges für {member.Name} wirklich zurücksetzen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.PostAsJsonAsync("api/Admin/ResetMemberAvailableChallenges", member.Id);
+        };
+    }
+
+    private void DeleteMember(IMember member)
+    {
+        ActionMessage = $"Wollen sie die {member.Name} wirklich löschen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.DeleteAsync($"api/Group/{member.Id}");
+            Memberships.Members = Memberships.Members.Where(x => x.Id != member.Id).ToList();
+        };
+    }
+
+    private void CancelAction()
+    {
+        ActionToConfirm = null;
     }
 
 }

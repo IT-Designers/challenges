@@ -25,67 +25,74 @@
                     </NavLink>
                 </h1>
             </div>
-            <MessageHeader Model="Model"/>
+            @if (!(ActionToConfirm is null))
+            {
+                <ConfirmAction ActionMessage="@ActionMessage" OnConfirmed="ActionToConfirm" OnCanceled="CancelAction"></ConfirmAction>
+            }
+            else
+            {
+                <MessageHeader Model="Model"/>
 
-            <Table TEntry="ChallengeModel" Entries="Model.Challenges" TableClass="table table-sm table-responsive" SearchEnabled="true">
-                <Column TEntry="ChallengeModel" Header="!" Value="@(challenge => challenge.HasChallengeError)">
-                    @if (context.HasChallengeError)
-                    {
-                        <span title="@context.ChallengeErrorDescription" class="oi oi-exclamation-triangle"></span>
-                    }
-                </Column>
-                <Column TEntry="ChallengeModel" Header="Id" StringValue="@(challenge => challenge.Id)">
-                    <NavLink class="no-link-coloring" href=@GetUrl(context.Id) title="@context.Id">@(context.Id.Length > 16 ? context.Id.Substring(0, 14) + ".." : context.Id)</NavLink>
-                </Column>
-                <Column TEntry="ChallengeModel" Header="Title" StringValue="@(challenge => challenge.Title)" SortDirection="ListSortDirection.Ascending">
-                    <NavLink class="no-link-coloring" href=@GetUrl(context.Id) title="@context.Title">@(context.Title.Length > 20 ? context.Title.Substring(0, 18) + ".." : context.Title)</NavLink>
-                </Column>
-                <Column TEntry="ChallengeModel" Header="Autor" StringValue="@(challenge => challenge.Author)">
-                    <NavLink href=@("Members/Member/" + context.AuthorId) title="@context.Author">@context.Author.Split(' ').Last()</NavLink>
-                </Column>
-                <Column TEntry="ChallengeModel" Header="Kategorie" StringValue="@(challenge => challenge.Category)">
-                    @Model.Categories[context.Category]
-                </Column>
-                <Column TEntry="ChallengeModel" Header="Gruppen" StringValue="@(challenge => string.Join(", ", challenge.Groups.Select(x => x.Title)))"/>
-                <Column TEntry="ChallengeModel" Header="Veröffentlicht" Value="@(context => context.Date)" StringValue="@(context => context.IsDraft ? "Unveröffentlicht" : context.Date.ToShortDateString())"/>
-                <Column TEntry="ChallengeModel" Header="Geändert" Value="@(context => context.LastEdit)" StringValue="@(context => context.IsDraft ? string.Empty : context.LastEdit.ToShortDateString())"/>
-                <Column TEntry="ChallengeModel" Header="Machb." Value="@(context => context.FeasibilityIndex)" StringValue="@(context => context.FeasibilityIndex.ToString())" TextAlignment="TextAlignment.Right"/>
-                <Column TEntry="ChallengeModel" Header="Pkt" Value="@(context => context.Points.Mid)" StringValue="@(context => context.Points.Mid.ToString())" TextAlignment="TextAlignment.Right"/>
-                <Column TEntry="ChallengeModel" Header="Aktionen">
-                    <a href="Challenge/Edit/@context.Id" title="Bearbeiten" class="btn btn-sm" style="padding: 2px">
-                        <span class="oi oi-pencil"></span>
-                    </a>
-                    <a href="Submission/Task/@context.Id" title="Alle Einreichungen" class="btn btn-sm" style="padding: 2px">
-                        <span class="oi-list oi"></span>
-                    </a>
-                    <a href="Challenge/Copy/@context.Id" title="Kopieren" class="btn btn-sm" style="padding: 2px">
-                        <span class="oi-copywriting oi"></span>
-                    </a>
-                    <a href="Challenge/ConfirmAction/@context.Id/Delete" title="Löschen" class="btn btn-sm" style="padding: 2px">
-                        <span class="oi-trash oi"></span>
-                    </a>
-                    @if (Permissions.IsAdmin)
-                    {
-                        <button @onclick="@(async () => await RateDown(context))" title="Schwierigkeitslevel reduzieren" class="btn btn-sm iconed challenge-btn">
-                            <span class="oi oi-chevron-bottom"></span>
+                <Table TEntry="ChallengeModel" Entries="Model.Challenges" TableClass="table table-sm table-responsive" SearchEnabled="true">
+                    <Column TEntry="ChallengeModel" Header="!" Value="@(challenge => challenge.HasChallengeError)">
+                        @if (context.HasChallengeError)
+                        {
+                            <span title="@context.ChallengeErrorDescription" class="oi oi-exclamation-triangle"></span>
+                        }
+                    </Column>
+                    <Column TEntry="ChallengeModel" Header="Id" StringValue="@(challenge => challenge.Id)">
+                        <NavLink class="no-link-coloring" href=@GetUrl(context.Id) title="@context.Id">@(context.Id.Length > 16 ? context.Id.Substring(0, 14) + ".." : context.Id)</NavLink>
+                    </Column>
+                    <Column TEntry="ChallengeModel" Header="Title" StringValue="@(challenge => challenge.Title)" SortDirection="ListSortDirection.Ascending">
+                        <NavLink class="no-link-coloring" href=@GetUrl(context.Id) title="@context.Title">@(context.Title.Length > 20 ? context.Title.Substring(0, 18) + ".." : context.Title)</NavLink>
+                    </Column>
+                    <Column TEntry="ChallengeModel" Header="Autor" StringValue="@(challenge => challenge.Author)">
+                        <NavLink href=@("Members/Member/" + context.AuthorId) title="@context.Author">@context.Author.Split(' ').Last()</NavLink>
+                    </Column>
+                    <Column TEntry="ChallengeModel" Header="Kategorie" StringValue="@(challenge => challenge.Category)">
+                        @Model.Categories[context.Category]
+                    </Column>
+                    <Column TEntry="ChallengeModel" Header="Gruppen" StringValue="@(challenge => string.Join(", ", challenge.Groups.Select(x => x.Title)))"/>
+                    <Column TEntry="ChallengeModel" Header="Veröffentlicht" Value="@(context => context.Date)" StringValue="@(context => context.IsDraft ? "Unveröffentlicht" : context.Date.ToShortDateString())"/>
+                    <Column TEntry="ChallengeModel" Header="Geändert" Value="@(context => context.LastEdit)" StringValue="@(context => context.IsDraft ? string.Empty : context.LastEdit.ToShortDateString())"/>
+                    <Column TEntry="ChallengeModel" Header="Machb." Value="@(context => context.FeasibilityIndex)" StringValue="@(context => context.FeasibilityIndex.ToString())"/>
+                    <Column TEntry="ChallengeModel" Header="Pkt" Value="@(context => context.Points.Mid)" StringValue="@(context => context.Points.Mid.ToString())"/>
+                    <Column TEntry="ChallengeModel" Header="Aktionen">
+                        <a href="Challenge/Edit/@context.Id" title="Bearbeiten" class="btn btn-sm" style="padding: 2px">
+                            <span class="oi oi-pencil"></span>
+                        </a>
+                        <a href="Submission/Task/@context.Id" title="Alle Einreichungen" class="btn btn-sm" style="padding: 2px">
+                            <span class="oi-list oi"></span>
+                        </a>
+                        <a href="Challenge/Copy/@context.Id" title="Kopieren" class="btn btn-sm" style="padding: 2px">
+                            <span class="oi-copywriting oi"></span>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-link" @onclick="@(() => DeleteChallenge(context))" title="Löschen">
+                            <span class="oi oi-trash"></span>
                         </button>
-                        <button @onclick="@(async () => await RateDown10(context))" title="Schwierigkeitslevel reduzieren * 10" class="btn btn-sm iconed challenge-btn">
-                            <span class="oi oi-caret-bottom"></span>
-                        </button>
-                        <button @onclick="@(async () => await RateUp(context))" title="Schwierigkeitslevel erhöhen" class="btn btn-sm iconed challenge-btn">
-                            <span class="oi oi-chevron-top"></span>
-                        </button>
-                        <button @onclick="@(async () => await RateUp10(context))" title="Schwierigkeitslevel erhöhen * 10" class="btn btn-sm iconed challenge-btn">
-                            <span class="oi oi-caret-top"></span>
-                        </button>
-                        <DownloadComponent Class="btn btn-sm iconed challenge-btn" Title="Challenge herunterladen" Content='<span class="oi oi - data - transfer - download"></span>' Id="@context.Id" Url="api/Challenge/Download" FileName=@($"{context.Id}.zip")/>
-                    }
-                </Column>
-            </Table>
+                        @if (Permissions.IsAdmin)
+                        {
+                            <button @onclick="@(async () => await RateDown(context))" title="Schwierigkeitslevel reduzieren" class="btn btn-sm iconed challenge-btn">
+                                <span class="oi oi-chevron-bottom"></span>
+                            </button>
+                            <button @onclick="@(async () => await RateDown10(context))" title="Schwierigkeitslevel reduzieren * 10" class="btn btn-sm iconed challenge-btn">
+                                <span class="oi oi-caret-bottom"></span>
+                            </button>
+                            <button @onclick="@(async () => await RateUp(context))" title="Schwierigkeitslevel erhöhen" class="btn btn-sm iconed challenge-btn">
+                                <span class="oi oi-chevron-top"></span>
+                            </button>
+                            <button @onclick="@(async () => await RateUp10(context))" title="Schwierigkeitslevel erhöhen * 10" class="btn btn-sm iconed challenge-btn">
+                                <span class="oi oi-caret-top"></span>
+                            </button>
+                            <DownloadComponent Class="btn btn-sm iconed challenge-btn" Title="Challenge herunterladen" Content='<span class="oi oi - data - transfer - download"></span>' Id="@context.Id" Url="api/Challenge/Download" FileName=@($"{context.Id}.zip")/>
+                        }
+                    </Column>
+                </Table>
 
-            <div>
-                <NavLink href="Challenge/Create" class="btn btn-outline-dark btn-margin col-12">Challenge anlegen</NavLink>
-            </div>
+                <div>
+                    <NavLink href="Challenge/Create" class="btn btn-outline-dark btn-margin col-12">Challenge anlegen</NavLink>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -96,6 +103,9 @@
 
     [Parameter]
     public string Task { get; set; }
+
+    string ActionMessage { get; set; } = string.Empty;
+    Func<Task> ActionToConfirm { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -168,6 +178,22 @@
     private string GetUrl(string id)
     {
         return "Challenge/View/" + id;
+    }
+
+    private void DeleteChallenge(ChallengeInfoModel challenge)
+    {
+        ActionMessage = $"Wollen sie die Challenge {challenge.Title} wirklich löschen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.DeleteAsync($"/api/Challenge/DeleteChallenge/{challenge.Id}");
+            Model.Challenges = Model.Challenges.Where(x => x.Id != challenge.Id).ToList();
+        };
+    }
+
+    private void CancelAction()
+    {
+        ActionToConfirm = null;
     }
 
 }

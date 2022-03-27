@@ -43,11 +43,11 @@ namespace SubmissionEvaluation.Server.Controllers
                 {
                     Members = membersContained.Where(y => y.Groups.Contains(x)).Select(m => new Member(m, false)).ToList(), GroupName = x
                 });
-                var model = new AdminUserModel<Member> {GroupMemberships = memberShips.ToList()};
+                var model = new AdminUserModel<Member> { GroupMemberships = memberShips.ToList() };
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [Authorize(Roles = "admin")]
@@ -131,7 +131,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         [HttpGet("EditGroup/{id}")]
@@ -142,7 +142,8 @@ namespace SubmissionEvaluation.Server.Controllers
             if (JekyllHandler.CheckPermissions(Actions.Edit, "Groups", member, Restriction.Groups, id))
             {
                 var group = JekyllHandler.Domain.Query.GetGroup(id);
-                var challenges = JekyllHandler.Domain.Query.GetAllChallenges(new Member {IsAdmin = true}).Where(x => x.IsAvailable).OrderBy(x => x.Id).ToList();
+                var challenges = JekyllHandler.Domain.Query.GetAllChallenges(new Member { IsAdmin = true }).Where(x => x.IsAvailable).OrderBy(x => x.Id)
+                    .ToList();
                 var groupAdmins = JekyllHandler.MemberProvider.GetMembers().Where(x => x.IsGroupAdmin);
                 return Ok(new GroupModel<IChallenge, Member, Group>
                 {
@@ -164,7 +165,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 });
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
 
         private static List<Group> GetSelectableSubGroups(string[] alreadySubGroups)
@@ -186,11 +187,11 @@ namespace SubmissionEvaluation.Server.Controllers
         }
 
         [Authorize(Roles = "admin")]
-        [HttpPost("DeleteGroup")]
-        public IActionResult DeleteGroup([FromBody] string id)
+        [HttpDelete("{groupId}")]
+        public IActionResult DeleteGroup([FromRoute] string groupId)
         {
-            JekyllHandler.Domain.Interactions.DeleteGroup(id);
-            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
+            JekyllHandler.Domain.Interactions.DeleteGroup(groupId);
+            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
         }
 
         [HttpGet("Groups")]
@@ -206,7 +207,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
+            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
         }
 
         [HttpPost("Copy")]
@@ -228,7 +229,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 }
                 catch (IOException)
                 {
-                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
                 }
 
                 try
@@ -246,7 +247,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 return Ok(model);
             }
 
-            return Ok(new GenericModel {HasError = true, Message = ErrorMessages.NoPermission});
+            return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
         }
     }
 }
