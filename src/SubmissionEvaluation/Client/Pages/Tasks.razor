@@ -1,10 +1,9 @@
 @page "/Tasks"
 @using System.Net.Http.Json
-@* ReSharper disable once RedundantUsingDirective *@
-@using SubmissionEvaluation.Client.Shared.Components.Activities
+@using SubmissionEvaluation.Client.Shared.Components.Table
 
-@inject HttpClient HttpClient
-@inject NavigationManager NavigationManager
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
 
 @if (model != null)
 {
@@ -14,16 +13,45 @@
                 <div class="post-header">
                     <a href="Activities" style="color: #000">Aktivitäten</a>
                 </div>
-                <div class="post-list-body">
-                    <table class="activity_smalltable">
-                        @if (model.Activities.Count > 0)
-                        {
-                            foreach (var activity in model?.Activities?.Where(x => x.Type != ActivityType.NewReviewResult && x.Type != ActivityType.NewUser).Take(5))
+                <div style="padding: 0 30px;">
+                    <Table TEntry="Activity" TableClass="table table-sm table-borderless table-responsive" Entries="Entries">
+                        <Column TEntry="Activity">
+                            @switch (context.Type)
                             {
-                                <ActivitiesTableRow Activity="activity" RowStyle="background: none;" EntryClass="activity_smallcolumn"/>
+                                case ActivityType.NewSubmission:
+                                    @("Neue Einreichung")
+                                    break;
+                                case ActivityType.NewChallenge:
+                                    @("Neue Aufgabe")
+                                    break;
+                                case ActivityType.ChangedChallenge:
+                                    @("Aufgabe geändert")
+                                    break;
+                                case ActivityType.VersionUpdate:
+                                    @("System aktualisiert")
+                                    break;
+                                default:
+                                    @("Undefiniert")
+                                    break;
                             }
-                        }
-                    </table>
+                        </Column>
+                        <Column TEntry="Activity">
+                            @switch (context.Type)
+                            {
+                                case ActivityType.NewSubmission:
+                                case ActivityType.NewChallenge:
+                                case ActivityType.ChangedChallenge:
+                                    <NavLink href=@($"/Challenge/View/{context.Reference}")>@context.Reference</NavLink>
+                                    break;
+                                case ActivityType.VersionUpdate:
+                                    <NavLink href=@("https://gogs.itd-services.de/Studentenprojekte/Challenges/commit/" + context.Reference)>...</NavLink>
+                                    break;
+                                default:
+                                    @context.Reference
+                                    break;
+                            }
+                        </Column>
+                    </Table>
                 </div>
             </div>
         </div>
@@ -63,23 +91,27 @@
 }
 else
 {
-    <Wave />
+    <Wave/>
 }
 
 @code {
     IndexHomeModel model;
     List<BundleModel> Bundles { get; set; }
 
+    IEnumerable<Activity> Entries => model?.Activities?.Where(x => x.Type != ActivityType.NewReviewResult && x.Type != ActivityType.NewUser).Take(5);
+
     protected override async Task OnInitializedAsync()
     {
-        model = await HttpClient.GetFromJsonAsync<IndexHomeModel>("api/Home/IndexModel");
+        model = await httpClient.GetFromJsonAsync<IndexHomeModel>("api/Home/IndexModel");
         if (model.CategoryStats.Count == 0)
         {
-            NavigationManager.NavigateTo("Account/Groups");
+            navigationManager.NavigateTo("Account/Groups");
         }
 
-        Bundles = await HttpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
+        Bundles = await httpClient.GetFromJsonAsync<List<BundleModel>>("api/Bundle/AllBundles");
         StateHasChanged();
     }
 
 }
+
+

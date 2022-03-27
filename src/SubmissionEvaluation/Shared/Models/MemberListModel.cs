@@ -10,7 +10,6 @@ namespace SubmissionEvaluation.Shared.Models
         public string CurrentSemester { get; set; }
         public Dictionary<string, T> Members { get; set; }
         public IEnumerable<GlobalSubmitter> Submitters { get; set; }
-        public string Order { get; set; }
         public string FilterMode { get; set; }
         public string FilterValue { get; set; }
     }

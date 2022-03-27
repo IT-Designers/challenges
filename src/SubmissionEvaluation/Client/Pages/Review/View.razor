@@ -4,6 +4,7 @@
 @using SubmissionEvaluation.Contracts.Data.Review
 @using SubmissionEvaluation.Shared.Models.Review
 @using Newtonsoft.Json
+@using SubmissionEvaluation.Client.Shared.Components.Table
 
 @* ReSharper disable once RedundantUsingDirective *@
 @using SubmissionEvaluation.Client.Shared.Components.Review
@@ -29,27 +30,21 @@
             <span id="challengeTilePostHeader">Review for Challenge:<a class="no-link-coloring" href="Challenge/View/@Model.ChallengeId">@Model.ChallengeId</a></span>
         </div>
         <div class="card-body challenge-creation-panel">
-            <table>
-                @foreach (var category in Model.ReviewRating.Childs)
-                {
-                    <tr>
-                        @if (Model.CalculateReviewRating(category) > 0)
-                        {
-                            <td>@category.Title</td>
-                            <td>@(Model.CalculateReviewRating(category)) Sterne</td>
-                        }
-                        else
-                        {
-                            <td>@category.Title</td>
-                            <td>NICHT BEWERTET</td>
-                        }
-                    </tr>
-                }
-                <tr>
-                    <td>Gesamt</td>
-                    <td>@Model.Stars Sterne</td>
-                </tr>
-            </table>
+
+            <Table TEntry="ReviewRating" Entries="Model.ReviewRating.Childs">
+                <Column TEntry="ReviewRating" Header="Gesamt" StringValue="@(context => context.Title)"/>
+                <Column TEntry="ReviewRating" Header="@($"{Model.Stars} Sterne")" StringValue="@(context => Model.CalculateReviewRating(context).ToString())">
+                    @if (Model.CalculateReviewRating(context) > 0)
+                    {
+                        <td>@(Model.CalculateReviewRating(context)) Sterne</td>
+                    }
+                    else
+                    {
+                        <td>NICHT BEWERTET</td>
+                    }
+                </Column>
+            </Table>
+
         </div>
     </div>
     <div class="post-area">
@@ -75,7 +70,7 @@
             @foreach (var category in Model.ReviewRating.Childs)
             {
                 <h4>@(category.Title) (Sterne: @(Model.CalculateReviewRating(category)))</h4>
-                <div>@((MarkupString) category.Description)</div>
+                <div>@((MarkupString)category.Description)</div>
 
                 <div style="border-color: orange" class="category-comments">
                     <p>Kommentar</p>

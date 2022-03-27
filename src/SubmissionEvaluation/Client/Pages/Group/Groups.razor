@@ -6,9 +6,11 @@
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
+@inject HttpClient httpClient
+@inject NavigationManager navi
 
 <div class="row">
     <div class="col-12">
@@ -26,49 +28,29 @@
                         }
                     </h1>
                 </div>
-                <div id="groups-table_wrapper" class="dataTables_wrapper no-footer">
-                    <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="SearchValue" placeholder="Suche nach einer Gruppe"/>
-                    <MessageHeader Model="Model"/>
-                    <table id="groups-table" class="display table dataTable no-footer" role="grid">
-                        <thead>
-                        <tr>
-                            <th>
-                                <button class="no-styling" @onclick="SortById">ID</button>
-                            </th>
-                            <th>
-                                <button class="no-styling" @onclick="SortByTitle">Name</button>
-                            </th>
-                            <th>Bearbeiten</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (IGroup group in Model.Groups.Where(x => x.Title.ToLower().Contains(SearchValue.ToLower()) || x.Id.ToLower().Contains(SearchValue.ToLower())))
+                <MessageHeader Model="Model"/>
+                <Table TEntry="Group" Entries="Model.Groups" SearchEnabled="true" >
+                    <Column TEntry="Group" Header="Id" StringValue="@(context => context.Id)"/>
+                    <Column TEntry="Group" Header="Name" StringValue="@(context => context.Title)" SortDirection="ListSortDirection.Ascending"/>
+                    <Column TEntry="Group" Header="Aktionen">
+                        <a href=@($"Group/Edit/{context.Id}") title="Editieren" class="btn btn-sm">
+                            <span class="oi oi-pencil"></span>
+                        </a>
+                        @if (Permissions.IsAdmin)
                         {
-                            <tr>
-                                <td>@group.Id</td>
-                                <td>@group.Title</td>
-                                <td>
-                                    <a href=@($"Group/Edit/{group.Id}") title="Editieren" class="btn btn-sm">
-                                        <span class="oi oi-pencil"></span>
-                                    </a>
-                                    @if (Permissions.IsAdmin)
-                                    {
-                                        <a href=@($"Admin/ConfirmAction/{group.Id}/DeleteGroup") title="Löschen" class="btn btn-sm">
-                                            <span class="oi oi-trash"></span>
-                                        </a>
-                                        <a href=@($"Group/Copy/{group.Id}") title="Kopieren" class="btn btn-sm">
-                                            <span class="oi oi-copywriting"></span>
-                                        </a>
-                                    }
-                                </td>
-                            </tr>
+                            <a href=@($"Admin/ConfirmAction/{context.Id}/DeleteGroup") title="Löschen" class="btn btn-sm">
+                                <span class="oi oi-trash"></span>
+                            </a>
+                            <a href=@($"Group/Copy/{context.Id}") title="Kopieren" class="btn btn-sm">
+                                <span class="oi oi-copywriting"></span>
+                            </a>
                         }
-                        </tbody>
-                    </table>
-                </div>
+                    </Column>
+                </Table>
             }
-            else {
-                <Wave />
+            else
+            {
+                <Wave/>
             }
         </div>
 
@@ -78,32 +60,18 @@
 
 @code {
     AdminGroupsModel<Group> Model { get; set; }
-    string SearchValue { get; set; } = string.Empty;
     Permissions Permissions { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
         if (!PermissionHelper.CheckPermissions(Actions.View, "Groups", Permissions))
         {
-            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
+            navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await HttpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
+        Model = await httpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
+
         StateHasChanged();
-    }
-
-    void SortById()
-    {
-        var groups = Model.Groups.ToList();
-        groups.Sort((x, y) => x.Id.CompareTo(y.Id));
-        Model.Groups = groups;
-    }
-
-    void SortByTitle()
-    {
-        var groups = Model.Groups.ToList();
-        groups.Sort((x, y) => x.Title.CompareTo(y.Title));
-        Model.Groups = groups;
     }
 
 }

@@ -1,7 +1,10 @@
 @using System.Net.Http.Json
-@inject HttpClient HttpClient
-@inject NavigationManager NavigationManager
-@inject IToastService ToastService
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
+
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject IToastService toastService
 
 <a href="/Test/Create/@Model.Id" class="btn btn-outline-dark btn-margin btn-block">Füge neuen Test hinzu</a>
 
@@ -10,49 +13,19 @@
     <a href="/Test/CreateWithGenerator/@Model.Id" class="btn btn-outline-dark btn-margin btn-block">Füge neuen Test hinzu mit Testgenerator hinzu</a>
 }
 
-<table id="test-table" class="display table dataTable">
-    <thead>
-    <tr>
-        <th>Startparameter</th>
-        <th>Eingabe</th>
-        <th>Ausgabe</th>
-        <th>Vergleichsoptionen</th>
-        <th>Ausgabedatei</th>
-        <th>Eingabedatei</th>
-        <th>Aktionen</th>
-    </tr>
-    </thead>
-    @for (var i = 0; i < Model.Tests?.Count(); i++)
-    {
-        var element = Model.Tests.ElementAt(i);
-        element.Index = i.ToString();
-        <tr>
-            <td>
-                @ShortenStringIfToLong(string.Join(" ", element.Parameters))
-            </td>
-            <td>
-                @ShortenStringIfToLong(element.Input ?? "")
-            </td>
-            <td>
-                @ShortenStringIfToLong(element.Output?.Content ?? "")
-            </td>
-            <td>
-                @(!string.IsNullOrEmpty(element.Output?.Content) ? ShortenCompareSettings(element) : "-")
-            </td>
-            <td>
-                @(!string.IsNullOrWhiteSpace(element.OutputFile?.Name) ? "1" : "0")
-            </td>
-            <td>
-                @(element.InputFiles != null ? element.InputFiles.Count : 0)
-            </td>
-            <td>
-                <button type="button" @onclick="@(async () => await EditTest(element))" class="btn btn-sm"><span class="oi oi-pencil"></span>Bearbeiten</button>
-                <button type="button" @onclick="@(async () => await CopyTest(element))" class="btn btn-sm"><span class="oi oi-clipboard"></span>Kopieren</button>
-                <button type="button" @onclick="@(async () => await DeleteTest(element))" class="btn btn-sm"><span class="oi oi-trash"></span>Löschen</button>
-            </td>
-        </tr>
-    }
-</table>
+<Table TEntry="ChallengeTest" Entries="Model?.Tests" Caption="Tests" NoEntriesText="Keine Tests vorhanden." SearchEnabled="true">
+    <Column TEntry="ChallengeTest" Header="Startparameter" StringValue="@(context => ShortenStringIfToLong(string.Join(" ", context.Parameters)))"/>
+    <Column TEntry="ChallengeTest" Header="Eingabe" StringValue="@(context => ShortenStringIfToLong(context.Input ?? ""))"/>
+    <Column TEntry="ChallengeTest" Header="Ausgabe" StringValue="@(context => ShortenStringIfToLong(context.Output?.Content ?? ""))"/>
+    <Column TEntry="ChallengeTest" Header="Vergleichsoptionen" StringValue="@(context => !string.IsNullOrEmpty(context.Output?.Content) ? ShortenCompareSettings(context) : "-")"/>
+    <Column TEntry="ChallengeTest" Header="Ausgabedatei" StringValue="@(context => !string.IsNullOrWhiteSpace(context.OutputFile?.Name) ? "1" : "0")"/>
+    <Column TEntry="ChallengeTest" Header="Eingabedatei" Value="@(context => context.InputFiles?.Count)"  StringValue="@(context => (context.InputFiles?.Count ?? 0).ToString())"/>
+    <Column TEntry="ChallengeTest" Header="Id">
+        <button type="button" @onclick="@(async () => await EditTest(context))" class="btn btn-sm"><span class="oi oi-pencil"></span>Bearbeiten</button>
+        <button type="button" @onclick="@(async () => await CopyTest(context))" class="btn btn-sm"><span class="oi oi-clipboard"></span>Kopieren</button>
+        <button type="button" @onclick="@(async () => await DeleteTest(context))" class="btn btn-sm"><span class="oi oi-trash"></span>Löschen</button>
+    </Column>
+</Table>
 
 @code {
 
@@ -63,7 +36,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        User = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        User = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
     }
 
     private static string ShortenCompareSettings(ChallengeTest element)
@@ -96,35 +69,35 @@
     private async Task EditTest(ChallengeTest test)
     {
     /* ToDo: Add ReturnUrl */
-        var isloggedin = await HttpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
+        var isloggedin = await httpClient.GetFromJsonAsync<bool>("api/Account/loggedin");
         if (!isloggedin)
         {
-            NavigationManager.NavigateTo("/Account/Login");
+            navigationManager.NavigateTo("/Account/Login");
         }
-        NavigationManager.NavigateTo($"/Test/Edit/{Model.Id}/{test.Index}");
+        navigationManager.NavigateTo($"/Test/Edit/{Model.Id}/{test.Index}");
     }
 
     private async Task CopyTest(ChallengeTest test)
     {
     /* ToDo: Add ReturnUrl */
-        var copyResult = await HttpClient.GetFromJsonAsync<ChallengeTestCreateModel>($"/api/Test/copy/{Model.Id}/{test.Index}");
+        var copyResult = await httpClient.GetFromJsonAsync<ChallengeTestCreateModel>($"/api/Test/copy/{Model.Id}/{test.Index}");
         if (copyResult.HasSuccess)
         {
             Model.Tests.Add(copyResult.Test);
-            ToastService.ShowSuccess($"Test {Convert.ToInt32(test.Index) - 1} copied", "Success");
+            toastService.ShowSuccess($"Test {Convert.ToInt32(test.Index) - 1} copied", "Success");
         }
     }
 
     private async Task DeleteTest(ChallengeTest test)
     {
     /* ToDo: Add ReturnUrl */
-        var deleteResult = await HttpClient.GetFromJsonAsync<GenericModel>($"/api/Test/delete/{Model.Id}/{test.Index}");
+        var deleteResult = await httpClient.GetFromJsonAsync<GenericModel>($"/api/Test/delete/{Model.Id}/{test.Index}");
         if (deleteResult.HasSuccess)
         {
-            ToastService.ShowSuccess($"Test {Convert.ToInt32(test.Index)} deleted", "Success");
+            toastService.ShowSuccess($"Test {Convert.ToInt32(test.Index)} deleted", "Success");
             Model.Tests.Remove(test);
             Model.Files.Where(x => x.Name.StartsWith(test.Id.ToString()) || x.Name.StartsWith("_" + test.Id)).ToList().ForEach(x => x.IsDelete = true);
-            var responseMessage = await HttpClient.PostAsJsonAsync("api/Challenge/Edit/Save", Model);
+            var responseMessage = await httpClient.PostAsJsonAsync("api/Challenge/Edit/Save", Model);
             if (responseMessage.IsSuccessStatusCode)
             {
                 Model = await responseMessage.Content.ReadFromJsonAsync<ExtendedChallengeModel>();
@@ -132,7 +105,7 @@
         }
         else
         {
-            ToastService.ShowError($"Test {Convert.ToInt32(test.Index) - 1} not deleted", "Error");
+            toastService.ShowError($"Test {Convert.ToInt32(test.Index) - 1} not deleted", "Error");
         }
     }
 

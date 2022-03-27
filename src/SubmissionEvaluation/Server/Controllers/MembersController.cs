@@ -94,8 +94,8 @@ namespace SubmissionEvaluation.Server.Controllers
             return new PointsHoldTupel<ISubmission, IMember>(entry, null, null, null);
         }
 
-        [HttpGet("ShowList/{semester}/{order?}/{filterMode?}/{filterValue?}")]
-        public IActionResult List(string order, string filterMode, string filterValue, bool semester)
+        [HttpGet("ShowList/{semester}/{filterMode?}/{filterValue?}")]
+        public IActionResult List(string filterMode, string filterValue, bool semester)
         {
             var member = JekyllHandler.GetMemberForUser(User);
             var permissions = JekyllHandler.GetPermissionsForMember(member);
@@ -119,35 +119,6 @@ namespace SubmissionEvaluation.Server.Controllers
                 {
                     submitters = submitters.Where(x => members[x.Id].Groups.Contains(filterValue));
                 }
-
-                if (Settings.Features.EnableRating || User.IsInRole("admin"))
-                {
-                    switch (order)
-                    {
-                        case "Name": break;
-                        case "Group":
-                            submitters = submitters.OrderByDescending(x => members[x.Id].Groups.FirstOrDefault());
-                            break;
-                        case "Solved":
-                            submitters = submitters.OrderByDescending(x => x.SolvedCount);
-                            break;
-                        case "Challenges":
-                            submitters = submitters.OrderByDescending(x => x.ChallengesCreated);
-                            break;
-                        case "Stars":
-                            submitters = submitters.OrderByDescending(x => x.Stars);
-                            break;
-                        case "Points":
-                            submitters = submitters.OrderByDescending(x => x.Points);
-                            break;
-                        case "Duplication":
-                            submitters = submitters.OrderByDescending(x => x.DuplicationScore);
-                            break;
-                        default:
-                            submitters = submitters.OrderByDescending(x => x.Points);
-                            break;
-                    }
-                }
             }
 
             return Ok(new MemberListModel<Member>
@@ -156,7 +127,6 @@ namespace SubmissionEvaluation.Server.Controllers
                 Members = members,
                 Submitters = submitters,
                 IsSemesterRanking = semester,
-                Order = order,
                 FilterMode = filterMode,
                 FilterValue = filterValue
             });

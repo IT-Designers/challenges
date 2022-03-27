@@ -6,6 +6,8 @@
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
 @inject HttpClient HttpClient
 @inject NavigationManager Navi
@@ -21,74 +23,45 @@
                 <partial name="MessageHeader"/>
                 <div class="row">
                     <div class="col-12">
-                        @if (Model.Submissions != null && Model.Submissions.Count == 0)
+
+                        @if (Model?.ErrorDetails != null)
                         {
-                            <h4>
-                                Es gibt bisher keine Einreichungen zu dieser Challenge.
-                            </h4>
+                            <DetailedTestInfo Detail="Model.ErrorDetails"/>
                         }
-                        else
-                        {
-                            if (Model.ErrorDetails != null)
-                            {
-                                <DetailedTestInfo Detail="Model.ErrorDetails"/>
-                            }
-                            <table class="ranking_table table">
-                                <thead>
-                                <tr class="ranking_head">
-                                    <th class="th_name">Einreichdatum</th>
-                                    <th class="th_name">User</th>
-                                    <th class="th_name">Sprache</th>
-                                    <th class="th_name">Ergebnis</th>
-                                    <th class="th_name">Ausführzeit</th>
-                                    <th class="th_name">Reviewergebnis</th>
-                                    <th class="th_name">Source</th>
-                                    <th class="th_name">Aktionen</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @foreach (var submission in Model.Submissions)
+
+                        <Table TEntry="SubmissionResult<Member>" Entries="Model?.Submissions" NoEntriesText="Keine Einreichungen vorhanden." SearchEnabled="true" RowColor="@(context => context.NowFailing ? "lightyellow" : "white")">
+                            <Column TEntry="SubmissionResult<Member>" Header="Einreichdatum" Value="@(context => context.SubmissionDate)" StringValue="@(context => context.SubmissionDate.ToShortDateString())" SortDirection="ListSortDirection.Descending"/>
+                            <Column TEntry="SubmissionResult<Member>" Header="User" StringValue="@(context => context.Member.Name)"/>
+                            <Column TEntry="SubmissionResult<Member>" Header="Sprache" StringValue="@(context => context.Language)"/>
+                            <Column TEntry="SubmissionResult<Member>" Header="Ergebnis" StringValue="@(context => context.State)"/>
+                            <Column TEntry="SubmissionResult<Member>" Header="Ausführzeit" Value="@(context => context.ExecutionDuration)"  StringValue="@(context => context.ExecutionDuration.HasValue ? $"{context.ExecutionDuration} ms" : "")"/>
+                            <Column TEntry="SubmissionResult<Member>" Header="Reviewergebnis"  Value="@(context => context.ReviewResult)" StringValue="@(context => context.ReviewResult.ToString())">
+                                <img src="@($"/images/{(context.IsPassed ? "rating_star" + context.ReviewResult : "rating_unsolved")}.png")" style="height: 32px; width: 32px;"/>
+                            </Column>
+                            <Column TEntry="SubmissionResult<Member>" Header="Source">
+                                @if (PermissionHelper.CheckPermissions(Actions.View, "Submissions", Permissions, Restriction.Challenges, ChallengeName))
                                 {
-                                    <tr style="background-color: @(submission.NowFailing ? "lightyellow" : "white")">
-                                        <td>@submission.SubmissionDate</td>
-                                        <td>@submission.Member.Name</td>
-                                        <td>@submission.Language</td>
-                                        <td>
-                                            @submission.State
-                                        </td>
-                                        <td>
-                                            @if (submission.ExecutionDuration.HasValue)
-                                            {
-                                                @(submission.ExecutionDuration + " ms")
-                                            }
-                                        </td>
-                                        <td>
-                                            <img src="@($"/images/{(submission.IsPassed ? "rating_star" + submission.ReviewResult : "rating_unsolved")}.png")" style="height: 32px; width: 32px;"/>
-                                        </td>
-                                        <td>
-                                            @if (PermissionHelper.CheckPermissions(Actions.View, "Submissions", Permissions, Restriction.Challenges, ChallengeName))
-                                            {
-                                                <DownloadComponent Class="btn" Title="Download" Content='<span class="oi oi-data-transfer-download"></span>' Id="@Model.Id" SubId="@submission.Id" TwoIds="true" Url="api/Submission/Download" FileName=@($"{submission.Id}.zip")/>
-                                                <a href="/Submission/View/@Model.Id/@submission.Id" class="btn" title="Ansehen">
-                                                    <span class="oi oi-eye"></span>
-                                                </a>
-                                            }
-                                        </td>
-                                        <td>
-                                            @if (!submission.IsPassed)
-                                            {
-                                                <button @onclick="() => OpenTestDetails(submission.Id)" class="btn" title="Details ansehen">
-                                                    <span class="oi oi-eye"></span>
-                                                </button>
-                                            }
-                                            <button @onclick="() => RerunSubmission(submission.Id)" class="btn" title="Wiederholen">
-                                                <span class="oi oi-action-redo"></span>
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <DownloadComponent Class="btn" Title="Download" Content='<span class="oi oi - data - transfer - download"></span>' Id="@Model.Id" SubId="@context.Id" TwoIds="true" Url="api/Submission/Download" FileName=@($"{context.Id}.zip")/>
+                                    <a href="/Submission/View/@Model.Id/@context.Id" class="btn" title="Ansehen">
+                                        <span class="oi oi-eye"></span>
+                                    </a>
                                 }
-                                </tbody>
-                            </table>
+                            </Column>
+                            <Column TEntry="SubmissionResult<Member>" Header="Aktionen">
+                                @if (!context.IsPassed)
+                                {
+                                    <button @onclick="() => OpenTestDetails(context.Id)" class="btn" title="Details ansehen">
+                                        <span class="oi oi-eye"></span>
+                                    </button>
+                                }
+                                <button @onclick="() => RerunSubmission(context.Id)" class="btn" title="Wiederholen">
+                                    <span class="oi oi-action-redo"></span>
+                                </button>
+                            </Column>
+                        </Table>
+
+                        @if (Model?.Submissions?.Any() == true)
+                        {
                             <a @onclick="RerunAllSubmissions" class="btn btn-outline-dark">
                                 Alle Einreichungen Testen
                             </a>

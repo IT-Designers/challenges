@@ -1,49 +1,18 @@
 ﻿@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
+
 <div class="post">
-    <table class="ranking_table">
-        <thead>
-        <tr class="ranking_head">
-            <td>
-                Einreichender User
-            </td>
-            <td>
-                Bisherige Tests bestanden
-            </td>
-            <td>
-                Sprache
-            </td>
-            <td>
-                Einreichungsdatum
-            </td>
-            <td>
-                Wähle
-            </td>
-        </tr>
-        </thead>
-        @if (Model.AvailableSubmissions != null)
-        {
-            foreach (var submission in Model.AvailableSubmissions)
-            {
-                <tr>
-                    <td>
-                        @submission.Member.Name
-                    </td>
-                    <td>
-                        @submission.Submission.IsPassed
-                    </td>
-                    <td>
-                        @submission.Submission.Language
-                    </td>
-                    <td>
-                        @submission.Submission.SubmissionDate
-                    </td>
-                    <td>
-                        <button @onclick="@(() => SelectSubmission(submission.Submission.SubmissionId))" type="button" class="btn btn-info">Auswählen</button>
-                    </td>
-                </tr>
-            }
-        }
-    </table>
+
+    <Table TEntry="SubmissionModel<Result, Member>" Entries="Model.AvailableSubmissions" SearchEnabled="true">
+        <Column TEntry="SubmissionModel<Result, Member>" Header="Einreichender User" StringValue="@(context => context.Member.Name)"/>
+        <Column TEntry="SubmissionModel<Result, Member>" Header="Bisherige Tests bestanden" StringValue="@(context => context.Submission.IsPassed.ToString())"/>
+        <Column TEntry="SubmissionModel<Result, Member>" Header="Sprache" StringValue="@(context => context.Submission.Language)"/>
+        <Column TEntry="SubmissionModel<Result, Member>" Header="Einreichungsdatum"  Value="@(context => context.Submission.SubmissionDate)"  StringValue="@(context => context.Submission.SubmissionDate.ToShortDateString())" SortDirection="ListSortDirection.Descending"/>
+        <Column TEntry="SubmissionModel<Result, Member>" Header="Wähle">
+            <button @onclick="@(() => SelectSubmission(context.Submission.SubmissionId))" type="button" class="btn btn-info">Auswählen</button>
+        </Column>
+    </Table>
 </div>
 
 @code {

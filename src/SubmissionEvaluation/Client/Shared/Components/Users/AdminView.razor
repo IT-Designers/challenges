@@ -2,90 +2,60 @@
 @using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Models.Admin
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject IToastService Toaster
-@inject NavigationManager Navi
-@inject LoginService LoginService
+@inject HttpClient httpClient
+@inject IToastService toaster
+@inject NavigationManager navi
+@inject LoginService loginService
 
-<div id="users-table_wrapper" class="dataTables_wrapper no-footer">
-    <label for="searchInput">Suche: </label>
-    <input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="SearchValue" placeholder="Suche nach einem Benutzer"/>
-
-    <table id="users-table" class="display table dataTable no-footer" role="grid" aria-describedby="users-table_info">
-        <thead>
-        <tr>
-            <th>
-                <button class="no-styling" @onclick='() => Sort("ID")'>Uid</button>
-            </th>
-            <th>
-                <button class="no-styling" @onclick='() => Sort("Name")'>Name</button>
-            </th>
-            <th>
-                <button class="no-styling" @onclick='() => Sort("Status")'>Status</button>
-            </th>
-            <th>
-                <button class="no-styling" @onclick='() => Sort("Rollen")'>Rollen</button>
-            </th>
-            <th>
-                <button class="no-styling" @onclick='() => Sort("Gruppen")'>Gruppen</button>
-            </th>
-            <th>Bearbeiten</th>
-        </tr>
-        </thead>
-        <tbody>
-        @foreach (var member in Memberships.Members.Where(x => x.Name.ToLower().Contains(SearchValue.ToLower())))
-        {
-            <tr>
-                <td>
-                    <a class="no-link-coloring" href=@($"Members/Member/{member.Id}")>@(member.Uid != null ? member.Uid.Length > 8 ? member.Uid.Substring(0, 7) + ".." : member.Uid : "")</a>
-                </td>
-                <td>
-                    <a class="no-link-coloring" href=@($"Members/Member/{member.Id}")>@member.Name</a>
-                </td>
-                <td>@member.State</td>
-                <td>@string.Join(", ", member.Roles)</td>
-                <td>@string.Join(", ", member.Groups)</td>
-                <td>
-                    @if (member.State == MemberState.Pending)
-                    {
-                        <a @onclick="() => ActivatePendingMember(member.Id)" title="Freischalten" class="btn btn-sm">
-                            <span class="oi oi-lock-unlocked"></span>
-                        </a>
-                    }
-                    else
-                    {
-                        <a @onclick="() => ImpersonateMember(member.Id)" title="Impersonieren" class="btn btn-sm">
-                            <span class="oi oi-person"></span>
-                        </a>
-                        <a href=@($"Admin/ManageMemberRoles/{member.Id}") title="Rollen verwalten" class="btn btn-sm">
-                            <span class="oi oi-people"></span>
-                        </a>
-                        <a href=@($"Admin/ManageMemberGroups/{member.Id}") title="Gruppen verwalten" class="btn btn-sm">
-                            <span class="oi oi-tags"></span>
-                        </a>
-                        <a href=@($"Admin/ManageMemberReviewLevel/{member.Id}") title="Reviewlevel bearbeiten" class="btn btn-sm">
-                            <span class="oi oi-arrow-circle-top"></span>
-                        </a>
-                        @if (member.Type != MemberType.Ldap)
-                        {
-                            <a href=@($"Admin/ConfirmAction/{member.Id}/ResetMemberPassword") title="Passwort zurücksetzen" class="btn btn-sm">
-                                <span class="oi-key oi"></span>
-                            </a>
-                        }
-                        <a href=@($"Admin/ConfirmAction/{member.Id}/DeleteMember") title="Löschen" class="btn btn-sm">
-                            <span class="oi-trash oi"></span>
-                        </a>
-                        <a href=@($"Admin/ConfirmAction/{member.Id}/ResetMemberAvailableChallenges") title="Reset der verfügbaren Aufgaben" class="btn btn-sm">
-                            <span class="oi-action-undo oi"></span>
-                        </a>
-                    }
-                </td>
-            </tr>
-        }
-        </tbody>
-    </table>
-</div>
+<Table TEntry="Member" Entries="Memberships?.Members" TableClass="table table-sm table-responsive" SearchEnabled="true">
+    <Column TEntry="Member" Header="Uid" StringValue="@(context => context.Uid)">
+            <a class="no-link-coloring" href=@($"Members/Member/{context.Id}")>@(context.Uid != null ? context.Uid.Length > 8 ? context.Uid.Substring(0, 7) + ".." : context.Uid : "")</a>
+    </Column>
+    <Column TEntry="Member" Header="Name" StringValue="@(context => context.Name)" SortDirection="ListSortDirection.Ascending">
+            <a class="no-link-coloring" href=@($"Members/Member/{context.Id}")>@context.Name</a>
+    </Column>
+    <Column TEntry="Member" Header="Status" StringValue="@(context => context.State.ToString())"/>
+    <Column TEntry="Member" Header="Rollen" StringValue="@(context => string.Join(", ", context.Roles))"/>
+    <Column TEntry="Member" Header="Gruppen" StringValue="@(context => string.Join(", ", context.Groups))"/>
+    <Column TEntry="Member" Header="Aktionen">
+            @if (context.State == MemberState.Pending)
+            {
+                <a @onclick="() => ActivatePendingMember(context.Id)" title="Freischalten" class="btn btn-sm">
+                    <span class="oi oi-lock-unlocked"></span>
+                </a>
+            }
+            else
+            {
+                <a @onclick="() => ImpersonateMember(context.Id)" title="Impersonieren" class="btn btn-sm">
+                    <span class="oi oi-person"></span>
+                </a>
+                <a href=@($"Admin/ManageMemberRoles/{context.Id}") title="Rollen verwalten" class="btn btn-sm">
+                    <span class="oi oi-people"></span>
+                </a>
+                <a href=@($"Admin/ManageMemberGroups/{context.Id}") title="Gruppen verwalten" class="btn btn-sm">
+                    <span class="oi oi-tags"></span>
+                </a>
+                <a href=@($"Admin/ManageMemberReviewLevel/{context.Id}") title="Reviewlevel bearbeiten" class="btn btn-sm">
+                    <span class="oi oi-arrow-circle-top"></span>
+                </a>
+                @if (context.Type != MemberType.Ldap)
+                {
+                    <a href=@($"Admin/ConfirmAction/{context.Id}/ResetMemberPassword") title="Passwort zurücksetzen" class="btn btn-sm">
+                        <span class="oi-key oi"></span>
+                    </a>
+                }
+                <a href=@($"Admin/ConfirmAction/{context.Id}/DeleteMember") title="Löschen" class="btn btn-sm">
+                    <span class="oi-trash oi"></span>
+                </a>
+                <a href=@($"Admin/ConfirmAction/{context.Id}/ResetMemberAvailableChallenges") title="Reset der verfügbaren Aufgaben" class="btn btn-sm">
+                    <span class="oi-action-undo oi"></span>
+                </a>
+            }
+    </Column>
+</Table>
 
 @code {
 
@@ -95,49 +65,14 @@
     [Parameter]
     public EventCallback<GroupMemberships<Member>> MembershipsChanged { get; set; }
 
-    string SearchValue { get; set; } = string.Empty;
-
-    void Sort(string type)
+    protected override Task OnInitializedAsync()
     {
-        var members = Memberships.Members.ToList();
-        switch (type)
-        {
-            case "ID":
-                members.Sort((x, y) => x.Id.CompareTo(y.Id));
-                break;
-            case "Name":
-                members.Sort((x, y) => x.Name.CompareTo(y.Name));
-                break;
-            case "Status":
-                members.Sort((x, y) => x.State.CompareTo(y.State));
-                break;
-            case "Rollen":
-                members.Sort((x, y) =>
-                {
-                    if (x.Roles.Count() == y.Roles.Count())
-                    {
-                        return x.Roles.Length == 0 ? 0 : x.Roles.First().CompareTo(y.Roles.First());
-                    }
-                    return x.Roles.Count() > y.Roles.Count() ? -1 : 1;
-                });
-                break;
-            case "Gruppen":
-                members.Sort((x, y) =>
-                {
-                    if (x.Groups.Count() == y.Groups.Count())
-                    {
-                        return x.Groups.Length == 0 ? 0 : x.Groups.First().CompareTo(y.Groups.First());
-                    }
-                    return x.Groups.Count() > y.Groups.Count() ? -1 : 1;
-                });
-                break;
-        }
-        Memberships.Members = members;
+        return Task.CompletedTask;
     }
 
     async void ActivatePendingMember(string id)
     {
-        var responseMessage = await HttpClient.PostAsJsonAsync("api/Admin/ActivatePendingMember", id);
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/ActivatePendingMember", id);
         var model = new AdminUserModel<Member>();
         if (responseMessage.IsSuccessStatusCode)
         {
@@ -147,14 +82,14 @@
         {
             Memberships = model.GroupMemberships.First();
             await MembershipsChanged.InvokeAsync(Memberships);
-            Toaster.ShowSuccess("Pending member was successfully activated.");
+            toaster.ShowSuccess("Pending member was successfully activated.");
         }
         StateHasChanged();
     }
 
     async void ImpersonateMember(string id)
     {
-        var responseMessage = await HttpClient.PostAsJsonAsync("api/Admin/ImpersonateMember", id);
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/ImpersonateMember", id);
         var model = new AdminUserModel<Member>();
         if (responseMessage.IsSuccessStatusCode)
         {
@@ -162,14 +97,14 @@
         }
         if (model.HasSuccess)
         {
-            LoginService.InvokeEvent();
-            Navi.NavigateTo("Account/View");
+            loginService.InvokeEvent();
+            navi.NavigateTo("Account/View");
         }
     }
 
     async void IncreaseMemberReviewLevel(string id)
     {
-        var responseMessage = await HttpClient.PostAsJsonAsync("api/Admin/IncreaseMemberReviewLevel", id);
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/IncreaseMemberReviewLevel", id);
         if (responseMessage.IsSuccessStatusCode)
         {
             var model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();

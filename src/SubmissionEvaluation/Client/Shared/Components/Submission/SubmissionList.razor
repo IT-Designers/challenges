@@ -1,89 +1,44 @@
 @using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
+@inject HttpClient httpClient
+@inject NavigationManager navi
 
-<style>
-
-    .myTab td {
-        padding: 0 2px;
-        vertical-align: middle;
-    }
-
-    .myTab th {
-        padding: 0 2px;
-        vertical-align: middle;
-    }
-
-    .myTab { cursor: pointer; }
-</style>
-
-@if (Model.Submissions != null && Model.Submissions.Count == 0)
-{
-}
-else
-{
-    <table class="ranking_table table myTab">
-        <thead>
-        <tr class="ranking_head">
-            <th class="th_name">Datum</th>
-            <th class="th_name" style="width: 99%">Sprache</th>
-            <th class="th_name" colspan="2">Ergebnis</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr style="@(Model.SubmissionId != null ? null : "background-color: lavender")" class="clickable-row" @onclick="() => SelectSubmission(null)">
-            <td colspan="4" style="text-align: center">
-                <b>Neue Einreichung</b>
-            </td>
-        </tr>
-        @if (Model.Submissions != null)
+<Table TEntry="SubmissionResult<Member>" TableClass="table table-sm" Entries="Model?.Submissions" RowClick="SelectSubmission" RowColor="@(context => context.Id == Model.SubmissionId ? "lavender" : null)">
+    <Column TEntry="SubmissionResult<Member>" Header="Datum">
+        @(context.SubmissionDate.Date == DateTime.Today ? context.SubmissionDate.ToShortTimeString() : context.SubmissionDate.ToShortDateString())
+    </Column>
+    <Column TEntry="SubmissionResult<Member>" Header="Sprache">
+        @context.Language
+        @if (context.IsPassed && context.ExecutionDuration.HasValue)
         {
-            @foreach (var submission in Model.Submissions)
+            <br/>
+            @(context.ExecutionDuration + " ms")
+        }
+    </Column>
+    <Column TEntry="SubmissionResult<Member>" Header="Ergebnis">
+        @if (context.IsPassed)
+        {
+            <img src=@($"/images/rating_star{context.ReviewResult}.png") style="height: 24px; width: 24px;"/>
+            if (context.HasReviewData)
             {
-                <tr style="@(submission.Id != Model.SubmissionId ? "" : "background-color: lavender")" class="clickable-row" @onclick="() => SelectSubmission(submission.Id)">
-                    <td> @submission.SubmissionDate</td>
-                    <td>
-                        @submission.Language
-                        @if (submission.IsPassed && submission.ExecutionDuration.HasValue)
-                        {
-                            <br/>
-                            @(submission.ExecutionDuration + " ms")
-                        }
-                    </td>
-                    <td>
-                        @if (submission.IsPassed)
-                        {
-                            <img src=@($"/images/rating_star{submission.ReviewResult}.png") style="height: 24px; width: 24px;"/>
-                        }
-                        else if (!submission.IsQueued)
-                        {
-                            <img src="@("/images/rating_unsolved.png")" style="height: 24px; width: 24px;"/>
-                        }
-                        else
-                        {
-                            <img src="@("/images/rating_missing.png")" style="height: 24px; width: 24px;"/>
-                        }
-                    </td>
-                    <td>
-                        @if (submission.IsPassed)
-                        {
-                            if (submission.HasReviewData)
-                            {
-                                <a href="/Review/View/@Model.Id/@submission.Id" class="btn" title="Reviewergebnis anzeigen" style="padding: 0;">
-                                    <span class="oi oi-eye"></span>
-                                </a>
-                            }
-                        }
-                    </td>
-                </tr>
+                <a href="/Review/View/@Model.Id/@context.Id" class="btn-link ml-1" title="Reviewergebnis anzeigen">
+                    <span class="oi oi-eye"></span>
+                </a>
             }
         }
-
-        </tbody>
-    </table>
-}
+        else if (!context.IsQueued)
+        {
+            <img src="@("/images/rating_unsolved.png")" style="height: 24px; width: 24px;"/>
+        }
+        else
+        {
+            <img src="@("/images/rating_missing.png")" style="height: 24px; width: 24px;"/>
+        }
+    </Column>
+</Table>
 
 @code {
 
@@ -93,13 +48,13 @@ else
     [Parameter]
     public EventCallback<UploadModel<Result, Member>> ModelChanged { get; set; }
 
-    private async void SelectSubmission(string submissionId)
+    private async void SelectSubmission(SubmissionResult<Member> submissionResult)
     {
-        Model.SubmissionId = submissionId;
-        Model = await HttpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{Model.Id}/{submissionId}");
+        Model.SubmissionId = submissionResult.Id;
+        Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{Model.Id}/{submissionResult.Id}");
         if (Model.HasError)
         {
-            Navi.NavigateTo($"Home/Error/{Model.Message}");
+            navi.NavigateTo($"Home/Error/{Model.Message}");
         }
         await ModelChanged.InvokeAsync(Model);
         StateHasChanged();
