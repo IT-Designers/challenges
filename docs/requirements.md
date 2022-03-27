@@ -17,7 +17,8 @@ Functional Requirements
 - Learners should receive feedback on whether their submission passes all automated tests, or if not, the reason for error
 - Participants should receive a review of their submission to learn best programming practices from colleagues
 - Teachers should administrate learning groups (define challenges to support the learning)
-- Teachers should monitor the progress of their learners (including duplicate checks)
+- Teachers should administrate their learners (reset passwords and challenges, mark learning group as passed)
+- Teachers should monitor the progress of their learners (including points, duplicate checks, is group passed)
 - Creators should define challenges and screen submissions for them
 - Reviewers should evaluate submissions for their programming language expertise, but restricted to those challenges, they have solved by their own
 

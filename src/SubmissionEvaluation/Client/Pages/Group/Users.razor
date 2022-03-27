@@ -1,0 +1,175 @@
+@page "/Group/{groupId}/Users"
+
+@using Submission = SubmissionEvaluation.Contracts.Data.Result
+@using System.Net.Http.Json
+@using System.Text
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
+
+@inject HttpClient httpClient
+@inject NavigationManager navi
+
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+            <div class="post-header">
+                @if (Model != null)
+                {
+                    <h1>@Model.GroupName</h1>
+                    @if (Model.RequiredPoints.HasValue)
+                    {
+                        <p>
+                            Erforderliche Punkte:&nbsp;@Model.RequiredPoints | Teilnehmer:&nbsp;@Model.Members.Count | Fortschritt: <span class="oi oi-badge"></span>&nbsp;@Model.Members.Count(x => x.Passed) | <span class="oi oi-circle-check"></span>&nbsp;@Model.Members.Count(x => !x.Passed && Model.RequiredPoints <= x.Points) | <span class="oi oi-circle-x"></span>&nbsp;@Model.Members.Count(x => x.Points < Model.RequiredPoints)
+                        </p>
+                    }
+                    else
+                    {
+                        <p>
+                            Teilnehmer:&nbsp;@Model.Members.Count | Bestanden: <span class="oi oi-badge"></span>&nbsp;@Model.Members.Count(x => x.Passed)
+                        </p>
+                    }
+                }
+                else
+                {
+                    <Wave/>
+                }
+            </div>
+
+            @if (!(ActionToConfirm is null))
+            {
+                <ConfirmAction ActionMessage="@ActionMessage" OnConfirmed="ActionToConfirm" OnCanceled="CancelAction"></ConfirmAction>
+            }
+            else
+            {
+                <Table TEntry="GroupMember" Entries="Model?.Members" TableClass="table table-sm" NoEntriesText="Keine Benutzer vorhanden." SearchEnabled="true">
+                    <Column TEntry="GroupMember" Header="Id" StringValue="@(context => context.Uid)">
+                        <a class="no-link-coloring" href="@($"Members/Member/{context.Id}")">@context.Uid</a>
+                    </Column>
+                    <Column TEntry="GroupMember" Header="Name" StringValue="@(context => context.Name)">
+                        <a class="no-link-coloring" href="@($"Members/Member/{context.Id}")">@context.Name</a>
+                    </Column>
+                    <Column TEntry="GroupMember" Header="E-Mail" StringValue="@(context => context.Mail)"/>
+                    <Column TEntry="GroupMember" Header="Fortschritt" Value="@(context => context.Points)" SortDirection="ListSortDirection.Descending">
+                        <span title="@(GetProgressText(context))">
+                            @(GetProgressIcon(context))
+                            @if (Model.RequiredPoints.HasValue)
+                            {
+                                <progress style="height: 0.8em; width: 6em;" value="@context.Points" max="@Model.RequiredPoints"></progress>
+                                @(context.Points)
+                            }
+                        </span>
+                    </Column>
+                    <Column TEntry="GroupMember" Header="Min" Value="@(context => context.MinDuplicate)" TextAlignment="TextAlignment.Right">
+                        <span title="Niedrigster Duplikatswert">
+                            @(context.MinDuplicate)%
+                        </span>
+                    </Column>
+                    <Column TEntry="GroupMember" Header="Avg." Value="@(context => context.AverageDuplicate)" TextAlignment="TextAlignment.Right">
+                        <span title="Durchschnittlicher Duplikatswert">
+                            @(Math.Ceiling(context.AverageDuplicate))%
+                        </span>
+                    </Column>
+                    <Column TEntry="GroupMember" Header="Max" Value="@(context => context.MaxDuplicate)" TextAlignment="TextAlignment.Right">
+                        <span title="Höchster Duplikatswert">
+                            @(context.MaxDuplicate)%
+                        </span>
+                    </Column>
+                    <Column TEntry="GroupMember" Header="Aktionen">
+                        @if (context.CanResetPassword)
+                        {
+                            <button type="button" class="btn btn-sm btn-link" @onclick="@(() => ResetPassword(context))" title="Passwort zurücksetzen">
+                                <span class="oi oi-key"></span>
+                            </button>
+                        }
+                        <button type="button" class="btn btn-sm btn-link" @onclick="@(() => ResetChallenges(context))" title="Reset der verfügbaren Aufgaben">
+                            <span class="oi oi-action-undo"></span>
+                        </button>
+                        @if (!context.Passed && (Model.RequiredPoints ?? 0) <= context.Points)
+                        {
+                            <button type="button" class="btn btn-sm btn-link" @onclick="@(() => MarkAsPassed(context))" title="Labor als bestanden markieren">
+                                <span class="oi oi-badge"></span>
+                            </button>
+                        }
+                    </Column>
+                </Table>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string GroupId { get; set; }
+
+    GroupMembers Model { get; set; }
+
+    string ActionMessage { get; set; } = string.Empty;
+    Func<Task> ActionToConfirm { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await httpClient.GetFromJsonAsync<GroupMembers>($"api/Group/{GroupId}/Users");
+        StateHasChanged();
+    }
+
+    private string GetProgressText(GroupMember member)
+    {
+        if (member.Passed)
+        {
+            return "Labor bestanden";
+        }
+        return member.Points < Model.RequiredPoints ? "Erforderliche Punktzahl noch nicht erreicht" : "Erforderliche Punktzahl erreicht";
+    }
+
+    private RenderFragment GetProgressIcon(GroupMember member)
+    {
+        if (member.Passed)
+        {
+            return @<span class="oi oi-badge"></span>;
+        }
+        if (member.Points < Model.RequiredPoints)
+        {
+            return @<span class="oi oi-circle-x"></span>;
+        }
+        return @<span class="oi oi-circle-check"></span>;
+    }
+
+    private void ResetPassword(GroupMember member)
+    {
+        ActionMessage = $"Wollen sie das Password für {member.Name} wirklich zurücksetzen?";
+        ActionToConfirm = () =>
+        {
+            ActionToConfirm = null;
+            navi.NavigateTo($"Admin/ResetMemberPassword/{member.Id}");
+            return Task.CompletedTask;
+        };
+    }
+
+    private void ResetChallenges(GroupMember member)
+    {
+        ActionMessage = $"Wollen sie die Liste der bearbeitbaren Challenges für {member.Name} wirklich zurücksetzen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.PostAsJsonAsync("api/Admin/ResetMemberAvailableChallenges", member.Id);
+        };
+    }
+
+    private void MarkAsPassed(GroupMember member)
+    {
+        ActionMessage = $"Wollen sie das Labor für {member.Name} wirklich als bestanden markieren?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.PatchAsync($"api/Group/{GroupId}", new StringContent($"\"{member.Id}\"", Encoding.UTF8, "application/json"));
+            member.Passed = true;
+        };
+    }
+
+    private void CancelAction()
+    {
+        ActionToConfirm = null;
+    }
+
+}

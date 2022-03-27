@@ -39,6 +39,12 @@
                         <Column TEntry="Group" Header="Id" StringValue="@(context => context.Id)"/>
                         <Column TEntry="Group" Header="Name" StringValue="@(context => context.Title)" SortDirection="ListSortDirection.Ascending"/>
                         <Column TEntry="Group" Header="Aktionen">
+                            @if (PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
+                            {
+                                <a href=@($"Group/{context.Id}/Users") title="Gruppenmitglieder" class="btn btn-sm">
+                                    <span class="oi oi-people"></span>
+                                </a>
+                            }
                             <a href=@($"Group/Edit/{context.Id}") title="Editieren" class="btn btn-sm">
                                 <span class="oi oi-pencil"></span>
                             </a>

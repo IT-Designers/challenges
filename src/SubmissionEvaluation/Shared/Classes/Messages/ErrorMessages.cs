@@ -36,5 +36,6 @@ namespace SubmissionEvaluation.Shared.Classes.Messages
         public static string CategoryMissing => nameof(CategoryMissing);
         public static string MissingId => nameof(MissingId);
         public static string RegistrationFailed => nameof(RegistrationFailed);
+        public static string InsufficientPoints => nameof(InsufficientPoints);
     }
 }

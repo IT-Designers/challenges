@@ -22,6 +22,7 @@ namespace SubmissionEvaluation.Contracts.Data
         public string[] ForcedChallenges { get => forcedChallenges ?? new string[0]; set => forcedChallenges = value; }
 
         public int? RequiredPoints { get; set; }
+        public List<string> PassedMemberIds { get; set; } = new List<string>();
         public DateTime? StartDate { get; set; }
 
         public bool IsSuperGroup { get; set; }

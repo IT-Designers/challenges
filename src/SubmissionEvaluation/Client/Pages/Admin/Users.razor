@@ -2,22 +2,21 @@
 
 @using Submission = SubmissionEvaluation.Contracts.Data.Result
 @using System.Net.Http.Json
-@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
-@using SubmissionEvaluation.Shared.Models.Admin
-@using SubmissionEvaluation.Shared.Models.Permissions
-@using Group = SubmissionEvaluation.Contracts.ClientPocos.Group
+@using SubmissionEvaluation.Client.Services
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
-@using SubmissionEvaluation.Client.Pages.Members
-@using SubmissionEvaluation.Client.Shared.Components.Users
+@using SubmissionEvaluation.Shared.Models.Admin
+@using SubmissionEvaluation.Shared.Models.Permissions
+@using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
-@inject IJSRuntime Runtime
+@inject HttpClient httpClient
+@inject LoginService loginService
+@inject NavigationManager navi
+@inject IJSRuntime runtime
+@inject IToastService toaster
 
-<style>
-    a:hover { cursor: pointer; }
-</style>
 <div class="row">
     <div class="col-12">
         <div class="post-area post">
@@ -25,33 +24,64 @@
 
                 <h1>
                     Benutzer verwalten
-                    @if (Permissions.IsAdmin)
-                    {
-                        <a href="Admin/AddUser" title="Neuen User anlegen" class="btn btn-sm">
-                            <span class="oi oi-plus"></span>
-                        </a>
-                    }
+                    <a href="Admin/AddUser" title="Neuen User anlegen" class="btn btn-sm">
+                        <span class="oi oi-plus"></span>
+                    </a>
                 </h1>
 
             </div>
-            @if (Model != null)
+            @if (ActionToConfirm != null)
             {
-                if (Permissions.IsAdmin)
-                {
-                    var memberships = Model.GroupMemberships.First();
-                    <AdminView @bind-memberships="memberships"/>
-                }
-                else
-                {
-                    @foreach (var memberships in Model.GroupMemberships.OrderByDescending(x => x.GroupName))
-                    {
-                        <GroupAdminView Memberships="memberships" Groups="Groups" PointsForRelevantMembers="PointsForRelevantMembers"/>
-                    }
-                }
+                <ConfirmAction ActionMessage="@ActionMessage" OnConfirmed="ActionToConfirm" OnCanceled="CancelAction"></ConfirmAction>
             }
             else
             {
-                <Wave />
+                <Table TEntry="Member" Entries="Model?.Members" TableClass="table table-sm table-responsive" SearchEnabled="true">
+                    <Column TEntry="Member" Header="Uid" StringValue="@(context => context.Uid)">
+                        <a class="no-link-coloring" href=@($"Members/Member/{context.Id}")>@(context.Uid != null ? context.Uid.Length > 8 ? context.Uid.Substring(0, 7) + ".." : context.Uid : "")</a>
+                    </Column>
+                    <Column TEntry="Member" Header="Name" StringValue="@(context => context.Name)" SortDirection="ListSortDirection.Ascending">
+                        <a class="no-link-coloring" href=@($"Members/Member/{context.Id}")>@context.Name</a>
+                    </Column>
+                    <Column TEntry="Member" Header="Status" StringValue="@(context => context.State.ToString())"/>
+                    <Column TEntry="Member" Header="Rollen" StringValue="@(context => string.Join(", ", context.Roles))"/>
+                    <Column TEntry="Member" Header="Gruppen" StringValue="@(context => string.Join(", ", context.Groups))"/>
+                    <Column TEntry="Member" Header="Aktionen">
+                        @if (context.State == MemberState.Pending)
+                        {
+                            <a @onclick="() => ActivatePendingMember(context.Id)" title="Freischalten" class="btn btn-sm">
+                                <span class="oi oi-lock-unlocked"></span>
+                            </a>
+                        }
+                        else
+                        {
+                            <a @onclick="() => ImpersonateMember(context.Id)" title="Impersonieren" class="btn btn-sm">
+                                <span class="oi oi-person"></span>
+                            </a>
+                            <a href=@($"Admin/ManageMemberRoles/{context.Id}") title="Rollen verwalten" class="btn btn-sm">
+                                <span class="oi oi-people"></span>
+                            </a>
+                            <a href=@($"Admin/ManageMemberGroups/{context.Id}") title="Gruppen verwalten" class="btn btn-sm">
+                                <span class="oi oi-tags"></span>
+                            </a>
+                            <a href=@($"Admin/ManageMemberReviewLevel/{context.Id}") title="Reviewlevel bearbeiten" class="btn btn-sm">
+                                <span class="oi oi-arrow-circle-top"></span>
+                            </a>
+                            @if (context.Type != MemberType.Ldap)
+                            {
+                                <button type="button" class="btn btn-sm btn-link" @onclick="@(() => ResetPassword(context))" title="Passwort zurücksetzen">
+                                    <span class="oi oi-key"></span>
+                                </button>
+                            }
+                            <button type="button" class="btn btn-sm btn-link" @onclick="@(() => DeleteMember(context))" title="Löschen">
+                                <span class="oi oi-trash"></span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link" @onclick="@(() => ResetAvailableChallenges(context))" title="Reset der verfügbaren Aufgaben">
+                                <span class="oi oi-action-undo"></span>
+                            </button>
+                        }
+                    </Column>
+                </Table>
             }
         </div>
     </div>
@@ -61,35 +91,92 @@
     AdminUserModel<Member> Model { get; set; }
 
     Permissions Permissions { get; set; } = new Permissions();
-    AdminGroupsModel<Group> Groups { get; set; } = new AdminGroupsModel<Group>();
-    Dictionary<string, List<PointsHoldTupel<Submission, Member>>> PointsForRelevantMembers { get; set; } = new Dictionary<string, List<PointsHoldTupel<Submission, Member>>>();
+
+    string ActionMessage { get; set; } = string.Empty;
+    Func<Task> ActionToConfirm { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
         if (!PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
         {
-            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
+            navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        if (Permissions.IsAdmin)
-        {
-            Model = await HttpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Admin/Users");
-        }
-        else
-        {
-            Model = await HttpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Group/Users");
-            Groups = await HttpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
-            var res = await HttpClient.PostAsJsonAsync("api/Members/PointsList", Model.GroupMemberships.SelectMany(x => x.Members).Select(x => x.Id).Distinct());
-            if (res.IsSuccessStatusCode)
-            {
-                var pointLists = await res.Content.ReadFromJsonAsync<List<Tuple<string, List<PointsHoldTupel<Submission, Member>>>>>();
-                foreach (var (memberId, pointList) in pointLists)
-                {
-                    PointsForRelevantMembers[memberId] = pointList;
-                }
-            }
-        }
+        Model = await httpClient.GetFromJsonAsync<AdminUserModel<Member>>("api/Admin/Users");
+
         StateHasChanged();
+    }
+
+    async void ActivatePendingMember(string id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/ActivatePendingMember", id);
+        var model = new AdminUserModel<Member>();
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+        }
+        if (!model.HasSuccess)
+        {
+            return;
+        }
+
+        Model.Members = model.Members;
+        toaster.ShowSuccess("Pending member was successfully activated.");
+        StateHasChanged();
+    }
+
+    async void ImpersonateMember(string id)
+    {
+        var responseMessage = await httpClient.PostAsJsonAsync("api/Admin/ImpersonateMember", id);
+        var model = new AdminUserModel<Member>();
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            model = await responseMessage.Content.ReadFromJsonAsync<AdminUserModel<Member>>();
+        }
+        if (!model.HasSuccess)
+        {
+            return;
+        }
+
+        loginService.InvokeEvent();
+        navi.NavigateTo("Account/View");
+    }
+
+    private void ResetPassword(IMember member)
+    {
+        ActionMessage = $"Wollen sie das Password für {member.Name} wirklich zurücksetzen?";
+        ActionToConfirm = () =>
+        {
+            ActionToConfirm = null;
+            navi.NavigateTo($"Admin/ResetMemberPassword/{member.Id}");
+            return Task.CompletedTask;
+        };
+    }
+
+    private void ResetAvailableChallenges(IMember member)
+    {
+        ActionMessage = $"Wollen sie die Liste der bearbeitbaren Challenges für {member.Name} wirklich zurücksetzen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.PostAsJsonAsync("api/Admin/ResetMemberAvailableChallenges", member.Id);
+        };
+    }
+
+    private void DeleteMember(IMember member)
+    {
+        ActionMessage = $"Wollen sie die {member.Name} wirklich löschen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.DeleteAsync($"api/Group/{member.Id}");
+            Model.Members = Model.Members.Where(x => x.Id != member.Id).ToList();
+        };
+    }
+
+    private void CancelAction()
+    {
+        ActionToConfirm = null;
     }
 
 }

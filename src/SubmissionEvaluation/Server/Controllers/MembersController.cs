@@ -159,30 +159,6 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(new Permissions());
         }
 
-        [HttpGet("PointsList/{id}")]
-        public IActionResult PointsList([FromRoute] string id)
-        {
-            var member = JekyllHandler.MemberProvider.GetMemberById(id);
-            var points = JekyllHandler.Domain.Query.GetSubmitterRanklist(member).Submissions
-                .Where(x => x.Challenge != "ChallengeCreators" && x.Challenge != "Achievements" && x.Challenge != "Reviews")
-                .Select(x => GetDuplicateInfo(member, x)).ToList();
-            return Ok(points);
-        }
-
-        [HttpPost("PointsList")]
-        public IActionResult PointsList([FromBody] List<string> memberIds)
-        {
-            var points = memberIds.AsParallel().Select(id =>
-            {
-                var member = JekyllHandler.MemberProvider.GetMemberById(id);
-                return (id,
-                    JekyllHandler.Domain.Query.GetSubmitterRanklist(member).Submissions
-                        .Where(x => x.Challenge != "ChallengeCreators" && x.Challenge != "Achievements" && x.Challenge != "Reviews")
-                        .Select(x => GetDuplicateInfo(member, x)).ToList());
-            });
-            return Ok(points);
-        }
-
         private string FormatSemester(Semester semester)
         {
             if (semester == null)

@@ -40,23 +40,27 @@
                     </div>
                 }
 
-                @if (Model.Groups.Any(x => x.RequiredPoints > 0))
+                @if (Model.Groups.Any(x => x.PassedMemberIds.Contains(Model.Id) || x.RequiredPoints > 0))
                 {
                     <div>
                         <h3>Fortschritt</h3>
                     </div>
 
-                    @foreach (var group in Model.Groups.Where(x => x.RequiredPoints > 0))
+                    @foreach (var group in Model.Groups.Where(x => x.PassedMemberIds.Contains(Model.Id) || x.RequiredPoints > 0))
                     {
-                        var solved = Points.Where(x => group.AvailableChallenges.Length == 0 || group.AvailableChallenges.Contains(x.Challenge)).ToList();
-                        var collectedPoints = solved.Count == 0 ? 0 : solved.Sum(x => x.Points);
-                        var requiredChallenges = collectedPoints == 0 || solved.Count == 0 ? group.RequiredPoints.Value : (int)Math.Ceiling(group.RequiredPoints.Value / (collectedPoints / (double)solved.Count));
                         <div class="row">
-                            <div class="col form-group">
-                                <label class="col-form-label">
-                                    <span class="oi @(solved.Count >= requiredChallenges ? "oi-circle-check" : "oi-circle-x") "></span> @group.Title
-                                </label>
-                                <progress style="height: 0.8em;" value="@collectedPoints" max="@group.RequiredPoints"></progress>&nbsp;@($"[{solved.Count} von ~{requiredChallenges} Aufgaben]")
+                            <div class="col">
+                                <p title="@(GetProgressText(group))">
+                                    @{
+                                        @(GetProgressIcon(group))
+                                        <span style="margin-left: 0.5em;">@group.Title</span>
+                                        @if (group.RequiredPoints.HasValue)
+                                        {
+                                            <progress style="height: 0.8em; width: 10em; margin: 0 0.5em;" value="@(GetPoints(group))" max="@group.RequiredPoints"></progress>
+                                            @($"[{GetSolvedCount(group)} von ~{GetRequiredChallenges(group)} Aufgaben]")
+                                        }
+                                    }
+                                </p>
                             </div>
                         </div>
                     }
@@ -142,8 +146,47 @@
         Points = await HttpClient.GetFromJsonAsync<List<SubmitterRankingEntry>>("api/Account/PointsList");
         Achievements = await HttpClient.GetFromJsonAsync<List<Achievement>>("api/Members/GetAchievements");
         MemberModel = await HttpClient.GetFromJsonAsync<MemberModel<Result, Member>>($"api/Members/Get/{Model.Id}");
-
         StateHasChanged();
+    }
+
+    private int GetSolvedCount(IGroup group)
+    {
+        return Points.Count(x => group.AvailableChallenges.Contains(x.Challenge));
+    }
+
+    private int GetPoints(IGroup group)
+    {
+        return Points.Where(x => group.AvailableChallenges.Contains(x.Challenge)).Select(x => x.Points).Sum();
+    }
+
+    private int GetRequiredChallenges(IGroup group)
+    {
+        var solvedCount = GetSolvedCount(group);
+        var points = GetPoints(group);
+        return solvedCount == 0 || points == 0 ? group.RequiredPoints!.Value : (int)Math.Ceiling(group.RequiredPoints!.Value / (points / (double)solvedCount));
+    }
+
+    private string GetProgressText(IGroup group)
+    {
+        if (group.PassedMemberIds.Contains(Model.Id))
+        {
+            return "Labor bestanden";
+        }
+
+        return GetPoints(group) < group.RequiredPoints!.Value ? "Erforderliche Punktzahl noch nicht erreicht" : "Erforderliche Punktzahl erreicht";
+    }
+
+    private RenderFragment GetProgressIcon(IGroup group)
+    {
+        if (group.PassedMemberIds.Contains(Model.Id))
+        {
+            return @<span class="oi oi-badge"></span>;
+        }
+        if (GetPoints(group) < group.RequiredPoints!.Value)
+        {
+            return @<span class="oi oi-circle-x"></span>;
+        }
+        return @<span class="oi oi-circle-check"></span>;
     }
 
 }

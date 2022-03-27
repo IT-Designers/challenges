@@ -1017,7 +1017,7 @@ namespace SubmissionEvaluation.Domain
                 return;
             }
 
-            var roles = new List<string>(member.Roles) {role};
+            var roles = new List<string>(member.Roles) { role };
             domain.MemberProvider.UpdateRoles(member, roles.ToArray());
         }
 
@@ -1029,7 +1029,8 @@ namespace SubmissionEvaluation.Domain
                 return;
             }
 
-            if (member.ReviewLanguages[language].ReviewLevel == ReviewLevelType.Master || member.ReviewLanguages[language].ReviewLevel == ReviewLevelType.Deactivated)
+            if (member.ReviewLanguages[language].ReviewLevel == ReviewLevelType.Master ||
+                member.ReviewLanguages[language].ReviewLevel == ReviewLevelType.Deactivated)
             {
                 return;
             }
@@ -1090,7 +1091,7 @@ namespace SubmissionEvaluation.Domain
             foreach (var challenge in challenges)
             {
                 var allSubmission = fp.LoadAllSubmissionsFor(fp.LoadChallenge(challenge));
-                var submissions = allSubmission.Where(x => x.IsPassed).OrderBy(x => x.SubmissionDate).Select(x => new DupeCheck {Result = x}).ToList();
+                var submissions = allSubmission.Where(x => x.IsPassed).OrderBy(x => x.SubmissionDate).Select(x => new DupeCheck { Result = x }).ToList();
                 var notChecked = submissions.Where(x => x.Result.DuplicateScore == null).ToList();
                 if (notChecked.Count > 0)
                 {
@@ -1099,7 +1100,8 @@ namespace SubmissionEvaluation.Domain
                     {
                         var files = query.GetSubmissionRelativeFilesPathInZip(sub.Result);
                         var compiler = domain.CompilerOperations.GetCompilerForContent(files);
-                        var srcFiles = compiler.GetSourceFiles(files).Select(x => Regex.Replace(query.GetSubmissionSourceCodeInZip(sub.Result,x).ToLower(), @"[\s\n\r]+", string.Empty));
+                        var srcFiles = compiler.GetSourceFiles(files).Select(x =>
+                            Regex.Replace(query.GetSubmissionSourceCodeInZip(sub.Result, x).ToLower(), @"[\s\n\r]+", string.Empty));
                         sub.Source = srcFiles.ToArray();
                     }
 
@@ -1108,8 +1110,8 @@ namespace SubmissionEvaluation.Domain
                         var bestScore = 0;
                         Result bestMatch = null;
                         foreach (var sub in submissions.Where(x =>
-                            x.Result.SubmissionDate < toCheck.Result.SubmissionDate &&
-                            x.Result.SubmissionDate >= toCheck.Result.SubmissionDate.AddDays(-Settings.DuplicateCheckWindow)))
+                                     x.Result.SubmissionDate < toCheck.Result.SubmissionDate && x.Result.SubmissionDate >=
+                                     toCheck.Result.SubmissionDate.AddDays(-Settings.DuplicateCheckWindow)))
                         {
                             var score = EvaluateDuplicationScore(toCheck, sub);
                             if (score > bestScore)
@@ -1157,7 +1159,7 @@ namespace SubmissionEvaluation.Domain
                 scoreSum += bestScore;
             }
 
-            return (int) (100 * scoreSum / Math.Max(toCheck.Source.Length, otherToCheck.Source.Length));
+            return (int)(100 * scoreSum / Math.Max(toCheck.Source.Length, otherToCheck.Source.Length));
         }
 
         public string RunTestGenerator(string challengeId, string submissionId, string input, string[] arguments)
@@ -1438,6 +1440,18 @@ namespace SubmissionEvaluation.Domain
             }
 
             domain.ProviderStore.FileProvider.DeleteGroup(id);
+        }
+
+        public void UpdateGroupPassedMemberIds(string groupId, string memberId)
+        {
+            using var writeLock = domain.ProviderStore.FileProvider.GetLock();
+            var group = domain.ProviderStore.FileProvider.LoadGroup(groupId, writeLock);
+            if (!group.PassedMemberIds.Contains(memberId))
+            {
+                group.PassedMemberIds.Add(memberId);
+            }
+
+            domain.ProviderStore.FileProvider.SaveGroup(group, writeLock);
         }
 
         public void VerifyMembers()

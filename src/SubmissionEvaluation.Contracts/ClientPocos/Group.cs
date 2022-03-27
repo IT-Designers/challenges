@@ -13,6 +13,7 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
             AvailableChallenges = group.AvailableChallenges;
             MaxUnlockedChallenges = group.MaxUnlockedChallenges;
             RequiredPoints = group.RequiredPoints;
+            PassedMemberIds = group.PassedMemberIds;
             Title = group.Title;
             StartDate = group.StartDate;
             EndDate = group.EndDate;
@@ -38,6 +39,7 @@ namespace SubmissionEvaluation.Contracts.ClientPocos
         public string[] ForcedChallenges { get; set; }
 
         public int? RequiredPoints { get; set; }
+        public List<string> PassedMemberIds { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
