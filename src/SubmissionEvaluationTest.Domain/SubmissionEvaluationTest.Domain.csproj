@@ -1,25 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  
-  <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <ApplicationIcon />
-    <OutputType>Library</OutputType>
-    <StartupObject />
-  </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="coverlet.msbuild" Version="3.1.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-      <PackageReference Include="NUnit" Version="3.13.2" />
-      <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0" />
-      <PackageReference Include="NSubstitute" Version="4.3.0" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+        <ApplicationIcon/>
+        <OutputType>Library</OutputType>
+        <StartupObject/>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\SubmissionEvaluation.Domain\SubmissionEvaluation.Domain.csproj" />
-    <ProjectReference Include="..\SubmissionEvaluation.Providers.FileProvider\SubmissionEvaluation.Providers.FileProvider.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="coverlet.msbuild" Version="3.1.2">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="FluentAssertions" Version="6.5.1"/>
+        <PackageReference Include="NUnit" Version="3.13.2"/>
+        <PackageReference Include="NUnit3TestAdapter" Version="3.17.0"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0"/>
+        <PackageReference Include="NSubstitute" Version="4.3.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SubmissionEvaluation.Domain\SubmissionEvaluation.Domain.csproj"/>
+        <ProjectReference Include="..\SubmissionEvaluation.Providers.FileProvider\SubmissionEvaluation.Providers.FileProvider.csproj"/>
+    </ItemGroup>
 </Project>

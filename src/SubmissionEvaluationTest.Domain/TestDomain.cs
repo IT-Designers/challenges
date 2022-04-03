@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using SubmissionEvaluation.Contracts.Data;
@@ -203,14 +204,33 @@ namespace SubmissionEvaluationTest.Domain
         [Test]
         public void BuildSubmitterRanklist_Should_Build_Correct_List()
         {
-            var builder = new StatisticsOperations();
-            var result = builder.BuildSubmitterRanklist(new List<ChallengeRanklist>
+            const string add = "Add";
+            const string helloWorld = "HelloWorld";
+            const string mod = "Mod";
+            const string fizzBuzz = "FizzBuzz";
+
+            const string admin = "admin";
+            const string teacher = "teacher";
+            const string student = "student";
+
+            var rankLists = new List<ChallengeRanklist>
             {
-                new ChallengeRanklist {Challenge = "Challenge1", Submitters = new List<SubmissionEntry> {new SubmissionEntry {Id = "123", Points = 42}}}
-            });
-            Assert.AreEqual("123", result[0].Name);
-            Assert.AreEqual("Challenge1", result[0].Submissions.Single().Challenge);
-            Assert.AreEqual(42, result[0].Submissions.Single().Points);
+                ProvideChallengeRanklist(add, new[] { admin }),
+                ProvideChallengeRanklist(helloWorld, new[] { teacher, admin }),
+                ProvideChallengeRanklist(mod, new[] { teacher, student, student, student, student, admin }),
+                ProvideChallengeRanklist(fizzBuzz, new[] { admin })
+            };
+
+            var actual = new StatisticsOperations().BuildSubmitterRanklist(rankLists);
+
+            var expected = new List<SubmitterRankings>
+            {
+                ProvideSubmitterRankings(admin, new[] { add, helloWorld, mod, fizzBuzz }),
+                ProvideSubmitterRankings(teacher, new[] { helloWorld, mod }),
+                ProvideSubmitterRankings(student, new[] { mod, mod, mod, mod })
+            };
+
+            actual.Should().BeEquivalentTo(expected);
         }
 
         [Test]
@@ -260,6 +280,16 @@ namespace SubmissionEvaluationTest.Domain
             var (_, details, _) = new ExactDiffCreator(TrimMode.StartEnd, false, true, false, WhitespacesMode.LeaveAsIs, false).GetDiff(text1, text2);
             var lines = Regex.Split(details, "\r\n|\r|\n");
             Assert.That(lines[2].Contains("+ Und&middot;noch&middot;mal&para;"));
+        }
+
+        private static ChallengeRanklist ProvideChallengeRanklist(string challenge, IEnumerable<string> submitters)
+        {
+            return new ChallengeRanklist { Challenge = challenge, Submitters = submitters.Select(x => new SubmissionEntry { Id = x }).ToList() };
+        }
+
+        private static SubmitterRankings ProvideSubmitterRankings(string submitter, IEnumerable<string> challenges)
+        {
+            return new SubmitterRankings { Name = submitter, Submissions = challenges.Select(x => new SubmitterRankingEntry { Challenge = x }).ToList() };
         }
     }
 }
