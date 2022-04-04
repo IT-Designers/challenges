@@ -2,9 +2,11 @@
 @using System.Net.Http.Json
 @using SubmissionEvaluation.Client.Services
 @using Challenge = SubmissionEvaluation.Contracts.ClientPocos.Challenge
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject HelperService Help
+@inject HttpClient httpClient
+@inject HelperService help
 
 <div class="row">
     <ProfileHeader Model="Model" Features="Features"/>
@@ -14,67 +16,46 @@
             <div>
                 <ProfileMenu Model="Model"/>
             </div>
-            <div class="table-responsive-xl">
-                @if (Model != null)
-                {
-                    <table class="ranking_table table">
-                        <thead>
-                        <tr class="ranking_head">
-                            <th class="th_name">Name</th>
-                            @foreach (var compiler in Model.Compilers)
-                            {
-                                <th class="th_name_compilers">
-                                    <div class="vert_text">
-                                        <div class="vert_text_inner">@compiler</div>
-                                    </div>
-                                </th>
-                            }
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var stats in Model.Challenges.OrderBy(x => x.State.DifficultyRating ?? 101))
+
+            <Table TEntry="Challenge" Entries="Model?.Challenges" TableClass="table table-sm table-submissions" TheadClass="thead-light thead-vertical" Caption="Einreichungen" NoEntriesText="Keine Einreichungen vorhanden." SearchEnabled="true">
+                <Column TEntry="Challenge" Header="Schwierigkeit" Value="@(context => context.State?.DifficultyRating ?? int.MaxValue)" TextAlignment="TextAlignment.Right" SortDirection="ListSortDirection.Ascending">
+                    <span style="color: @help.CalculateDifficultyColor(context.State.DifficultyRating); font-size: small">
+                        @if (context.State.DifficultyRating.HasValue)
                         {
-                            <tr class="solved_row">
-                                <td style="padding-left: .75rem; text-align: left;">
-                                    <a href=@($"Challenge/View/{stats.Id}")>@stats.Title</a>
-                                    <br>
-                                    <span style="color: @Help.CalculateDifficultyColor(stats.State.DifficultyRating); font-size: small">@(stats.State.DifficultyRating?.ToString() ?? "?") %</span>
-                                </td>
-                                @foreach (var compiler in Model.Compilers)
-                                {
-                                    Model.Solved.TryGetValue(stats.Id, out var challengeInfo);
-                                    SolvedInfo stat = null;
-                                    challengeInfo?.TryGetValue(compiler, out stat);
-                                    if (stat?.State == SolvedState.Solved)
-                                    {
-                                        <td class="@("td_rating_solved" + stat.Stars)">
-                                            <a href=@($"Submission/Add/{stats.Id}") style="display: block; height: 32px; width: auto;"/>
-                                        </td>
-                                    }
-                                    else
-                                    {
-                                        if (stat?.State == SolvedState.Failed)
-                                        {
-                                            <td class="td_rating_unsolved">
-                                                <a href=@($"Submission/Add/{stats.Id}") style="display: block; height: 32px; width: auto;"/>
-                                            </td>
-                                        }
-                                        else
-                                        {
-                                            <td>-</td>
-                                        }
-                                    }
-                                }
-                            </tr>
+                            @($"{context.State.DifficultyRating}%")
                         }
-                        </tbody>
-                    </table>
-                }
-                else
+                        else
+                        {
+                            @((MarkupString)"?")
+                        }
+                    </span>
+                </Column>
+                <Column TEntry="Challenge" Header="Name" StringValue="@(context => context.Title)">
+                    <a href=@($"Challenge/View/{context.Id}")>@context.Title</a>
+                </Column>
+                @foreach (var compiler in Model?.Compilers ?? Enumerable.Empty<string>())
                 {
-                    <Wave />
+                    <Column TEntry="Challenge" Header="@compiler" Value="@(context => GetStarsForLanguage(compiler, context) ?? int.MinValue)" TextAlignment="TextAlignment.Center">
+                        @{
+                            var state = GetSolvedStateForLanguage(compiler, context);
+
+                            switch (state)
+                            {
+                                case SolvedState.Solved:
+                                    <a href="@($"Submission/Add/{context.Id}")" class="@(GetStarsForLanguage(compiler, context) is null ? "rating_missing" : "rating_solved" + GetStarsForLanguage(compiler, context))" style="display: block; height: 32px; width: 32px;"></a>
+                                    break;
+                                case SolvedState.Failed:
+                                    <a href=@($"Submission/Add/{context.Id}") class="rating_unsolved" style="display: block; height: 32px; width: 32px;"></a>
+                                    break;
+                                case SolvedState.NotTried:
+                                default:
+                                    @((MarkupString)"-")
+                                    break;
+                            }
+                        }
+                    </Column>
                 }
-            </div>
+            </Table>
         </div>
     </div>
 </div>
@@ -85,9 +66,27 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Model = await HttpClient.GetFromJsonAsync<MemberSolvedModel<Challenge>>("api/Account/Submissions");
-        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Model = await httpClient.GetFromJsonAsync<MemberSolvedModel<Challenge>>("api/Account/Submissions");
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+
         StateHasChanged();
     }
 
+    private SolvedInfo GetSolvedInfoForLanguage(string language, IChallenge challenge)
+    {
+        Model.Solved.TryGetValue(challenge.Id, out var challengeInfo);
+        SolvedInfo solvedInfo = null;
+        challengeInfo?.TryGetValue(language, out solvedInfo);
+        return solvedInfo;
+    }
+
+    private SolvedState GetSolvedStateForLanguage(string language, IChallenge challenge)
+    {
+        return GetSolvedInfoForLanguage(language, challenge)?.State ?? SolvedState.NotTried;
+    }
+
+    private int? GetStarsForLanguage(string language, IChallenge challenge)
+    {
+        return GetSolvedInfoForLanguage(language, challenge)?.Stars;
+    }
 }

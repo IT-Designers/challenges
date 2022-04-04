@@ -274,8 +274,6 @@ namespace SubmissionEvaluation.Server.Controllers
 
         private RunningReviewModel ConvertToRunningReviewModel(Result submission)
         {
-            var runTill = submission.ReviewDate.HasValue ? "Läuft ab am:" + submission.ReviewDate.Value.ToShortDateString() : "-";
-
             string reviewerName = "";
 
             if (JekyllHandler.MemberProvider.GetMemberById(submission.Reviewer) == null)
@@ -292,7 +290,7 @@ namespace SubmissionEvaluation.Server.Controllers
                 Challenge = submission.Challenge,
                 ReviewerName = reviewerName,
                 Language = submission.Language,
-                Status = runTill,
+                ReviewDate = submission.ReviewDate,
                 Submission = submission.SubmissionId
             };
         }

@@ -14,6 +14,7 @@ namespace SubmissionEvaluation.Contracts.Data
         int MaxUnlockedChallenges { get; }
         string[] ForcedChallenges { get; }
         int? RequiredPoints { get; }
+        List<string> PassedMemberIds { get; }
         DateTime? StartDate { get; }
         DateTime? EndDate { get; set; }
     }

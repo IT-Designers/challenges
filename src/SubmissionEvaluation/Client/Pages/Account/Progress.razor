@@ -3,6 +3,8 @@
 @using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using SubmissionEvaluation.Shared.Models.Members
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
 <div class="row">
     <ProfileHeader Features="Features" Model="Model"/>
@@ -38,108 +40,90 @@
                     </div>
                 }
 
-                @if (Model.Groups.Any(x => x.RequiredPoints > 0))
+                @if (Model.Groups.Any(x => x.PassedMemberIds.Contains(Model.Id) || x.RequiredPoints > 0))
                 {
                     <div>
                         <h3>Fortschritt</h3>
                     </div>
 
-                    @foreach (var group in Model.Groups.Where(x => x.RequiredPoints > 0))
+                    @foreach (var group in Model.Groups.Where(x => x.PassedMemberIds.Contains(Model.Id) || x.RequiredPoints > 0))
                     {
-                        var solved = Points.Where(x => group.AvailableChallenges.Length == 0 || group.AvailableChallenges.Contains(x.Challenge)).ToList();
-                        var collectedPoints = solved.Count == 0 ? 0 : solved.Sum(x => x.Points);
-                        var requiredChallenges = collectedPoints == 0 || solved.Count == 0 ? group.RequiredPoints.Value : (int) Math.Ceiling(group.RequiredPoints.Value / (collectedPoints / (double) solved.Count));
                         <div class="row">
-                            <div class="col form-group">
-                                <label class="col-form-label">
-                                    <span class="oi @(solved.Count >= requiredChallenges ? "oi-circle-check" : "oi-circle-x") "></span> @group.Title
-                                </label>
-                                <progress style="height: 0.8em;" value="@collectedPoints" max="@group.RequiredPoints"></progress>&nbsp;@($"[{solved.Count} von ~{requiredChallenges} Aufgaben]")
+                            <div class="col">
+                                <p title="@(GetProgressText(group))">
+                                    @{
+                                        @(GetProgressIcon(group))
+                                        <span style="margin-left: 0.5em;">@group.Title</span>
+                                        @if (group.RequiredPoints.HasValue)
+                                        {
+                                            <progress style="height: 0.8em; width: 10em; margin: 0 0.5em;" value="@(GetPoints(group))" max="@group.RequiredPoints"></progress>
+                                            @($"[{GetSolvedCount(group)} von ~{GetRequiredChallenges(group)} Aufgaben]")
+                                        }
+                                    }
+                                </p>
                             </div>
                         </div>
                     }
                 }
-
-                @if (MemberModel?.Points != null)
-                {
-                    <div>
-                        <h3>Punktewertungen</h3>
-                    </div>
-
-                    <div class="post">
-                        <table class="ranking_table">
-                            <thead>
-                            <tr class="ranking_head">
-                                <th class="th_name">Name</th>
-                                @* TODO> activate if tested *@
-                                @*<th class="th_name">Platz</th>*@
-                                <th class="th_name">Punkte</th>
-                                @* TODO> activate if tested *@
-                                @*<th class="th_name">Info</th>*@
-                            </tr>
-                            </thead>
-                            @foreach (var submission in MemberModel.Points)
-                            {
-                                <tr>
-                                    <td>
-                                        @switch (submission.Entry?.Challenge)
-                                        {
-                                            case "ChallengeCreators":
-                                                @((MarkupString) "Aufgabenerstellung")
-                                                break;
-                                            case "Achievements":
-                                                @((MarkupString) "Aufgabenerstellung")
-                                                break;
-                                            case "Reviews":
-                                                @((MarkupString) "Review")
-                                                break;
-                                            default:
-                                                <a href=@($"/Challenge/View/{submission.Entry?.Challenge}")>@submission.Entry?.Challenge</a>
-                                                break;
-                                        }
-                                    </td>
-                                    @*<td>
-                                        @((MarkupString) (submission.Entry.Rank > 0 ? submission.Entry.Rank.ToString() : "-"))
-                                    </td>*@
-                                    <td>
-                                        @((MarkupString) (submission.Entry.Points > 0 ? submission.Entry.Points.ToString() : "-"))
-                                    </td>
-                                    @*<td>
-                                        @switch (submission.Entry.Challenge)
-                                        {
-                                            case "ChallengeCreators":
-                                                <a href=@($"/Challenge/View/{submission.Entry.Language}")>@submission.Entry.Language</a>
-                                                break;
-                                            case "Achievements":
-                                                CustomSettings.Achievements.TryGetValue(submission.Entry.Language, out var config);
-                                                @((MarkupString) (config?.Title ?? "Achievement"))
-                                                break;
-                                            case "Reviews":
-                                                @((MarkupString) submission.Entry.Language)
-                                                break;
-                                            default:
-                                                if (submission.Entry.Language != null)
-                                                {
-                                                    <a href=@("/Help/ViewPage/Compilers")>@submission.Entry.Language</a>
-                                                }
-                                                else
-                                                {
-                                                    @((MarkupString) "-")
-                                                }
-                                                break;
-                                        }
-                                    </td>*@
-                                </tr>
-                            }
-
-                        </table>
-                    </div>
-                }
             }
             else
             {
-                <Wave />
+                <Wave/>
             }
+            <div>
+                <h3>Punktewertungen</h3>
+            </div>
+
+            <Table TEntry="PointsHoldTupel<Result, Member>" Entries="MemberModel?.Points" NoEntriesText="Keine Punktewertungen vorhanden." SearchEnabled="true">
+                <Column TEntry="PointsHoldTupel<Result, Member>" Header="Name" StringValue="@(context => context.Entry?.Challenge)">
+                    @switch (context.Entry?.Challenge)
+                    {
+                        case "ChallengeCreators":
+                            @((MarkupString)"Aufgabenerstellung")
+                            break;
+                        case "Achievements":
+                            @((MarkupString)"Aufgabenerstellung")
+                            break;
+                        case "Reviews":
+                            @((MarkupString)"Review")
+                            break;
+                        default:
+                            <a href=@($"/Challenge/View/{context.Entry?.Challenge}")>@context.Entry?.Challenge</a>
+                            break;
+                    }
+                </Column>
+                @* TODO> activate if tested *@
+                @* <Column TEntry="PointsHoldTupel<Result, Member>" Header="Platz" StringValue="@(context => 0 < (context.Entry?.Rank ?? 0) ? context.Entry.Rank.ToString() : "-")"/> *@
+                <Column TEntry="PointsHoldTupel<Result, Member>" Header="Punkte" Value="@(context => context.Entry?.Points ?? 0)" StringValue="@(context => 0 < (context.Entry?.Points ?? 0) ? context.Entry.Points.ToString() : "-")" TextAlignment="TextAlignment.Right" SortDirection="ListSortDirection.Descending"/>
+                @* TODO> activate if tested *@
+                @*
+                    <Column TEntry="PointsHoldTupel<Result, Member>" Header="Info" StringValue="@(context => context.Entry?.Language)">
+                        @switch (context.Entry.Challenge)
+                        {
+                            case "ChallengeCreators":
+                                <a href=@($"/Challenge/View/{context.Entry.Language}")>@context.Entry.Language</a>
+                                break;
+                            case "Achievements":
+                                CustomSettings.Achievements.TryGetValue(context.Entry.Language, out var config);
+                                @((MarkupString)(config?.Title ?? "Achievement"))
+                                break;
+                            case "Reviews":
+                                @((MarkupString)context.Entry.Language)
+                                break;
+                            default:
+                                if (context.Entry.Language != null)
+                                {
+                                    <a href=@("/Help/ViewPage/Compilers")>@context.Entry.Language</a>
+                                }
+                                else
+                                {
+                                    @((MarkupString)"-")
+                                }
+                                break;
+                        }
+                    </Column>
+                *@
+            </Table>
         </div>
     </div>
 </div>
@@ -163,6 +147,46 @@
         Achievements = await HttpClient.GetFromJsonAsync<List<Achievement>>("api/Members/GetAchievements");
         MemberModel = await HttpClient.GetFromJsonAsync<MemberModel<Result, Member>>($"api/Members/Get/{Model.Id}");
         StateHasChanged();
+    }
+
+    private int GetSolvedCount(IGroup group)
+    {
+        return Points.Count(x => group.AvailableChallenges.Contains(x.Challenge));
+    }
+
+    private int GetPoints(IGroup group)
+    {
+        return Points.Where(x => group.AvailableChallenges.Contains(x.Challenge)).Select(x => x.Points).Sum();
+    }
+
+    private int GetRequiredChallenges(IGroup group)
+    {
+        var solvedCount = GetSolvedCount(group);
+        var points = GetPoints(group);
+        return solvedCount == 0 || points == 0 ? group.RequiredPoints!.Value : (int)Math.Ceiling(group.RequiredPoints!.Value / (points / (double)solvedCount));
+    }
+
+    private string GetProgressText(IGroup group)
+    {
+        if (group.PassedMemberIds.Contains(Model.Id))
+        {
+            return "Labor bestanden";
+        }
+
+        return GetPoints(group) < group.RequiredPoints!.Value ? "Erforderliche Punktzahl noch nicht erreicht" : "Erforderliche Punktzahl erreicht";
+    }
+
+    private RenderFragment GetProgressIcon(IGroup group)
+    {
+        if (group.PassedMemberIds.Contains(Model.Id))
+        {
+            return @<span class="oi oi-badge"></span>;
+        }
+        if (GetPoints(group) < group.RequiredPoints!.Value)
+        {
+            return @<span class="oi oi-circle-x"></span>;
+        }
+        return @<span class="oi oi-circle-check"></span>;
     }
 
 }

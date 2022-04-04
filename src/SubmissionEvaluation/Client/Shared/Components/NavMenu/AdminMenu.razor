@@ -17,7 +17,7 @@
 {
     <div role="separator" class="dropdown-divider"></div>
 }
-@if (PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
+@if (Permissions.IsAdmin)
 {
     <NavLink href="Admin/Users" class="dropdown-item" @onclick="ParentAction">Benutzer</NavLink>
 }

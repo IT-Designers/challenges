@@ -6,13 +6,9 @@
 @using SubmissionEvaluation.Shared.Models.Shared
 @using SubmissionEvaluation.Client.Shared.Components.FileExplorer
 
-@inject HttpClient HttpClient
-@inject NavigationManager NavigationManager
-@inject IToastService Toaster
-
-<style>
-    .container { max-width: 1140px; }
-</style>
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject IToastService toaster
 
 <div class="row">
     <div class="col-lg-3">
@@ -20,8 +16,11 @@
             <div class="categories-list-header" style="border-bottom: none">
                 Bisherige Einreichungen
             </div>
-            <div>
-                <button class="btn btn-outline-dark" style="width: 100%" type="button" @onclick="Reload">Aktualisieren</button>
+            <div class="text-center">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-success" @onclick="@(() => Model.SubmissionId = null)">Neue Einreichung</button>
+                    <button type="button" class="btn btn-outline-primary" @onclick="Reload">Aktualisieren</button>
+                </div>
             </div>
             <SubmissionList @bind-Model="Model"/>
         </div>
@@ -94,17 +93,17 @@
     {
         if (SubmissionId == null)
         {
-            Model = await HttpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}");
+            Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}");
         }
         else
         {
-            Model = await HttpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}/{SubmissionId}");
+            Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}/{SubmissionId}");
         }
         if (Model.HasError)
         {
-            NavigationManager.NavigateTo($"Home/Error/{Model.Message}");
+            navigationManager.NavigateTo($"Home/Error/{Model.Message}");
         }
-        RatingMethodForSelectedSubmission = await HttpClient.GetFromJsonAsync<RatingMethod>($"/api/Submission/GetRatingForSubmission/{ChallengeName}");
+        RatingMethodForSelectedSubmission = await httpClient.GetFromJsonAsync<RatingMethod>($"/api/Submission/GetRatingForSubmission/{ChallengeName}");
         StateHasChanged();
     }
 
@@ -112,20 +111,20 @@
     {
         Model.UploadArchive = TempHolder;
         TempHolder = new List<DetailedInputFile>();
-        var responseMessage = await HttpClient.PostAsJsonAsync($"api/Submission/UploadJSON/{ChallengeName}", Model.UploadArchive);
+        var responseMessage = await httpClient.PostAsJsonAsync($"api/Submission/UploadJSON/{ChallengeName}", Model.UploadArchive);
         if (responseMessage.IsSuccessStatusCode)
         {
             var result = await responseMessage.Content.ReadFromJsonAsync<GenericModel>();
             if (result.HasSuccess)
             {
-                Toaster.ShowSuccess(result.MessageTranslation, "Erfolgreicher Upload");
+                toaster.ShowSuccess(result.MessageTranslation, "Erfolgreicher Upload");
             }
             else
             {
-                Toaster.ShowError(result.MessageTranslation, "Upload fehlgeschlagen");
+                toaster.ShowError(result.MessageTranslation, "Upload fehlgeschlagen");
             }
         }
-        Model = await HttpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}");
+        Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}");
         StateHasChanged();
     }
 
@@ -139,13 +138,13 @@
     {
         if (SubmissionId == null)
         {
-            Model = await HttpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}");
+            Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}");
         }
         else
         {
-            Model = await HttpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}/{SubmissionId}");
+            Model = await httpClient.GetFromJsonAsync<UploadModel<Result, Member>>($"/api/Submission/Add/{ChallengeName}/{SubmissionId}");
         }
-        Toaster.ShowInfo("Die bisherigen Einreichungen wurden erneut geladen.");
+        toaster.ShowInfo("Die bisherigen Einreichungen wurden erneut geladen.");
         StateHasChanged();
     }
 

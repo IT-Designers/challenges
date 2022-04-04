@@ -6,9 +6,11 @@
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
+@inject HttpClient httpClient
+@inject NavigationManager navi
 
 <div class="row">
     <div class="col-12">
@@ -26,49 +28,42 @@
                         }
                     </h1>
                 </div>
-                <div id="groups-table_wrapper" class="dataTables_wrapper no-footer">
-                    <label for="searchInput">Suche: </label><input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="SearchValue" placeholder="Suche nach einer Gruppe"/>
+                if (ActionToConfirm != null)
+                {
+                    <ConfirmAction ActionMessage="@ActionMessage" OnConfirmed="ActionToConfirm" OnCanceled="CancelAction"></ConfirmAction>
+                }
+                else
+                {
                     <MessageHeader Model="Model"/>
-                    <table id="groups-table" class="display table dataTable no-footer" role="grid">
-                        <thead>
-                        <tr>
-                            <th>
-                                <button class="no-styling" @onclick="SortById">ID</button>
-                            </th>
-                            <th>
-                                <button class="no-styling" @onclick="SortByTitle">Name</button>
-                            </th>
-                            <th>Bearbeiten</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (IGroup group in Model.Groups.Where(x => x.Title.ToLower().Contains(SearchValue.ToLower()) || x.Id.ToLower().Contains(SearchValue.ToLower())))
-                        {
-                            <tr>
-                                <td>@group.Id</td>
-                                <td>@group.Title</td>
-                                <td>
-                                    <a href=@($"Group/Edit/{group.Id}") title="Editieren" class="btn btn-sm">
-                                        <span class="oi oi-pencil"></span>
-                                    </a>
-                                    @if (Permissions.IsAdmin)
-                                    {
-                                        <a href=@($"Admin/ConfirmAction/{group.Id}/DeleteGroup") title="Löschen" class="btn btn-sm">
-                                            <span class="oi oi-trash"></span>
-                                        </a>
-                                        <a href=@($"Group/Copy/{group.Id}") title="Kopieren" class="btn btn-sm">
-                                            <span class="oi oi-copywriting"></span>
-                                        </a>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
+                    <Table TEntry="Group" Entries="Model.Groups" SearchEnabled="true">
+                        <Column TEntry="Group" Header="Id" StringValue="@(context => context.Id)"/>
+                        <Column TEntry="Group" Header="Name" StringValue="@(context => context.Title)" SortDirection="ListSortDirection.Ascending"/>
+                        <Column TEntry="Group" Header="Aktionen">
+                            @if (PermissionHelper.CheckPermissions(Actions.View, "Users", Permissions))
+                            {
+                                <a href=@($"Group/{context.Id}/Users") title="Gruppenmitglieder" class="btn btn-sm">
+                                    <span class="oi oi-people"></span>
+                                </a>
+                            }
+                            <a href=@($"Group/Edit/{context.Id}") title="Editieren" class="btn btn-sm">
+                                <span class="oi oi-pencil"></span>
+                            </a>
+                            @if (Permissions.IsAdmin)
+                            {
+                                <button type="button" class="btn btn-sm btn-link" @onclick="@(() => DeleteGroup(context))" title="Löschen">
+                                    <span class="oi oi-trash"></span>
+                                </button>
+                                <a href=@($"Group/Copy/{context.Id}") title="Kopieren" class="btn btn-sm">
+                                    <span class="oi oi-copywriting"></span>
+                                </a>
+                            }
+                        </Column>
+                    </Table>
+                }
             }
-            else {
-                <Wave />
+            else
+            {
+                <Wave/>
             }
         </div>
 
@@ -78,32 +73,37 @@
 
 @code {
     AdminGroupsModel<Group> Model { get; set; }
-    string SearchValue { get; set; } = string.Empty;
     Permissions Permissions { get; set; }
+
+    string ActionMessage { get; set; } = string.Empty;
+    Func<Task> ActionToConfirm { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
         if (!PermissionHelper.CheckPermissions(Actions.View, "Groups", Permissions))
         {
-            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
+            navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await HttpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
+        Model = await httpClient.GetFromJsonAsync<AdminGroupsModel<Group>>("api/Group/Groups");
+
         StateHasChanged();
     }
 
-    void SortById()
+    private void DeleteGroup(IGroup group)
     {
-        var groups = Model.Groups.ToList();
-        groups.Sort((x, y) => x.Id.CompareTo(y.Id));
-        Model.Groups = groups;
+        ActionMessage = $"Wollen sie die Gruppe {group.Title} wirklich löschen?";
+        ActionToConfirm = async () =>
+        {
+            ActionToConfirm = null;
+            await httpClient.DeleteAsync($"api/Group/{group.Id}");
+            Model.Groups = Model.Groups.Where(x => x.Id != group.Id);
+        };
     }
 
-    void SortByTitle()
+    private void CancelAction()
     {
-        var groups = Model.Groups.ToList();
-        groups.Sort((x, y) => x.Title.CompareTo(y.Title));
-        Model.Groups = groups;
+        ActionToConfirm = null;
     }
 
 }

@@ -5,10 +5,13 @@
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Models.Members
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
+@using SubmissionEvaluation.Contracts.Data.Ranklist
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
-@inject IJSRuntime Runtime
+@inject HttpClient httpClient
+@inject NavigationManager navi
+@inject IJSRuntime runtime
 
 @if (Model != null)
 {
@@ -108,15 +111,15 @@
                     </div>
                 }
                 <div class="post">
-                    @((MarkupString) MarkdownToHtml.Convert(Model.Description, fixStatic: true, id: ChallengeId))
+                    @((MarkupString)MarkdownToHtml.Convert(Model.Description, fixStatic: true, id: ChallengeId))
                 </div>
             </div>
         </div>
 
         <div class="col-lg-3">
-            <div class="shadow-bottom-center" style="margin-bottom: 10px">
+            <div class="shadow-bottom-center" style="padding: 10px 5px">
                 <div class="categories-list-header" style="border-bottom: none">Daten</div>
-                <table class="challenge-data">
+                <table class="table table-sm table-borderless">
                     <tr>
                         <th class="d-lg-none d-xl-table-cell">Schwierigkeit:</th>
                         <td>
@@ -217,66 +220,23 @@
                         <h2>Ranking</h2>
                     </div>
                     <div class="post">
-                        <table class="ranking_table">
-                            <thead>
-                            <tr class="ranking_head">
-                                <th>Name</th>
-                                <th>Punkte</th>
-                                <th>Sprache</th>
-                                @if (Model.RatingMethod.Type == RatingMethod.ExecTime)
+
+                        <Table TEntry="SubmissionEntry" Entries="Model.Ranklist.Submitters" SearchEnabled="true">
+                            <Column TEntry="SubmissionEntry" Header="Name" StringValue="@(context => Model.SubmitterIdToSubmitterName[context.Id])">
+                                <a href="@("Members/Member/" + context.Id)">@(Model.SubmitterIdToSubmitterName[context.Id])</a>
+                            </Column>
+                            <Column TEntry="SubmissionEntry" Header="Punkte"  Value="@(context => context.Points)"  StringValue="@(context => context.Points <= 0 ? "-" : context.Points.ToString())" SortDirection="ListSortDirection.Descending"/>
+                            <Column TEntry="SubmissionEntry" Header="Sprache" StringValue="@(context => string.Join(",", new[] { context.Language }.Concat(context.MoreLanguages)))">
+                                <a href="/Help/Compilers">@context.Language</a>
+                                @if (context.MoreLanguages?.Any() == true)
                                 {
-                                    <th>Zeit</th>
+                                    <small>
+                                        <i title="@string.Join(", ", context.MoreLanguages)">more</i>
+                                    </small>
                                 }
-                                @if (Model.RatingMethod.Type == RatingMethod.SubmissionTime)
-                                {
-                                    <th>Datum</th>
-                                }
-                                @if (Model.RatingMethod.Type == RatingMethod.Score)
-                                {
-                                    <th>Wertung</th>
-                                }
-                            </tr>
-                            </thead>
-                            @foreach (var submitter in Model.Ranklist.Submitters)
-                            {
-                                <tr>
-                                    <td>
-                                        <a href="@("Members/Member/" + submitter.Id)">@(Model.SubmitterIdToSubmitterName[submitter.Id])</a>
-                                    </td>
-                                    <td>
-                                        @if (submitter.Points > 0)
-                                        {
-                                            @submitter.Points
-                                        }
-                                        else
-                                        {
-                                            @("-")
-                                        }
-                                    </td>
-                                    <td>
-                                        <a href="/Help/Compilers">@submitter.Language</a>
-                                        @if (submitter.MoreLanguages?.Any() == true)
-                                        {
-                                            <small>
-                                                <i title="@string.Join(", ", submitter.MoreLanguages)">more</i>
-                                            </small>
-                                        }
-                                    </td>
-                                    @if (Model.RatingMethod.Type == RatingMethod.ExecTime)
-                                    {
-                                        <td>@submitter.Exectime ms</td>
-                                    }
-                                    @if (Model.RatingMethod.Type == RatingMethod.SubmissionTime)
-                                    {
-                                        <td>@submitter.Date</td>
-                                    }
-                                    @if (Model.RatingMethod.Type == RatingMethod.Score)
-                                    {
-                                        <td>@submitter.CustomScore</td>
-                                    }
-                                </tr>
-                            }
-                        </table>
+                            </Column>
+                            <Column TEntry="SubmissionEntry" Header="ScoreTitle" Value="@(GetScoreValue)"  StringValue="@(GetScoreStringValue)"/>
+                        </Table>
                     </div>
                 </div>
             </div>
@@ -289,30 +249,19 @@
                         <h2>Erfolgreiche Lösungen</h2>
                     </div>
                     <div class="post">
-                        <table class="ranking_table">
-                            <thead>
-                            <tr class="ranking_head">
-                                <th>Sprache</th>
-                                <th>Anzahl</th>
-                            </tr>
-                            </thead>
-                            @foreach (var count in Model.Ranklist.SolvedCount)
-                            {
-                                <tr>
-                                    <td>@count.Key</td>
-                                    <td>
-                                        @if (PermissionHelper.CheckPermissions(Actions.View, "Submissions", Permissions, Restriction.Challenges, ChallengeId))
-                                        {
-                                            <a href=@($"Submission/Task/{Model.Id}")>@count.Value</a>
-                                        }
-                                        else
-                                        {
-                                            @count.Value
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </table>
+                        <Table TEntry="KeyValuePair<string, int>" Entries="SolvedCount">
+                            <Column TEntry="KeyValuePair<string, int>" Header="Sprache" StringValue="@(context => context.Key)"/>
+                            <Column TEntry="KeyValuePair<string, int>" Header="Anzahl" Value="@(context => context.Value)" TextAlignment="TextAlignment.Right" SortDirection="ListSortDirection.Descending">
+                                @if (PermissionHelper.CheckPermissions(Actions.View, "Submissions", Permissions, Restriction.Challenges, ChallengeId))
+                                {
+                                    <a href=@($"Submission/Task/{Model.Id}")>@context.Value</a>
+                                }
+                                else
+                                {
+                                    @context.Value
+                                }
+                            </Column>
+                        </Table>
                     </div>
                 </div>
             </div>
@@ -321,7 +270,7 @@
 }
 else
 {
-    <Wave />
+    <Wave/>
 }
 
 @code {
@@ -333,22 +282,55 @@ else
     private ChallengeViewModel Model { get; set; }
     FeatureSettings Features { get; set; }
 
+    private List<KeyValuePair<string, int>> SolvedCount { get; set; }
+
+    private string ScoreTitle => Model.RatingMethod.Type switch
+    {
+        RatingMethod.Score => "Wertung",
+        RatingMethod.ExecTime => "Zeit",
+        RatingMethod.SubmissionTime => "Datum",
+        _ => ""
+        };
+
     protected override async Task OnInitializedAsync()
     {
-        Model = await HttpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + ChallengeId);
+        Model = await httpClient.GetFromJsonAsync<ChallengeViewModel>("api/Challenge/GetViewModel/" + ChallengeId);
         if (Model.HasError)
         {
-            Navi.NavigateTo($"Home/Error/{Model.Message}");
+            navi.NavigateTo($"Home/Error/{Model.Message}");
         }
-        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
-        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        SolvedCount = Model.Ranklist.SolvedCount.ToList();
     }
 
     async void RateChallenge(RatingType rating)
     {
-        await HttpClient.PostAsJsonAsync($"api/Challenge/RateChallenge/{Model.Id}", rating);
+        await httpClient.PostAsJsonAsync($"api/Challenge/RateChallenge/{Model.Id}", rating);
         Model.CanRate = false;
         StateHasChanged();
+    }
+
+    private string GetScoreStringValue(SubmissionEntry entry)
+    {
+        return Model.RatingMethod.Type switch
+        {
+            RatingMethod.ExecTime => $"{entry.Exectime} ms",
+            RatingMethod.SubmissionTime => entry.Date.ToShortDateString(),
+            RatingMethod.Score => entry.CustomScore.ToString(),
+            _ => throw new ArgumentOutOfRangeException(nameof(Model.RatingMethod.Type))
+            };
+    }
+
+    private object GetScoreValue(SubmissionEntry entry)
+    {
+        return Model.RatingMethod.Type switch
+        {
+            RatingMethod.ExecTime => entry.Exectime,
+            RatingMethod.SubmissionTime => entry.Date,
+            RatingMethod.Score => entry.CustomScore,
+            _ => throw new ArgumentOutOfRangeException(nameof(Model.RatingMethod.Type))
+            };
     }
 
 }

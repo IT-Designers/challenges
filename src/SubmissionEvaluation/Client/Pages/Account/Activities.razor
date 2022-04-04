@@ -2,9 +2,11 @@
 @using System.Net.Http.Json
 @using Member = SubmissionEvaluation.Contracts.ClientPocos.Member
 @using SubmissionEvaluation.Shared.Models.Members
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager NavigationManager
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
 
 <div class="row">
     <ProfileHeader Model="Model" Features="Features"/>
@@ -14,89 +16,29 @@
             <div>
                 <ProfileMenu Model="Model"/>
             </div>
-            <table class="ranking_table">
-                <thead>
-                <tr class="ranking_head">
-                    <th class="th_name d-none d-sm-table-cell">Datum</th>
-                    <th class="th_name">Challenge</th>
-                    <th class="th_name">Sprache</th>
-                    <th class="th_name">Ergebnis</th>
-                </tr>
-                </thead>
-                @if (Model != null && CustomSettings != null)
-                {
-                    @foreach (var entry in Model.History.Take(30))
+
+            <Table TEntry="HistoryEntry" Entries="Model?.History" SearchEnabled="true" RowColor="GetRowColor">
+                <Column TEntry="HistoryEntry" Header="Datum" Value="@(context => context.Date)" StringValue="@(context => context.Date.ToShortDateString())" SortDirection="ListSortDirection.Descending"/>
+                <Column TEntry="HistoryEntry" Header="Challenge" StringValue="@(context => context.Challenge)">
+                    <a href=@($"Challenge/View/{context.Challenge}")>@context.Challenge</a>
+                </Column>
+                <Column TEntry="HistoryEntry" Header="Sprache" StringValue="@(context => context.Language)">
+                    @if (!string.IsNullOrWhiteSpace(context.Language))
                     {
-                        switch (entry.Type)
-                        {
-                            case HistoryType.ChallengeSubmission:
-                                if (!CustomSettings.Results.TryGetValue(entry.Result?.ToString(), out var resultConfig))
-                                {
-                                    resultConfig = CustomSettings.Results["Undefined"];
-                                }
-                                <tr style="background: #@resultConfig.Color">
-                                    <td class="d-none d-sm-table-cell">
-                                        @entry.Date.ToShortDateString()
-                                    </td>
-                                    <td>
-                                        <a href=@($"Challenge/View/{entry.Challenge}")>@entry.Challenge</a>
-                                    </td>
-                                    <td>
-                                        @if (entry.Language != null)
-                                        {
-                                            <a href="Help/ViewPage/Compilers">@entry.Language</a>
-                                        }
-                                    </td>
-                                    <td>
-                                        <a href=@($"Submission/Add/{entry.Challenge}/{entry.Id}")>@resultConfig.Description</a>
-                                    </td>
-                                </tr>
-                                break;
-                            case HistoryType.SubmissionRated:
-                                <tr style="background: #ddffdd">
-                                    <td>@entry.Date.ToShortDateString()</td>
-                                    <td>
-                                        <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
-                                    </td>
-                                    <td>
-                                        @if (entry.Language != null)
-                                        {
-                                            <a href="Help/ViewPage/Compilers">@entry.Language</a>
-                                        }
-                                    </td>
-                                    <td>Reviewergebnis verfügbar</td>
-                                </tr>
-                                break;
-                            case HistoryType.SubmissionNowFailing:
-                                <tr style="background: #f08080">
-                                    <td>@entry.Date.ToShortDateString()</td>
-                                    <td>
-                                        <a href=@($"Submission/Add/{entry.Challenge}")>@entry.Challenge</a>
-                                    </td>
-                                    <td></td>
-                                    <td>Bisher laufende Einreichung schlägt nun fehl (=Aufgabenänderung)</td>
-                                </tr>
-                                break;
-                            case HistoryType.ReviewAvailable:
-                                <tr style="background: #f08080">
-                                    <td>@entry.Date.ToShortDateString()</td>
-                                    <td>
-                                        <a href=@("Review/Overview")>@entry.Challenge</a>
-                                    </td>
-                                    <td></td>
-                                    <td>
-                                        <b>Ausstehendes Review</b>
-                                    </td>
-                                </tr>
-                                break;
-                        }
+                        <a href="Help/ViewPage/Compilers">@context.Language</a>
                     }
-                }
-                else
-                {
-                    <Wave />
-                }
-            </table>
+                </Column>
+                <Column TEntry="HistoryEntry" Header="Ergebnis" StringValue="@(GetResultValue)">
+                    @if (context.Type == HistoryType.ChallengeSubmission)
+                    {
+                        <a href=@($"Submission/Add/{context.Challenge}/{context.Id}")>@GetResultValue(context)</a>
+                    }
+                    else
+                    {
+                        @GetResultValue(context)
+                    }
+                </Column>
+            </Table>
         </div>
     </div>
 </div>
@@ -108,14 +50,57 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Model = await HttpClient.GetFromJsonAsync<MemberModel<Result, Member>>("api/Account/Activities");
+        Model = await httpClient.GetFromJsonAsync<MemberModel<Result, Member>>("api/Account/Activities");
         if (Model.HasError)
         {
-            NavigationManager.NavigateTo($"Home/Error/{Model.Message}");
+            navigationManager.NavigateTo($"Home/Error/{Model.Message}");
         }
-        CustomSettings = await HttpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
-        Features = await HttpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+        CustomSettings = await httpClient.GetFromJsonAsync<CustomizationSettingsClient>("api/Account/GetCustomSettings");
+        Features = await httpClient.GetFromJsonAsync<FeatureSettings>("api/Account/getSettings");
+
         StateHasChanged();
+    }
+
+    private string GetRowColor(HistoryEntry entry)
+    {
+        switch (entry.Type)
+        {
+            case HistoryType.ChallengeSubmission:
+                if (!CustomSettings.Results.TryGetValue(entry.Result?.ToString() ?? string.Empty, out var resultConfig))
+                {
+                    resultConfig = CustomSettings.Results["Undefined"];
+                }
+                return $"#{resultConfig.Color}";
+            case HistoryType.SubmissionRated:
+                return "#ddffdd";
+            case HistoryType.SubmissionNowFailing:
+                return "#f08080";
+            case HistoryType.ReviewAvailable:
+                return "#f08080";
+            default:
+                return null;
+        }
+    }
+
+    private string GetResultValue(HistoryEntry entry)
+    {
+        switch (entry.Type)
+        {
+            case HistoryType.ChallengeSubmission:
+                if (entry.Result is null || !CustomSettings.Results.TryGetValue(entry.Result.ToString(), out var resultConfig))
+                {
+                    resultConfig = CustomSettings.Results["Undefined"];
+                }
+                return resultConfig.Description;
+            case HistoryType.ReviewAvailable:
+                return "Ausstehendes Review";
+            case HistoryType.SubmissionRated:
+                return "Reviewergebnis verfügbar";
+            case HistoryType.SubmissionNowFailing:
+                return "Bisher laufende Einreichung schlägt nun fehl (=Aufgabenänderung)";
+            default:
+                throw new ArgumentOutOfRangeException(nameof(entry));
+        }
     }
 
 }

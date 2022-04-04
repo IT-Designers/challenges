@@ -1,0 +1,31 @@
+﻿@using System.ComponentModel
+@typeparam TEntry
+
+@code {
+    [CascadingParameter]
+    private Table<TEntry> Table { get; set; }
+
+    [Parameter]
+    public RenderFragment<TEntry> ChildContent { get; set; }
+
+    [Parameter]
+    public string Header { get; set; }
+
+    [Parameter]
+    public Func<TEntry, object> Value { get; set; }
+
+    [Parameter]
+    public Func<TEntry, string> StringValue { get; set; }
+
+    [Parameter]
+    public TextAlignment TextAlignment { get; set; } = TextAlignment.Start;
+
+    [Parameter]
+    public ListSortDirection? SortDirection { get; set; }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Table.AddColumn(this);
+    }
+}

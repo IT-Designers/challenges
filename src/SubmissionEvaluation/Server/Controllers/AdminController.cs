@@ -23,7 +23,7 @@ using Member = SubmissionEvaluation.Contracts.ClientPocos.Member;
 namespace SubmissionEvaluation.Server.Controllers
 {
     [Authorize(Policy = "IsChallengePlattformUser")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,groupAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class AdminController : Controller
@@ -35,6 +35,7 @@ namespace SubmissionEvaluation.Server.Controllers
             this.logger = logger;
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("Users")]
         public IActionResult Users()
         {
@@ -44,54 +45,18 @@ namespace SubmissionEvaluation.Server.Controllers
         private AdminUserModel<Member> FetchBasicModel()
         {
             var members = JekyllHandler.MemberProvider.GetMembers();
-            var memberShips = new List<GroupMemberships<Member>>
-            {
-                new GroupMemberships<Member> {Members = members.Select(x => new Member(x)).ToList(), GroupName = string.Empty}
-            };
-            var model = new AdminUserModel<Member> {GroupMemberships = memberShips};
+            var model = new AdminUserModel<Member> { Members = members.Select(x => new Member(x)).ToList() };
             return model;
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("AddUser")]
         public IActionResult AddUser([FromBody] AddTempUserModel model)
         {
             var pwdHash = CryptographyProvider.CreateArgon2Password(model.Password);
             var member = JekyllHandler.Domain.Interactions.AddMember(model.Name, model.Mail, model.Name, true);
             JekyllHandler.MemberProvider.UpdatePassword(member, pwdHash);
-            return Ok(new GenericModel {Message = SuccessMessages.GenericSuccess, HasSuccess = true});
-        }
-
-        [HttpGet("ConfirmActionModel/{id}/{activity}")]
-        public IActionResult ConfirmAction([FromRoute] string id, [FromRoute] string activity)
-        {
-            var current = JekyllHandler.GetMemberForUser(User);
-            var actionMessage = "?";
-            IMember member;
-            if (activity == "DeleteMember")
-            {
-                member = JekyllHandler.MemberProvider.GetMemberById(id);
-                actionMessage = $"Wollen sie den Nutzer {member.Name} wirklich löschen?";
-            }
-
-            if (activity == "ResetMemberPassword")
-            {
-                member = JekyllHandler.MemberProvider.GetMemberById(id);
-                actionMessage = $"Wollen sie das Password für Nutzer {member.Name} wirklich zurücksetzen?";
-            }
-
-            if (activity == "DeleteGroup")
-            {
-                actionMessage = $"Wollen sie die Gruppe {id} wirklich löschen?";
-            }
-
-            if (activity == "ResetMemberAvailableChallenges")
-            {
-                member = JekyllHandler.MemberProvider.GetMemberById(id);
-                actionMessage = $"Wollen sie die Liste der bearbeitbaren Challenges für {member.Name} wirklich zurücksetzen?";
-            }
-
-            var model = new ConfirmActionModel {Id = id, Action = activity, ActionMessage = actionMessage};
-            return Ok(model);
+            return Ok(new GenericModel { Message = SuccessMessages.GenericSuccess, HasSuccess = true });
         }
 
         [HttpGet("ExportMembers")]
@@ -112,6 +77,7 @@ namespace SubmissionEvaluation.Server.Controllers
             }
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("ExportSolutions")]
         public IActionResult ExportSolutions()
         {
@@ -127,6 +93,7 @@ namespace SubmissionEvaluation.Server.Controllers
             }
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("DisableMaintenanceMode")]
         public IActionResult DisableMaintenanceMode()
         {
@@ -134,6 +101,7 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(JekyllHandler.Domain.IsMaintenanceMode);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("EnableMaintenanceMode")]
         public IActionResult EnableMaintenanceMode()
         {
@@ -141,17 +109,23 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(JekyllHandler.Domain.IsMaintenanceMode);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("DeleteMember")]
         public IActionResult DeleteMember([FromBody] string id)
         {
             JekyllHandler.Domain.Interactions.DeleteMember(id);
-            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
+            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
         }
 
         [HttpPost("ResetMemberAvailableChallenges")]
         public IActionResult ResetMemberAvailableChallenges([FromBody] string id)
         {
-            var member = JekyllHandler.MemberProvider.GetMemberById(id);
+            var currentMember = JekyllHandler.GetMemberForUser(User);
+            if (!(currentMember.IsAdmin || IsMemberInManagedGroup(id)))
+            {
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
+            }
+
             JekyllHandler.Domain.Interactions.ResetMemberAvailableChallenges(id);
             var model = FetchBasicModel();
             model.Message = SuccessMessages.GenericSuccess;
@@ -159,6 +133,7 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(model);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("ActivatePendingMember")]
         public IActionResult ActivatePendingMember([FromBody] string id)
         {
@@ -170,6 +145,7 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(model);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("EditHelpPage")]
         public IActionResult EditHelpPage([FromBody] string path)
         {
@@ -177,7 +153,7 @@ namespace SubmissionEvaluation.Server.Controllers
             {
                 if (string.IsNullOrWhiteSpace(path))
                 {
-                    return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                    return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
                 }
 
                 if (path.Contains(".."))
@@ -198,10 +174,11 @@ namespace SubmissionEvaluation.Server.Controllers
             }
             catch (Exception)
             {
-                return Ok(new GenericModel {HasError = true, Message = ErrorMessages.IdError});
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.IdError });
             }
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("UpdateHelpPage")]
         public IActionResult EditHelpPage(HelpModel model)
         {
@@ -232,22 +209,24 @@ namespace SubmissionEvaluation.Server.Controllers
             }
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("ImpersonateMember")]
         public IActionResult ImpersonateMember([FromBody] string id)
         {
             var member = JekyllHandler.MemberProvider.GetMemberById(id);
             IdentityAuthenticator.LoginForMember(member, "Impersonate", HttpContext).WaitAndUnwrap(5000);
-            return Ok(new GenericModel {Message = SuccessMessages.GenericSuccess, HasSuccess = true});
+            return Ok(new GenericModel { Message = SuccessMessages.GenericSuccess, HasSuccess = true });
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("AllPossibleMemberRoles/{id}")]
         public IActionResult ManageMemberRoles([FromRoute] string id)
         {
             var member = JekyllHandler.MemberProvider.GetMemberById(id);
-            var groups = new[] {"admin", "creator", "reviewer", "groupAdmin"};
+            var groups = new[] { "admin", "creator", "reviewer", "groupAdmin" };
             var model = new ManageMemberRolesModel
             {
-                Roles = groups.Select(x => new GroupInfo {Title = x, Id = x, Selected = member.Roles.Any(y => y == x)}).ToArray(),
+                Roles = groups.Select(x => new GroupInfo { Title = x, Id = x, Selected = member.Roles.Any(y => y == x) }).ToArray(),
                 Name = member.Name,
                 Id = id
             };
@@ -255,14 +234,16 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(model);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("NewMemberRoles")]
         public IActionResult ManageMemberRoles([FromBody] ManageMemberRolesModel model)
         {
             var member = JekyllHandler.MemberProvider.GetMemberById(model.Id);
             JekyllHandler.MemberProvider.UpdateRoles(member, model.Roles.Where(x => x.Selected).Select(x => x.Id).ToArray());
-            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
+            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("AllPossibleMemberGroups/{id}")]
         public IActionResult ManageMemberGroups([FromRoute] string id)
         {
@@ -277,6 +258,7 @@ namespace SubmissionEvaluation.Server.Controllers
             return Ok(model);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("AllPossibleCompilers")]
         public IActionResult AllPossibleCompilers()
         {
@@ -284,25 +266,25 @@ namespace SubmissionEvaluation.Server.Controllers
             var temp_comp = new List<ReviewModel.Compiler>();
             foreach (var item in compilers)
             {
-                temp_comp.Add(new ReviewModel.Compiler{Name = item.Name, Selected = false});
+                temp_comp.Add(new ReviewModel.Compiler { Name = item.Name, Selected = false });
             }
-            var model = new ReviewModel
-            {
-                Compilers = temp_comp
-            };
+
+            var model = new ReviewModel { Compilers = temp_comp };
 
             return Ok(model);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("NewMemberGroups")]
         public IActionResult ManageMemberGroups([FromBody] ManageMemberGroupsModel model)
         {
             var member = JekyllHandler.MemberProvider.GetMemberById(model.Id);
             var groupsSelected = AccountController.UpdateGroupsSelected(model.Groups.Where(x => x.Selected));
             JekyllHandler.MemberProvider.UpdateGroups(member, groupsSelected);
-            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
+            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("GetAllReviewLevelForMember/{id}")]
         public IActionResult GetAllReviewLevelForMember([FromRoute] string id)
         {
@@ -312,7 +294,7 @@ namespace SubmissionEvaluation.Server.Controllers
             var compilers = JekyllHandler.Domain.Compilers;
             foreach (var item in compilers)
             {
-                model.ReviewLanguages.Add(item.Name, new ReviewLevelAndCounter{Selected = false});
+                model.ReviewLanguages.Add(item.Name, new ReviewLevelAndCounter { Selected = false });
             }
 
             if (member.ReviewLanguages != null)
@@ -320,14 +302,16 @@ namespace SubmissionEvaluation.Server.Controllers
                 foreach (var item in member.ReviewLanguages)
                 {
                     if (!model.ReviewLanguages.ContainsKey(item.Key)) continue;
-                    model.ReviewLanguages[item.Key].Selected =  true;
+                    model.ReviewLanguages[item.Key].Selected = true;
                     model.ReviewLanguages[item.Key].ReviewLevel = item.Value.ReviewLevel;
                     model.ReviewLanguages[item.Key].ReviewCounter = item.Value.ReviewCounter;
                 }
             }
+
             return Ok(model);
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("SetAllReviewLevelForMember/{id}")]
         public IActionResult SetAllReviewLevelForMember([FromRoute] string id, [FromBody] ReviewerModel data)
         {
@@ -336,15 +320,16 @@ namespace SubmissionEvaluation.Server.Controllers
             if (data.ReviewLanguages == null) data.ReviewLanguages = new Dictionary<string, ReviewLevelAndCounter>();
             foreach (var item in data.ReviewLanguages)
             {
-                if (item.Value.Selected)
-                    model.Add(item.Key, item.Value);
+                if (item.Value.Selected) model.Add(item.Key, item.Value);
             }
+
             JekyllHandler.MemberProvider.UpdateAllReviewLevelsAndCounters(member, model);
-            return Ok(new GenericModel {HasSuccess = true, Message = SuccessMessages.GenericSuccess});
+            return Ok(new GenericModel { HasSuccess = true, Message = SuccessMessages.GenericSuccess });
         }
 
+        [Authorize(Roles = "admin")]
         [HttpPost("IncreaseMemberReviewLevel/{language}")]
-        public IActionResult IncreaseMemberReviewLevel([FromBody] string id,[FromRoute] string language)
+        public IActionResult IncreaseMemberReviewLevel([FromBody] string id, [FromRoute] string language)
         {
             var member = JekyllHandler.MemberProvider.GetMemberById(id);
             JekyllHandler.Domain.Interactions.IncreaseReviewLevel(member, language);
@@ -357,6 +342,12 @@ namespace SubmissionEvaluation.Server.Controllers
         [HttpPost("ResetMemberPassword")]
         public IActionResult ResetMemberPassword([FromBody] string id)
         {
+            var currentMember = JekyllHandler.GetMemberForUser(User);
+            if (!(currentMember.IsAdmin || IsMemberInManagedGroup(id)))
+            {
+                return Ok(new GenericModel { HasError = true, Message = ErrorMessages.NoPermission });
+            }
+
             Func<string> passwordGenerator = () =>
             {
                 var charSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&*@".ToArray();
@@ -374,8 +365,17 @@ namespace SubmissionEvaluation.Server.Controllers
             var newPwd = passwordGenerator.Invoke();
             var pwdHash = CryptographyProvider.CreateArgon2Password(newPwd);
             JekyllHandler.MemberProvider.UpdatePassword(member, pwdHash);
-            var model = new ResetPasswordModel<IMember> {Member = member, Password = newPwd};
+            var model = new ResetPasswordModel<IMember> { Member = member, Password = newPwd };
             return Ok(model);
+        }
+
+        private bool IsMemberInManagedGroup(string id)
+        {
+            var currentMember = JekyllHandler.GetMemberForUser(User);
+            var permissions = JekyllHandler.GetPermissionsForMember(currentMember);
+            var managedGroupIds = JekyllHandler.Domain.Query.GetAllGroups().Where(x => permissions.GroupsAccessible.Contains(x.Id)).Select(x => x.Id);
+            var member = JekyllHandler.MemberProvider.GetMemberById(id);
+            return member.Groups.Intersect(managedGroupIds, StringComparer.OrdinalIgnoreCase).Any();
         }
     }
 }

@@ -6,9 +6,11 @@
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager Navi
+@inject HttpClient httpClient
+@inject NavigationManager navi
 
 <div class="row">
     <div class="col-12">
@@ -19,72 +21,24 @@
             <div class="input-field-padding" style="margin-top: 20px">
                 Informationen zum Review finden sich <a href="/Help/Review">hier</a>.
             </div>
-            @if (Model != null)
-            {
-                <div class="input-field-padding" style="margin-top: 20px">
-                    @if (Model.ReviewableSubmissions == null || !Model.ReviewableSubmissions.Any())
-                    {
-                        <h4>Zur Zeit sind keine Einreichungen ohne Review vorhanden.</h4>
-                    }
-                    else
-                    {
-                        <h4>Folgende Einreichungen können gereviewed werden:</h4>
-                        <table class="ranking_table">
-                            <tr class="ranking_head">
-                                <th class="th_name">Challenge</th>
-                                <th class="th_name">Sprache</th>
-                                <th class="th_name">Einreichdatum</th>
-                                <th class="th_name_compilers">Review</th>
-                            </tr>
-                            @foreach (var submission in Model.ReviewableSubmissions)
-                            {
-                                <tr>
-                                    <td>@submission.Challenge</td>
-                                    <td>@submission.Language</td>
-                                    <td>@submission.SubmissionDate</td>
-                                    <td class="th_not_name">
-                                        <NavLink href=@($"Review/Tool/{submission.Challenge}/{submission.SubmissionId}") class="btn btn-outline-dark">Review</NavLink>
-                                    </td>
-                                </tr>
-                            }
-                        </table>
-                    }
-                </div>
 
-                @if (Permissions.IsAdmin)
-                {
-                    <div class="input-field-padding" style="margin-top: 20px">
-                        @if (Model.RunningReviews?.Any() != true)
-                        {
-                            <h4>Zur Zeit arbeitet keiner an einem Review.</h4>
-                        }
-                        else
-                        {
-                            <h4>Es laufen derzeit folgende Reviews:</h4>
-                            <table class="ranking_table">
-                                <tr class="ranking_head">
-                                    <th class="th_name">Challenge</th>
-                                    <th class="th_name">Reviewer</th>
-                                    <th class="th_name">Sprache</th>
-                                    <th class="th_name">Läuft ab am</th>
-                                </tr>
-                                @foreach (var submission in Model.RunningReviews)
-                                {
-                                    <tr>
-                                        <td>@submission.Challenge</td>
-                                        <td>@submission.ReviewerName</td>
-                                        <td>@submission.Language</td>
-                                        <td>@submission.Status</td>
-                                    </tr>
-                                }
-                            </table>
-                        }
-                    </div>
-                }
-            }
-            else
+            <Table TEntry="Result" Entries="Model?.ReviewableSubmissions" Caption="Einreichungen ohne Review" NoEntriesText="Keine Einreichungen ohne Review vorhanden." SearchEnabled="true">
+                <Column TEntry="Result" Header="Challenge" StringValue="@(context => context.Challenge)"/>
+                <Column TEntry="Result" Header="Sprache" StringValue="@(context => context.Language)"/>
+                <Column TEntry="Result" Header="Einreichdatum"  Value="@(context => context.SubmissionDate)" StringValue="@(context => context.SubmissionDate.ToShortDateString())" SortDirection="ListSortDirection.Ascending"/>
+                <Column TEntry="Result" Header="Review">
+                    <NavLink href=@($"Review/Tool/{context.Challenge}/{context.SubmissionId}") class="btn btn-outline-dark">Review</NavLink>
+                </Column>
+            </Table>
+
+            @if (Permissions?.IsAdmin == true)
             {
-                <Wave />
+                <Table TEntry="RunningReviewModel" Entries="Model?.RunningReviews" Caption="Laufende Reviews" NoEntriesText="Keine laufenden Reviews vorhanden." SearchEnabled="true">
+                    <Column TEntry="RunningReviewModel" Header="Challenge" StringValue="@(context => context.Challenge)"/>
+                    <Column TEntry="RunningReviewModel" Header="Reviewer" StringValue="@(context => context.ReviewerName)"/>
+                    <Column TEntry="RunningReviewModel" Header="Sprache" StringValue="@(context => context.Language)"/>
+                    <Column TEntry="RunningReviewModel" Header="Läuft ab am"  Value="@(context => context.ReviewDate ?? DateTime.MaxValue)" StringValue="@(context => context.ReviewDate?.ToShortDateString() ?? "-")" SortDirection="ListSortDirection.Ascending"/>
+                </Table>
             }
         </div>
     </div>
@@ -103,18 +57,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        Permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
         if (!PermissionHelper.CheckPermissions(Actions.View, "Review", Permissions))
         {
-            Navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
+            navi.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        UserSettings = await HttpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
-        Model = await HttpClient.GetFromJsonAsync<ReviewOverviewModel>("api/Review/GetSubmissionOverview");
+        UserSettings = await httpClient.GetFromJsonAsync<SettingsModel>("api/Account/getusersettings");
+        Model = await httpClient.GetFromJsonAsync<ReviewOverviewModel>("api/Review/GetSubmissionOverview");
         Model.RunningReviews = Model.RunningReviews ?? new List<RunningReviewModel>();
         if (Model.RunningReviews.Any(x => x.ReviewerName.Equals(UserSettings.Name)) && (Command == null || !Command.Equals("Canceled")))
         {
             var runningReview = Model.RunningReviews.Where(x => x.ReviewerName.Equals(UserSettings.Name)).FirstOrDefault();
-            Navi.NavigateTo($"Review/Tool/{runningReview.Challenge}/{runningReview.Submission}");
+            navi.NavigateTo($"Review/Tool/{runningReview.Challenge}/{runningReview.Submission}");
         }
         StateHasChanged();
     }

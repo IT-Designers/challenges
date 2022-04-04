@@ -3,9 +3,11 @@
 @using SubmissionEvaluation.Shared.Models.Permissions
 @using SubmissionEvaluation.Shared.Classes
 @using SubmissionEvaluation.Shared.Classes.Messages
+@using SubmissionEvaluation.Client.Shared.Components.Table
+@using System.ComponentModel
 
-@inject HttpClient HttpClient
-@inject NavigationManager NavigationManager
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
 
 <div class="row">
     <div class="col-12">
@@ -21,54 +23,24 @@
             @if (Model != null)
             {
                 <MessageHeader Model="Model"/>
-                <label for="searchInput">Suche: </label>
-                <input type="search" id="searchInput" aria-controls="users-table" @onkeypress="StateHasChanged" @bind="SearchInput" placeholder="Suche nach einem Bundle"/>
-                <table id="bundles-table" class="display table">
-                    <thead>
-                    <tr>
-                        <th>
-                            <button class="no-styling" @onclick='() => Sort("Title")'>Titel</button>
-                        </th>
-                        <th>
-                            <button class="no-styling" @onclick='() => Sort("Author")'>Autor</button>
-                        </th>
-                        <th>
-                            <button class="no-styling" @onclick='() => Sort("Category")'>Kategorie</button>
-                        </th>
-                        <th>Veröffentlicht</th>
-                        <th>Challengeliste</th>
-                        <th>Bearbeiten</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var bundle in Model.Bundles.Where(x => x.Title.ToLower().Contains(SearchInput.ToLower())))
-                    {
-                        <tr>
-                            <td>
-                                <a class="no-link-coloring" href="@($"/Bundleview/{bundle.Id}")">
-                                    @bundle.Title
-                                </a>
-                            </td>
-                            <td>
-                                <a href="@($"Member/Members/{bundle.AuthorId}")" class="author">@(bundle.Author)</a>
-                            </td>
-                            <td>@Model.Categories[bundle.Category]</td>
-                            @if (bundle.IsDraft)
-                            {
-                                <td data-sort="0">Unveröffentlicht</td>
-                            }
-                            else
-                            {
-                                <td data-sort="1">Veröffentlicht</td>
-                            }
-                            <td>@(bundle.Challenges.Count)</td>
-                            <td>
-                                <a href="@($"/Bundle/Edit/{bundle.Id}")" class="btn btn-outline-dark btn-margin btn-block">Bearbeiten</a>
-                            </td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+
+                <Table TEntry="BundleModel" Entries="Model.Bundles" SearchEnabled="true">
+                    <Column TEntry="BundleModel" Header="Title" StringValue="@(context => context.Title)" SortDirection="ListSortDirection.Ascending">
+                        <a class="no-link-coloring" href="@($"/Bundleview/{context.Id}")">
+                            @context.Title
+                        </a>
+                    </Column>
+                    <Column TEntry="BundleModel" Header="Autor" StringValue="@(context => context.Author)">
+                        <a href="@($"Member/Members/{context.AuthorId}")" class="author">@(context.Author)</a>
+                    </Column>
+                    <Column TEntry="BundleModel" Header="Kategorie" StringValue="@(context => Model.Categories[context.Category])"/>
+                    <Column TEntry="BundleModel" Header="Veröffentlicht" StringValue="@(context => context.IsDraft ? "Unveröffentlicht" : "Veröffentlicht")"/>
+                    <Column TEntry="BundleModel" Header="Challengeliste" Value="@(context => context.Challenges.Count)" TextAlignment="TextAlignment.Right"/>
+                    <Column TEntry="BundleModel" Header="Aktionen">
+                        <a href="@($"/Bundle/Edit/{context.Id}")" class="btn btn-outline-dark btn-margin btn-block">Bearbeiten</a>
+                    </Column>
+                </Table>
+
                 <div>
                     <a href="/Bundle/Create" class="btn btn-outline-dark btn-margin col-12">Bundle anlegen</a>
                 </div>
@@ -79,35 +51,16 @@
 
 @code {
     BundleOverviewModel Model { get; set; }
-    private string SearchInput { get; set; } = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        var permissions = await HttpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
+        var permissions = await httpClient.GetFromJsonAsync<Permissions>("api/Members/Permissions");
         if (!PermissionHelper.CheckPermissions(Actions.View, "Bundles", permissions))
         {
-            NavigationManager.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
+            navigationManager.NavigateTo($"Home/Error/{ErrorMessages.NoPermission}");
         }
-        Model = await HttpClient.GetFromJsonAsync<BundleOverviewModel>("api/Bundle/List");
-        StateHasChanged();
-    }
+        Model = await httpClient.GetFromJsonAsync<BundleOverviewModel>("api/Bundle/List");
 
-    void Sort(string type)
-    {
-        var bundles = Model.Bundles.ToList();
-        switch (type)
-        {
-            case "Title":
-                bundles.Sort((x, y) => x.Title.CompareTo(y.Title));
-                break;
-            case "Author":
-                bundles.Sort((x, y) => x.Author.CompareTo(y.Author));
-                break;
-            case "Category":
-                bundles.Sort((x, y) => x.Category.CompareTo(y.Category));
-                break;
-        }
-        Model.Bundles = bundles;
         StateHasChanged();
     }
 

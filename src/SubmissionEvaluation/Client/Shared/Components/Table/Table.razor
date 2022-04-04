@@ -1,0 +1,252 @@
+﻿@using System.ComponentModel
+@typeparam TEntry
+
+<CascadingValue Value="this">
+
+    @if (SearchEnabled)
+    {
+        <div class="row mt-2 justify-content-end">
+            <div class="col-4">
+                <input type="search" class="form-control" placeholder="Suche" aria-controls="table" @bind="SearchValue" @bind:event="oninput">
+            </div>
+        </div>
+    }
+
+    <div class="row mt-2">
+        <div class="col">
+            <table id="table" class="@(TableClass)">
+                @if (Caption != null)
+                {
+                    <caption>@Caption</caption>
+                }
+                @if (columns.Any(x => !string.IsNullOrWhiteSpace(x.Header)))
+                {
+                    <thead class="@(TheadClass)">
+                    <tr>
+                        @foreach (var column in columns)
+                        {
+                            if (column.Value is null && column.StringValue is null)
+                            {
+                                <th scope="col">@column.Header</th>
+                            }
+                            else
+                            {
+                                <th scope="col" class="sort" @onclick="@(() => Sort(column))">
+                                    @(GetSortIcon(column))
+                                    @column.Header
+                                </th>
+                            }
+                        }
+                    </tr>
+                    </thead>
+                }
+                <tbody>
+                @if (Entries != null)
+                {
+                    if (TableEntries.Any())
+                    {
+                        @foreach (var entry in TableEntries)
+                        {
+                            <tr style="@GetRowStyle(entry)" @onclick="@(() => RowClick(entry))">
+                                @foreach (var column in columns)
+                                {
+                                    <td style="@(GetColumnStyle(column))">
+                                        @if (column.ChildContent != null)
+                                        {
+                                            @column.ChildContent(entry)
+                                        }
+                                        else if (column.StringValue != null)
+                                        {
+                                            @column.StringValue(entry)
+                                        }
+                                        else if (column.Value != null)
+                                        {
+                                            @column.Value(entry)
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        @if (NoEntriesText != null)
+                        {
+                            <tr>
+                                <td colspan="@columns.Count">@NoEntriesText</td>
+                            </tr>
+                        }
+                    }
+                }
+                else
+                {
+                    <Wave/>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @ChildContent
+</CascadingValue>
+
+@code {
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public string TableClass { get; set; } = "table";
+
+    [Parameter]
+    public string TheadClass { get; set; } = "thead-light";
+
+    [Parameter]
+    public IEnumerable<TEntry> Entries { get; set; }
+
+    [Parameter]
+    public string Caption { get; set; }
+
+    [Parameter]
+    public string NoEntriesText { get; set; }
+
+    [Parameter]
+    public bool SearchEnabled { get; set; }
+
+    [Parameter]
+    public Action<TEntry> RowClick { get; set; }
+
+    [Parameter]
+    public Func<TEntry, string> RowColor { get; set; }
+
+    List<TEntry> TableEntries { get; set; } = new List<TEntry>();
+
+    List<Column<TEntry>> columns = new List<Column<TEntry>>();
+
+    private string searchValue;
+
+    string SearchValue
+    {
+        get => searchValue;
+        set
+        {
+            searchValue = value;
+            UpdateEntries();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    Column<TEntry> currentSortColumn;
+    ListSortDirection sortDirection;
+
+    internal void AddColumn(Column<TEntry> column)
+    {
+        columns.Add(column);
+        if (column.SortDirection != null)
+        {
+            currentSortColumn = column;
+            sortDirection = column.SortDirection.Value;
+            UpdateEntries();
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        UpdateEntries();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        UpdateEntries();
+    }
+
+    private void UpdateEntries()
+    {
+        var entries = Entries ?? new List<TEntry>();
+        entries = FilterEntries(entries);
+        entries = SortEntries(entries);
+        TableEntries = entries.ToList();
+    }
+
+    private IEnumerable<TEntry> FilterEntries(IEnumerable<TEntry> entries)
+    {
+        return string.IsNullOrWhiteSpace(SearchValue) ? entries : entries.Where(entry => columns.Any(column => column.StringValue != null && column.StringValue(entry).Contains(SearchValue, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private IEnumerable<TEntry> SortEntries(IEnumerable<TEntry> entries)
+    {
+        var value = currentSortColumn?.Value ?? currentSortColumn?.StringValue;
+
+        if (value is null)
+        {
+            return entries;
+        }
+
+        return sortDirection == ListSortDirection.Ascending ? entries.OrderBy(value) : entries.OrderByDescending(value);
+    }
+
+    void Sort(Column<TEntry> column)
+    {
+        if (currentSortColumn == column)
+        {
+            sortDirection = sortDirection == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending;
+        }
+        currentSortColumn = column;
+        UpdateEntries();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetRowStyle(TEntry entry)
+    {
+        var styles = new List<Func<TEntry, string>> { GetRowColor }.Select(x => x(entry)).ToList();
+        if (RowClick != null)
+        {
+            styles.Add("cursor: pointer");
+        }
+        return string.Join(";", styles.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private string GetRowColor(TEntry entry)
+    {
+        var color = RowColor?.Invoke(entry);
+        return color is null ? null : $"background: {color}";
+    }
+
+    private string GetColumnStyle(Column<TEntry> column)
+    {
+        var styles = new List<Func<Column<TEntry>, string>> { GetColumnTextAlignment }.Select(x => x(column)).ToList();
+        return string.Join(";", styles.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private string GetColumnTextAlignment(Column<TEntry> column)
+    {
+        var textAlignment = column.TextAlignment switch {
+            TextAlignment.Start => "start",
+            TextAlignment.End => "end",
+            TextAlignment.Left => "left",
+            TextAlignment.Right => "right",
+            TextAlignment.Center => "center",
+            TextAlignment.Justify => "justify",
+            TextAlignment.JustifyAll => "justify-all",
+            TextAlignment.MatchParent => "match-parent",
+            _ => throw new ArgumentOutOfRangeException(nameof(column))
+            };
+        return $"text-align: {textAlignment}";
+    }
+
+    private RenderFragment GetSortIcon(Column<TEntry> column)
+    {
+        if (currentSortColumn == column)
+        {
+            if (sortDirection == ListSortDirection.Ascending)
+            {
+                return @<span class="oi oi-sort-ascending"></span>;
+            }
+            return @<span class="oi oi-sort-descending"></span>;
+        }
+        return null;
+    }
+
+}

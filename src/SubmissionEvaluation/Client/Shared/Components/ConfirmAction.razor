@@ -1,0 +1,32 @@
+<div class="row">
+    <div class="col-12">
+        <div class="post-area post">
+            <p>@ActionMessage</p>
+            <button type="button" class="btn btn-danger mr-2" @onclick="Confirm">Bestätigen</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string ActionMessage { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnConfirmed { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnCanceled { get; set; }
+
+    private async Task Confirm(MouseEventArgs e)
+    {
+        await OnConfirmed.InvokeAsync(e);
+    }
+
+    private async Task Cancel(MouseEventArgs e)
+    {
+        await OnCanceled.InvokeAsync(e);
+    }
+
+}
