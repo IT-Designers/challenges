@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -203,27 +202,16 @@ namespace SubmissionEvaluation.Domain.Operations
 
         public List<SubmitterRankings> BuildSubmitterRanklist(List<ChallengeRanklist> ranklists)
         {
-            var result = new ConcurrentDictionary<string, SubmitterRankings>();
-            Parallel.ForEach(ranklists, ranklist =>
-            {
-                foreach (var submitter in ranklist.Submitters)
-                {
-                    if (!result.ContainsKey(submitter.Id))
+            return ranklists.SelectMany(ranklist => ranklist.Submitters.Select(submitter => (ranklist.Challenge, submitter)))
+                .GroupBy(x => x.submitter.Id,
+                    x => new SubmitterRankingEntry
                     {
-                        result[submitter.Id] = new SubmitterRankings {Name = submitter.Id};
-                    }
-
-                    result[submitter.Id].Submissions.Add(new SubmitterRankingEntry
-                    {
-                        Challenge = ranklist.Challenge,
-                        Rank = submitter.Rank,
-                        Points = submitter.Points,
-                        Language = submitter.Language,
-                        DuplicateScore = submitter.DuplicateScore
-                    });
-                }
-            });
-            return result.Values.ToList();
+                        Challenge = x.Challenge,
+                        Rank = x.submitter.Rank,
+                        Points = x.submitter.Points,
+                        Language = x.submitter.Language,
+                        DuplicateScore = x.submitter.DuplicateScore
+                    }).Select(x => new SubmitterRankings { Name = x.Key, Submissions = x.ToList() }).ToList();
         }
 
         public GlobalRanklist BuildGlobalRanklist(IEnumerable<ChallengeRanklist> ranklists, GlobalRanklist oldRanklist)
